@@ -2,16 +2,10 @@
 
 extern crate test;
 
-use std::cmp::min;
+use std::mem::size_of;
 
 #[cfg(test)]
 mod tests;
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum ByteOrder {
-    LittleEndian,
-    BigEndian,
-}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ReadError {
@@ -27,74 +21,35 @@ pub enum ReadError {
 
 pub type Result<T> = std::result::Result<T, ReadError>;
 
-pub struct BitBuffer<'a> {
-    bytes: &'a [u8],
-    order: ByteOrder,
+pub struct BitBuffer {
+    bytes: Vec<u8>,
     bit_len: usize,
+    byte_len: usize,
 }
 
-macro_rules! bitreader_unsigned_be {
-    ($buffer:expr, $type:ty, $position:expr, $count:expr) => {
+macro_rules! array_ref {
+    ($arr:expr, $offset:expr, $len:expr) => {{
         {
-            let size = std::mem::size_of::<$type>() * 8;
-            if $count > size {
-                return Err(ReadError::TooManyBits { requested: $count, max: size });
+            #[inline]
+            unsafe fn as_array<T>(slice: &[T]) -> &[T; $len] {
+                &*(slice.as_ptr() as *const [_; $len])
             }
-
-            let bits_left = $buffer.bit_len() - $position;
-
-            if $count > bits_left {
-                return Err(ReadError::NotEnoughData { requested: $count, bits_left});
+            let offset = $offset;
+            let slice = & $arr[offset..offset + $len];
+            #[allow(unused_unsafe)]
+            unsafe {
+                as_array(slice)
             }
-
-            let mut value: $type = 0;
-
-            //let mut i = 0;
-            //let mut offset = $position;
-
-//            while i < $count {
-//                let remaining = $count - i;
-//                let bit_offset = (offset & 7) as u8;
-//                let byte_index = (offset / 8) as usize;
-//                let byte = $buffer.bytes[byte_index];
-//
-//                // how much can we read from the current byte
-//                let read = min(remaining, 8 - bit_offset);
-//
-//                println!("{}, {}", remaining, bit_offset);
-//                println!("read {} bits from {:#010b}", read, byte);
-//
-//                let mask = !(0xFFu8.wrapping_shl(read as u32));
-//                let shift =  8 - read - bit_offset;
-//                let shifted = byte.wrapping_shr(shift as u32);
-//                let read_bits = shifted & mask;
-//                println!("{:#010b} >> {} = {:#010b}", byte, shift, shifted);
-//                println!("{:#010b} & {:#010b} = {:#010b}", mask, shifted, read_bits);
-//
-//                println!("{:#010b} << {} | {:#010b}", value, read, read_bits);
-//                value = value << read | read_bits as $type;
-//
-//                offset += read as usize;
-//                i += read;
-//            }
-
-            for i in $position..($position + $count as usize ) {
-                let byte_index = (i / 8) as usize;
-                let byte = $buffer.bytes[byte_index];
-                let shift = 7 - (i % 8);
-                let bit = (byte >> shift) as $type & 1;
-                value = (value << 1) | bit;
-            }
-
-            Ok(value)
         }
-    }
+    }}
 }
+
+const USIZE_SIZE: usize = std::mem::size_of::<usize>();
 
 macro_rules! bitreader_unsigned_le {
     ($buffer:expr, $type:ty, $position:expr, $count:expr) => {
         {
-            let size = std::mem::size_of::<$type>() * 8;
+            let size: usize = size_of::<$type>() * 8;
             if $count > size {
                 return Err(ReadError::TooManyBits { requested: $count, max: size });
             }
@@ -105,33 +60,18 @@ macro_rules! bitreader_unsigned_le {
                 return Err(ReadError::NotEnoughData { requested: $count, bits_left});
             }
 
-            let mut value: $type = 0;
+            let byte_index = $position / 8;
+            let bit_offset = $position & 7;
+            let bytes:&[u8; USIZE_SIZE] = array_ref!($buffer.bytes(), byte_index, USIZE_SIZE);
+            let container_le = unsafe {
+                std::mem::transmute::<[u8; USIZE_SIZE], usize>(*bytes)
+            };
+            let container = usize::from_le(container_le);
+            let shifted = container >> bit_offset;
+            let mask = if $count == (USIZE_SIZE * 8) {usize::max_value()} else {!(usize::max_value() << $count)};
+            let value = shifted & mask;
 
-            let mut i = 0;
-            let mut offset = $position;
-
-            while i < $count {
-                let remaining = $count - i;
-                let bit_offset = offset & 7;
-                let byte_index = offset / 8;
-                let byte = $buffer.bytes[byte_index];
-
-                // how much can we read from the current byte
-                let read = min(remaining, 8 - bit_offset);
-
-                //let mask = if read == 8 {0xFFu8} else {!(0xFFu8 << read)};
-                let mask = if read == 8 {0xFFu8} else {!(0xFFu8 << read)};
-                let shift =  bit_offset;
-                let shifted = byte >> shift;
-                let read_bits = shifted & mask;
-
-                value |= read_bits as $type << i;
-
-                offset += read as usize;
-                i += read;
-            }
-
-            Ok(value)
+            Ok(value as $type)
         }
     }
 }
@@ -147,40 +87,51 @@ macro_rules! make_signed {
     }
 }
 
-impl<'a> BitBuffer<'a> {
-    /// Construct a new BitBuffer from a byte slice.
-    pub fn new(bytes: &'a [u8], order: ByteOrder) -> BitBuffer<'a> {
+impl BitBuffer {
+    pub fn from_slice(data: &[u8]) -> BitBuffer {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(data);
+        BitBuffer::from_vec(bytes)
+    }
+
+    pub fn from_vec(mut bytes: Vec<u8>) -> BitBuffer {
+        let byte_len = bytes.len();
+        // add leading 0 bytes for overflow during reading
+        bytes.resize(byte_len + size_of::<usize>(), 0);
+        BitBuffer::from_padded_vec(&bytes, byte_len)
+    }
+
+    pub fn from_padded_vec(bytes: &Vec<u8>, byte_len: usize) -> BitBuffer {
         BitBuffer {
-            bytes,
-            order,
-            bit_len: bytes.len() * 8,
+            bytes: bytes.to_vec(),
+            bit_len: byte_len * 8,
+            byte_len,
         }
+    }
+
+    fn bytes(&self) -> &[u8] {
+        self.bytes.as_slice()
     }
 
     pub fn bit_len(&self) -> usize {
         self.bit_len
     }
 
+    pub fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
     pub fn read_u8(&self, position: usize, count: usize) -> Result<u8> {
-        match self.order {
-            ByteOrder::LittleEndian => bitreader_unsigned_le!(self, u8, position, count),
-            ByteOrder::BigEndian => bitreader_unsigned_be!(self, u8, position, count)
-        }
+        self.bytes.
+        bitreader_unsigned_le!(self, u8, position, count)
     }
 
     pub fn read_u16(&self, position: usize, count: usize) -> Result<u16> {
         bitreader_unsigned_le!(self, u16, position, count)
-//        match self.order {
-//            ByteOrder::LittleEndian => bitreader_unsigned_le!(self, u16, position, count),
-//            ByteOrder::BigEndian => bitreader_unsigned_be!(self, u16, position, count)
-//        }
     }
 
     pub fn read_u32(&self, position: usize, count: usize) -> Result<u32> {
-        match self.order {
-            ByteOrder::LittleEndian => bitreader_unsigned_le!(self, u32, position, count),
-            ByteOrder::BigEndian => bitreader_unsigned_be!(self, u32, position, count)
-        }
+        bitreader_unsigned_le!(self, u32, position, count)
     }
 
     pub fn read_i8(&self, position: usize, count: usize) -> Result<i8> {
