@@ -2,22 +2,46 @@ use std::fs;
 use super::*;
 use test::Bencher;
 
-#[test]
-fn read_le() {
-    let bytes: &[u8] = &[
-        0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-        0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
-        0, 0, 0, 0, 0, 0, 0, 0
-    ];
 
-    let buffer = BitBuffer::from_padded_slice(&bytes, 8);
+const BYTES: &'static[u8] = &[
+    0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    0, 0, 0, 0, 0, 0, 0, 0
+];
+
+#[test]
+fn read_u8() {
+    let buffer = BitBuffer::from_padded_slice(BYTES, 8);
 
     assert_eq!(buffer.read_u8(0, 1), 0b1);
     assert_eq!(buffer.read_u8(1, 1), 0b0);
     assert_eq!(buffer.read_u8(2, 2), 0b01);
-    assert_eq!(buffer.read_u8(7, 5), 0b10101);
-    assert_eq!(buffer.read_u8(6, 5), 0b01010);
-    assert_eq!(buffer.read_u16(6, 12), 0b000110101010);
+    assert_eq!(buffer.read_u8(7, 5), 0b1010_1);
+    assert_eq!(buffer.read_u8(6, 5), 0b010_10);
+}
+
+#[test]
+fn read_u16() {
+    let buffer = BitBuffer::from_padded_slice(BYTES, 8);
+
+    assert_eq!(buffer.read_u16(6, 12), 0b00_0110_1010_10);
+}
+
+#[test]
+fn read_u32() {
+    let buffer = BitBuffer::from_padded_slice(BYTES, 8);
+
+    assert_eq!(buffer.read_u32(6, 24), 0b01_1001_1010_1100_0110_1010_10);
+}
+
+#[test]
+fn read_u64() {
+    let buffer = BitBuffer::from_padded_slice(BYTES, 8);
+
+
+    println!("{:#036b}", buffer.read_u64(6, 32));
+    assert_eq!(buffer.read_u64(6, 34), 0b1001_1001_1001_1001_1010_1100_0110_1010_10);
+    assert_eq!(buffer.read_u64(6, 60), 0b00_1110_01111001_1001_1001_1001_1001_1001_1001_1001_1010_1100_0110_1010_10);
 }
 
 fn read_perf(buffer: BitBuffer) -> u16 {
@@ -44,7 +68,7 @@ fn perf(b: &mut Bencher) {
     b.iter(|| {
         let buffer = BitBuffer::from_padded_slice(&bytes, length);
         let data = read_perf(buffer);
-//        assert_eq!(data, 43943);
+        assert_eq!(data, 43943);
         test::black_box(data);
     });
 }
