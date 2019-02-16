@@ -3,3 +3,6 @@ name = "bitbuffer"
 version = "0.1.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
+
+[dependencies]
+num-traits = "0.2"
