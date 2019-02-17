@@ -49,7 +49,7 @@ macro_rules! array_ref {
     }}
 }
 
-const USIZE_SIZE: usize = std::mem::size_of::<usize>();
+const USIZE_SIZE: usize = size_of::<usize>();
 
 impl<'a> BitBuffer<'a> {
     pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize) -> BitBuffer<'a> {
@@ -109,15 +109,16 @@ impl<'a> BitBuffer<'a> {
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
+            let usize_bit_size = size_of::<usize>() * 8;
 
             if type_bit_size < count {
                 return Err(ReadError::TooManyBits {
                     requested: count,
-                    max: size_of::<T>() * 8,
+                    max: type_bit_size,
                 });
             }
 
-            if size_of::<usize>() > size_of::<T>() || (count / 8) < size_of::<usize>() {
+            if size_of::<usize>() > size_of::<T>() || count < usize_bit_size - 8 {
                 let raw = self.read_usize(position, count)?;
                 let max_signed_value = (1 << (type_bit_size - 1)) - 1;
                 if T::is_signed() && raw > max_signed_value {
@@ -126,17 +127,18 @@ impl<'a> BitBuffer<'a> {
                     T::from(raw).unwrap()
                 }
             } else {
-                let mut bits_left = count;
+                let mut left_to_read = count;
                 let mut partial = T::zero();
-                let max_read = size_of::<usize>() - 1 * 8;
+                let max_read = (size_of::<usize>() - 1) * 8;
                 let mut read_pos = position;
                 let mut bit_offset = 0;
-                while bits_left > 0 {
-                    let read = min(min(bits_left, max_read), self.bit_len - read_pos);
+                while left_to_read > 0 {
+                    let bits_left = self.bit_len - read_pos;
+                    let read = min(min(left_to_read, max_read), bits_left);
                     partial |= T::from(self.read_usize(read_pos, read)?).unwrap() << bit_offset;
                     bit_offset += read;
                     read_pos += read;
-                    bits_left -= read;
+                    left_to_read -= read;
                 }
 
                 partial
