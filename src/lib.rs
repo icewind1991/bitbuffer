@@ -2,13 +2,15 @@
 
 extern crate test;
 
-use num_traits::{PrimInt, Signed};
+use is_signed::IsSigned;
+use num_traits::{PrimInt};
 use std::cmp::min;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
 
 #[cfg(test)]
 mod tests;
+mod is_signed;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ReadError {
@@ -66,7 +68,7 @@ impl<'a> BitBuffer<'a> {
         self.byte_len
     }
 
-    pub fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
+    fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
         if position + count > self.bit_len {
             return Err(ReadError::NotEnoughData {
                 requested: count,
@@ -103,41 +105,52 @@ impl<'a> BitBuffer<'a> {
     }
 
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-        where T: PrimInt + BitOrAssign
+        where T: PrimInt + BitOrAssign + IsSigned
     {
-        if size_of::<T>() * 8 < count {
-            return Err(ReadError::TooManyBits {
-                requested: count,
-                max: size_of::<T>() * 8,
-            });
-        }
-        if size_of::<usize>() > size_of::<T>() || (count / 8) < size_of::<usize>() {
-            Ok(T::from(self.read_usize(position, count)?).unwrap())
-        } else {
-            let mut bits_left = count;
-            let mut partial = T::zero();
-            let max_read = size_of::<usize>() - 1 * 8;
-            let mut read_pos = position;
-            let mut bit_offset = 0;
-            while bits_left > 0 {
-                let read = min(min(bits_left, max_read), self.bit_len - read_pos);
-                partial |= T::from(self.read_usize(read_pos, read)?).unwrap() << bit_offset;
-                bit_offset += read;
-                read_pos += read;
-                bits_left -= read;
+        let value = {
+            let type_bit_size = size_of::<T>() * 8;
+
+            if type_bit_size < count {
+                return Err(ReadError::TooManyBits {
+                    requested: count,
+                    max: size_of::<T>() * 8,
+                });
             }
 
-            Ok(partial)
+            if size_of::<usize>() > size_of::<T>() || (count / 8) < size_of::<usize>() {
+                let raw = self.read_usize(position, count)?;
+                let max_signed_value = (1 << (type_bit_size - 1)) - 1;
+                if T::is_signed() && raw > max_signed_value {
+                    return Ok(T::zero() - T::from(raw & max_signed_value).unwrap())
+                } else {
+                    T::from(raw).unwrap()
+                }
+            } else {
+                let mut bits_left = count;
+                let mut partial = T::zero();
+                let max_read = size_of::<usize>() - 1 * 8;
+                let mut read_pos = position;
+                let mut bit_offset = 0;
+                while bits_left > 0 {
+                    let read = min(min(bits_left, max_read), self.bit_len - read_pos);
+                    partial |= T::from(self.read_usize(read_pos, read)?).unwrap() << bit_offset;
+                    bit_offset += read;
+                    read_pos += read;
+                    bits_left -= read;
+                }
+
+                partial
+            }
+        };
+
+        if T::is_signed() {
+            let sign_bit = value >> (count - 1) & T::one();
+            let absolute_value = value & !(T::max_value() << (count - 1));
+            let sign = T::one() - sign_bit - sign_bit;
+            Ok(absolute_value * sign)
+        } else {
+            Ok(value)
         }
-    }
-
-    pub fn read_signed<T>(&self, position: usize, count: usize) -> Result<T>
-        where T: PrimInt + BitOrAssign + Signed
-    {
-        let value = self.read::<T>(position, count)?;
-
-        let sign_bit = value >> (count - 1) & T::one();
-        Ok(value | (T::zero() - sign_bit) ^ ((T::one() << count) - T::one()))
     }
 
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
