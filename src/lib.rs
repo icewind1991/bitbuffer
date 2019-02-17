@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(try_from)]
 #![warn(missing_docs)]
 
 //! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
@@ -42,23 +43,6 @@ pub struct BitBuffer<'a> {
     bytes: &'a [u8],
     bit_len: usize,
     byte_len: usize,
-}
-
-macro_rules! array_ref {
-    ($arr:expr, $offset:expr, $len:expr) => {{
-        {
-            #[inline]
-            unsafe fn as_array<T>(slice: &[T]) -> &[T; $len] {
-                &*(slice.as_ptr() as *const [_; $len])
-            }
-            let offset = $offset;
-            let slice = & $arr[offset..offset + $len];
-            #[allow(unused_unsafe)]
-            unsafe {
-                as_array(slice)
-            }
-        }
-    }}
 }
 
 const USIZE_SIZE: usize = size_of::<usize>();
@@ -121,11 +105,11 @@ impl<'a> BitBuffer<'a> {
         }
         let byte_index = position / 8;
         let bit_offset = position & 7;
-        let bytes: &[u8; USIZE_SIZE] = array_ref!(self.bytes, byte_index, USIZE_SIZE);
-        let container_le = unsafe {
-            std::mem::transmute::<[u8; USIZE_SIZE], usize>(*bytes)
+        let slice = &self.bytes[byte_index..byte_index + USIZE_SIZE];
+        let bytes: [u8; USIZE_SIZE] = unsafe {
+            *(slice.as_ptr() as *const [u8; USIZE_SIZE])
         };
-        let container = usize::from_le(container_le);
+        let container = usize::from_le_bytes(bytes);
         let shifted = container >> bit_offset;
         let mask = !(usize::max_value() << count);
         Ok(shifted & mask)
