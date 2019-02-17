@@ -1,9 +1,12 @@
 #![feature(test)]
+#![warn(missing_docs)]
+
+//! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
 
 extern crate test;
 
 use is_signed::IsSigned;
-use num_traits::{PrimInt};
+use num_traits::PrimInt;
 use std::cmp::min;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
@@ -12,20 +15,29 @@ use std::ops::BitOrAssign;
 mod tests;
 mod is_signed;
 
+/// Errors that can be returned when trying to read from a buffer
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ReadError {
+    /// Too many bits requested to fit in the requested data type
     TooManyBits {
+        /// The number of bits requested to read
         requested: usize,
+        /// The number of bits that fit in the requested data type
         max: usize,
     },
+    /// Not enough data in the buffer to read all requested bits
     NotEnoughData {
+        /// The number of bits requested to read
         requested: usize,
+        /// the number of bits left in the buffer
         bits_left: usize,
     },
 }
 
+/// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
 pub type Result<T> = std::result::Result<T, ReadError>;
 
+/// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
 pub struct BitBuffer<'a> {
     bytes: &'a [u8],
     bit_len: usize,
@@ -52,7 +64,33 @@ macro_rules! array_ref {
 const USIZE_SIZE: usize = size_of::<usize>();
 
 impl<'a> BitBuffer<'a> {
+    /// Create a new BitBuffer from a byte slice with included padding
+    ///
+    /// The padding is required because the optimized method for reading bits can overshoot the last requested bit
+    ///
+    /// # Panics
+    ///
+    /// When not enough padding is provided (3 bytes on 32bit systems, 7 bytes on 64 bit systems)
+    /// this method will panic
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::BitBuffer;
+    ///
+    /// let bytes:&[u8] =&[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8);
+    /// ```
+    ///
+    ///
     pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize) -> BitBuffer<'a> {
+        if byte_len > bytes.len() - (USIZE_SIZE - 1) {
+            panic!("Not enough padding on slice, at least {} bytes of padding are required", USIZE_SIZE - 1);
+        }
         BitBuffer {
             bytes,
             byte_len,
@@ -60,10 +98,16 @@ impl<'a> BitBuffer<'a> {
         }
     }
 
+    /// The available number of bits in the buffer
+    ///
+    /// Note that this does not included any padding from the source slice
     pub fn bit_len(&self) -> usize {
         self.bit_len
     }
 
+    /// The available number of bytes in the buffer
+    ///
+    /// Note that this does not included any padding from the source slice
     pub fn byte_len(&self) -> usize {
         self.byte_len
     }
@@ -87,6 +131,25 @@ impl<'a> BitBuffer<'a> {
         Ok(shifted & mask)
     }
 
+    /// Read a single bit from the buffer as boolean
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::BitBuffer;
+    ///
+    /// let bytes:&[u8] =&[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8);
+    /// let result = buffer.read_bool(6);
+    /// ```
     pub fn read_bool(&self, position: usize) -> Result<bool> {
         let byte_index = position / 8;
         let bit_offset = position & 7;
@@ -104,6 +167,26 @@ impl<'a> BitBuffer<'a> {
         Ok(shifted & mask == 1)
     }
 
+    /// Read a sequence of bits from the buffer as integer
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::BitBuffer;
+    ///
+    /// let bytes:&[u8] =&[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8);
+    /// let result = buffer.read::<u16>(10, 9);
+    /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
         where T: PrimInt + BitOrAssign + IsSigned
     {
@@ -122,7 +205,7 @@ impl<'a> BitBuffer<'a> {
                 let raw = self.read_usize(position, count)?;
                 let max_signed_value = (1 << (type_bit_size - 1)) - 1;
                 if T::is_signed() && raw > max_signed_value {
-                    return Ok(T::zero() - T::from(raw & max_signed_value).unwrap())
+                    return Ok(T::zero() - T::from(raw & max_signed_value).unwrap());
                 } else {
                     T::from(raw).unwrap()
                 }
@@ -155,6 +238,25 @@ impl<'a> BitBuffer<'a> {
         }
     }
 
+    /// Read a series of bytes from the buffer
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::BitBuffer;
+    ///
+    /// let bytes:&[u8] =&[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8);
+    /// let bytes = buffer.read_bytes(5, 3);
+    /// ```
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         let mut data = vec!();
         data.reserve_exact(byte_count);
