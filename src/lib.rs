@@ -1,5 +1,4 @@
 #![feature(test)]
-#![feature(try_from)]
 #![warn(missing_docs)]
 
 //! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
@@ -7,7 +6,7 @@
 extern crate test;
 
 use is_signed::IsSigned;
-use num_traits::PrimInt;
+use num_traits::{Float, PrimInt};
 use std::cmp::min;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
@@ -256,5 +255,37 @@ impl<'a> BitBuffer<'a> {
             read_pos += read;
         }
         Ok(data)
+    }
+
+    /// Read a sequence of bits from the buffer as float
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::BitBuffer;
+    ///
+    /// let bytes:&[u8] =&[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8);
+    /// let result = buffer.read_float::<f32>(10);
+    /// ```
+    pub fn read_float<T>(&self, position: usize) -> Result<T>
+        where T: Float
+    {
+        if size_of::<T>() == 4 {
+            let int = self.read::<u32>(position, 32)?;
+            Ok(T::from(f32::from_bits(int)).unwrap())
+        } else {
+            let int =   self.read::<u64>(position, 64)?;
+            Ok(T::from(f64::from_bits(int)).unwrap())
+        }
     }
 }
