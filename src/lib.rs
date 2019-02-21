@@ -131,7 +131,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
-    /// let result = buffer.read_bool(6);
+    /// let result = buffer.read_bool(5).unwrap();
+    /// assert_eq!(result, true);
     /// ```
     pub fn read_bool(&self, position: usize) -> Result<bool> {
         let byte_index = position / 8;
@@ -146,8 +147,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
 
         let byte = self.bytes[byte_index];
         let shifted = byte >> bit_offset;
-        let mask = 1u8 << bit_offset;
-        Ok(shifted & mask == 1)
+        Ok(shifted & 1u8 == 1)
     }
 
     /// Read a sequence of bits from the buffer as integer
@@ -167,7 +167,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
-    /// let result = buffer.read::<u16>(10, 9);
+    /// let result = buffer.read::<u16>(10, 9).unwrap();
+    /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
         where T: PrimInt + BitOrAssign + IsSigned
@@ -183,7 +184,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
                 });
             }
 
-            if size_of::<usize>() > size_of::<T>() || count < usize_bit_size - 8 {
+            let bit_offset = position & 7;
+            if size_of::<usize>() > size_of::<T>() || count + bit_offset < usize_bit_size {
                 let raw = self.read_usize(position, count)?;
                 let max_signed_value = (1 << (type_bit_size - 1)) - 1;
                 if T::is_signed() && raw > max_signed_value {
@@ -242,7 +244,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
-    /// let bytes = buffer.read_bytes(5, 3);
+    /// let bytes = buffer.read_bytes(5, 3).unwrap();
+    /// assert_eq!(bytes, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// ```
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         let mut data = vec!();
@@ -253,7 +256,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
         while byte_left > 0 {
             let read = min(byte_left, max_read);
             let bytes: [u8; USIZE_SIZE] = self.read_usize(read_pos, read * 8)?.to_le_bytes();
-            let usable_bytes = &bytes[0..max_read];
+            let usable_bytes = &bytes[0..read];
             data.extend_from_slice(usable_bytes);
             byte_left -= read;
             read_pos += read;
@@ -278,7 +281,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
-    /// let result = buffer.read_float::<f32>(10);
+    /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
         where T: Float
