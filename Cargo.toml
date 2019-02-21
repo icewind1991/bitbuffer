@@ -1,5 +1,5 @@
 [package]
-name = "bitbuffer"
+name = "bitstream_reader"
 version = "0.1.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"

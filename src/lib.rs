@@ -60,7 +60,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// # Examples
     ///
     /// ```
-    /// use bitbuffer::{BitBuffer, LittleEndian};
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
     /// let bytes: &[u8] = &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -124,7 +124,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// # Examples
     ///
     /// ```
-    /// use bitbuffer::{BitBuffer, LittleEndian};
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
     /// let bytes: &[u8] = &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -160,7 +160,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// # Examples
     ///
     /// ```
-    /// use bitbuffer::{BitBuffer, LittleEndian};
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
     /// let bytes: &[u8] = &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -237,7 +237,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// # Examples
     ///
     /// ```
-    /// use bitbuffer::{BitBuffer, LittleEndian};
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
     /// let bytes: &[u8] = &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -274,7 +274,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// # Examples
     ///
     /// ```
-    /// use bitbuffer::{BitBuffer, LittleEndian};
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
     /// let bytes: &[u8] = &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
