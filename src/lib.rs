@@ -5,8 +5,8 @@
 
 extern crate test;
 
-pub use endianness::{BigEndian, LittleEndian};
 use endianness::Endianness;
+pub use endianness::{BigEndian, LittleEndian};
 use is_signed::IsSigned;
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
@@ -14,10 +14,10 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
 
+mod endianness;
+mod is_signed;
 #[cfg(test)]
 mod tests;
-mod is_signed;
-mod endianness;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -47,14 +47,19 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 ///
 /// The endianness used when reading from the buffer is specified as type parameter
 pub struct BitBuffer<'a, E>
-    where E: Endianness {
+where
+    E: Endianness,
+{
     bytes: &'a [u8],
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
 }
 
-impl<'a, E> BitBuffer<'a, E> where E: Endianness {
+impl<'a, E> BitBuffer<'a, E>
+where
+    E: Endianness,
+{
     /// Create a new BitBuffer from a byte slice
     ///
     /// # Examples
@@ -98,9 +103,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
         let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
         let bit_offset = position - byte_index * 8;
         let slice = &self.bytes[byte_index..byte_index + USIZE_SIZE];
-        let bytes: [u8; USIZE_SIZE] = unsafe {
-            *(slice.as_ptr() as *const [u8; USIZE_SIZE])
-        };
+        let bytes: [u8; USIZE_SIZE] = unsafe { *(slice.as_ptr() as *const [u8; USIZE_SIZE]) };
         let container = if E::is_le() {
             usize::from_le_bytes(bytes)
         } else {
@@ -171,7 +174,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-        where T: PrimInt + BitOrAssign + IsSigned
+    where
+        T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -248,7 +252,7 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// assert_eq!(bytes, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// ```
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
-        let mut data = vec!();
+        let mut data = vec![];
         data.reserve_exact(byte_count);
         let mut byte_left = byte_count;
         let max_read = size_of::<usize>() - 1;
@@ -284,7 +288,8 @@ impl<'a, E> BitBuffer<'a, E> where E: Endianness {
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-        where T: Float
+    where
+        T: Float,
     {
         if size_of::<T>() == 4 {
             let int = self.read::<u32>(position, 32)?;

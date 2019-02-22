@@ -10,7 +10,7 @@ macro_rules! impl_is_signed {
                 $signed
             }
         }
-    }
+    };
 }
 
 impl_is_signed!(u8, false);
