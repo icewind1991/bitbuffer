@@ -5,8 +5,8 @@
 // for bench on nightly
 //extern crate test;
 
-use endianness::Endianness;
 pub use endianness::{BigEndian, LittleEndian};
+use endianness::Endianness;
 use is_signed::IsSigned;
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
@@ -37,6 +37,13 @@ pub enum ReadError {
         requested: usize,
         /// the number of bits left in the buffer
         bits_left: usize,
+    },
+    /// The requested position is outside the bounds of the buffer
+    IndexOutOfBounds {
+        /// The requested position
+        pos: usize,
+        /// the number of bits in the buffer
+        size: usize,
     },
 }
 
@@ -97,9 +104,9 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
 /// ```
 pub struct BitBuffer<'a, E, S>
-where
-    E: Endianness,
-    S: IsPadded,
+    where
+        E: Endianness,
+        S: IsPadded,
 {
     bytes: &'a [u8],
     bit_len: usize,
@@ -109,8 +116,8 @@ where
 }
 
 impl<'a, E> BitBuffer<'a, E, NonPadded>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice
     ///
@@ -138,8 +145,8 @@ where
 }
 
 impl<'a, E> BitBuffer<'a, E, Padded>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice with included padding
     ///
@@ -180,9 +187,9 @@ where
 }
 
 impl<'a, E, S> BitBuffer<'a, E, S>
-where
-    E: Endianness,
-    S: IsPadded,
+    where
+        E: Endianness,
+        S: IsPadded,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -280,8 +287,8 @@ where
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-    where
-        T: PrimInt + BitOrAssign + IsSigned,
+        where
+            T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -394,8 +401,8 @@ where
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-    where
-        T: Float,
+        where
+            T: Float,
     {
         if size_of::<T>() == 4 {
             let int = self.read::<u32>(position, 32)?;
@@ -404,5 +411,350 @@ where
             let int = self.read::<u64>(position, 64)?;
             Ok(T::from(f64::from_bits(int)).unwrap())
         }
+    }
+}
+
+/// Stream that provides an easy way to iterate trough a BitBuffer
+///
+/// # Examples
+///
+/// ```
+/// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+///
+/// let bytes: &[u8] = &[
+///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+/// ];
+/// let buffer = BitBuffer::new(bytes, LittleEndian);
+/// let mut stream = BitStream::new(&buffer, None, None);
+/// ```
+pub struct BitStream<'a, E, S>
+    where
+        E: Endianness,
+        S: IsPadded,
+{
+    buffer: &'a BitBuffer<'a, E, S>,
+    start_pos: usize,
+    pos: usize,
+    bit_len: usize,
+}
+
+impl<'a, E, S> BitStream<'a, E, S>
+    where
+        E: Endianness,
+        S: IsPadded, {
+    /// Create a new stream for a buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// ```
+    pub fn new(buffer: &'a BitBuffer<'a, E, S>, start_pos: Option<usize>, bit_len: Option<usize>) -> Self {
+        BitStream {
+            start_pos: start_pos.unwrap_or(0),
+            pos: start_pos.unwrap_or(0),
+            bit_len: bit_len.unwrap_or(buffer.bit_len()),
+            buffer,
+        }
+    }
+
+    fn verify_bits_left(&self, count: usize) -> Result<()> {
+        if self.bits_left() < count {
+            Err(ReadError::NotEnoughData {
+                bits_left: self.bits_left(),
+                requested: count,
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Read a single bit from the stream as boolean
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// assert_eq!(stream.read_bool().unwrap(), true);
+    /// assert_eq!(stream.read_bool().unwrap(), false);
+    /// assert_eq!(stream.pos(), 2);
+    /// ```
+    pub fn read_bool(&mut self) -> Result<bool> {
+        self.verify_bits_left(1)?;
+        let result = self.buffer.read_bool(self.pos);
+        match result {
+            Ok(_) => self.pos += 1,
+            Err(_) => {}
+        }
+        result
+    }
+
+    /// Read a sequence of bits from the stream as integer
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// assert_eq!(stream.read::<u16>(3).unwrap(), 0b101);
+    /// assert_eq!(stream.read::<u16>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.pos(), 6);
+    /// ```
+    pub fn read<T>(&mut self, count: usize) -> Result<T>
+        where
+            T: PrimInt + BitOrAssign + IsSigned, {
+        self.verify_bits_left(count)?;
+        let result = self.buffer.read(self.pos, count);
+        match result {
+            Ok(_) => self.pos += count,
+            Err(_) => {}
+        }
+        result
+    }
+
+    /// Read a sequence of bits from the stream as float
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let result = stream.read_float::<f32>().unwrap();
+    /// assert_eq!(stream.pos(), 32);
+    /// ```
+    pub fn read_float<T>(&mut self) -> Result<T>
+        where
+            T: Float, {
+        let count = size_of::<T>() * 8;
+        self.verify_bits_left(count)?;
+        let result = self.buffer.read_float(self.pos);
+        match result {
+            Ok(_) => self.pos += count,
+            Err(_) => {}
+        }
+        result
+    }
+
+    /// Read a series of bytes from the stream
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let bytes = stream.read_bytes(3).unwrap();
+    /// assert_eq!(bytes, &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
+    /// assert_eq!(stream.pos(), 24);
+    /// ```
+    pub fn read_bytes(&mut self, byte_count: usize) -> Result<Vec<u8>> {
+        let count = byte_count * 8;
+        self.verify_bits_left(count)?;
+        let result = self.buffer.read_bytes(self.pos, byte_count);
+        match result {
+            Ok(_) => self.pos += count,
+            Err(_) => {}
+        }
+        result
+    }
+
+    /// Read a sequence of bits from the stream as a BitStream
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut bits = stream.read_bits(3).unwrap();
+    /// assert_eq!(stream.pos(), 3);
+    /// assert_eq!(bits.pos(), 0);
+    /// assert_eq!(bits.bit_len(), 3);
+    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(bits.read::<u8>(3).unwrap(), 0b101);
+    /// ```
+    pub fn read_bits(&mut self, count: usize) -> Result<Self> {
+        self.verify_bits_left(count)?;
+        let result = BitStream::new(&self.buffer, Some(self.pos), Some(count));
+        self.pos += count;
+        Ok(result)
+    }
+
+    /// Skip a number of bits in the stream
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer to skip
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// stream.skip(3).unwrap();
+    /// assert_eq!(stream.pos(), 3);
+    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
+    /// ```
+    pub fn skip(&mut self, count: usize) -> Result<()> {
+        self.verify_bits_left(count)?;
+        self.pos += count;
+        Ok(())
+    }
+
+    /// Set the position of the stream
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::IndexOutOfBounds`](enum.ReadError.html#variant.IndexOutOfBounds): new position is outside the bounds of the stream
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// stream.set_pos(3).unwrap();
+    /// assert_eq!(stream.pos(), 3);
+    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
+    /// ```
+    pub fn set_pos(&mut self, pos: usize) -> Result<()> {
+        if pos > self.bit_len {
+            return Err(ReadError::IndexOutOfBounds {
+                pos,
+                size: self.bit_len,
+            });
+        }
+        self.pos = pos + self.start_pos;
+        Ok(())
+    }
+
+    /// Get the length of the stream in bits
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// assert_eq!(stream.bit_len(), 64);
+    /// ```
+    pub fn bit_len(&self) -> usize {
+        self.bit_len
+    }
+
+    /// Get the current position in the stream
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// assert_eq!(stream.pos(), 0);
+    /// stream.skip(5).unwrap();
+    /// assert_eq!(stream.pos(), 5);
+    /// ```
+    pub fn pos(&self) -> usize {
+        self.pos - self.start_pos
+    }
+
+    /// Get the number of bits left in the stream
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// assert_eq!(stream.bits_left(), 64);
+    /// stream.skip(5).unwrap();
+    /// assert_eq!(stream.bits_left(), 59);
+    /// ```
+    pub fn bits_left(&self) -> usize {
+        self.bit_len - self.pos()
     }
 }
