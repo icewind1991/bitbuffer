@@ -5,8 +5,8 @@
 // for bench on nightly
 //extern crate test;
 
-pub use endianness::{BigEndian, LittleEndian};
 use endianness::Endianness;
+pub use endianness::{BigEndian, LittleEndian};
 use is_signed::IsSigned;
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
@@ -66,7 +66,6 @@ impl IsPadded for Padded {
     }
 }
 
-
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
 pub type Result<T> = std::result::Result<T, ReadError>;
 
@@ -98,9 +97,9 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
 /// ```
 pub struct BitBuffer<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded
+where
+    E: Endianness,
+    S: IsPadded,
 {
     bytes: &'a [u8],
     bit_len: usize,
@@ -110,8 +109,8 @@ pub struct BitBuffer<'a, E, S>
 }
 
 impl<'a, E> BitBuffer<'a, E, NonPadded>
-    where
-        E: Endianness
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice
     ///
@@ -139,16 +138,16 @@ impl<'a, E> BitBuffer<'a, E, NonPadded>
 }
 
 impl<'a, E> BitBuffer<'a, E, Padded>
-    where
-        E: Endianness
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice with included padding
     ///
     /// by including at least `size_of::<usize>() - 1` bytes of padding reading can be further optimized
-    /// 
+    ///
     /// # Panics
-    /// 
-    /// Panics if not enough bytes of padding are included 
+    ///
+    /// Panics if not enough bytes of padding are included
     ///
     /// # Examples
     ///
@@ -164,7 +163,11 @@ impl<'a, E> BitBuffer<'a, E, Padded>
     /// ```
     pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize, _endianness: E) -> Self {
         if bytes.len() < byte_len + USIZE_SIZE - 1 {
-            panic!("not enough padding bytes, {} required, {} provided", USIZE_SIZE - 1, byte_len - bytes.len())
+            panic!(
+                "not enough padding bytes, {} required, {} provided",
+                USIZE_SIZE - 1,
+                byte_len - bytes.len()
+            )
         }
         BitBuffer {
             bytes,
@@ -177,9 +180,9 @@ impl<'a, E> BitBuffer<'a, E, Padded>
 }
 
 impl<'a, E, S> BitBuffer<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded
+where
+    E: Endianness,
+    S: IsPadded,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -277,8 +280,8 @@ impl<'a, E, S> BitBuffer<'a, E, S>
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-        where
-            T: PrimInt + BitOrAssign + IsSigned,
+    where
+        T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -391,8 +394,8 @@ impl<'a, E, S> BitBuffer<'a, E, S>
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-        where
-            T: Float,
+    where
+        T: Float,
     {
         if size_of::<T>() == 4 {
             let int = self.read::<u32>(position, 32)?;
