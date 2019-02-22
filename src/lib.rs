@@ -1,9 +1,9 @@
-#![feature(test)]
 #![warn(missing_docs)]
 
 //! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
 
-extern crate test;
+// for bench on nightly
+//extern crate test;
 
 pub use endianness::{BigEndian, LittleEndian};
 use endianness::Endianness;
@@ -95,7 +95,7 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
 ///     0, 0, 0, 0, 0, 0, 0, 0
 /// ];
-/// let buffer = BitBuffer::from_padded_slice(bytes, LittleEndian);
+/// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
 /// ```
 pub struct BitBuffer<'a, E, S>
     where
