@@ -222,7 +222,7 @@ fn read_f64_le() {
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
-fn read_perf<E: Endianness, S: MaybePaddedSlice>(buffer: BitBuffer<E, S>) -> u16 {
+fn read_perf<P: IsPadded>(buffer: BitBuffer<LittleEndian, P>) -> u16 {
     let size = 5;
     let mut pos = 0;
     let len = buffer.bit_len();

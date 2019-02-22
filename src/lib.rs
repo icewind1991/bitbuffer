@@ -47,19 +47,19 @@ pub struct NonPadded;
 pub struct Padded;
 
 /// Determine whether or not the source slice is padded
-pub trait MaybePaddedSlice {
+pub trait IsPadded {
     /// Whether or not the slice is padded
     fn is_padded() -> bool;
 }
 
-impl MaybePaddedSlice for NonPadded {
+impl IsPadded for NonPadded {
     #[inline]
     fn is_padded() -> bool {
         false
     }
 }
 
-impl MaybePaddedSlice for Padded {
+impl IsPadded for Padded {
     #[inline]
     fn is_padded() -> bool {
         true
@@ -100,7 +100,7 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 pub struct BitBuffer<'a, E, S>
     where
         E: Endianness,
-        S: MaybePaddedSlice
+        S: IsPadded
 {
     bytes: &'a [u8],
     bit_len: usize,
@@ -179,7 +179,7 @@ impl<'a, E> BitBuffer<'a, E, Padded>
 impl<'a, E, S> BitBuffer<'a, E, S>
     where
         E: Endianness,
-        S: MaybePaddedSlice
+        S: IsPadded
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
