@@ -3,6 +3,9 @@ name = "bitstream_reader"
 version = "0.1.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
+description = "Reading bit sequences from a byte slice"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/icewind1991/bitstream_reader"
 
 [dependencies]
 num-traits = "0.2"
