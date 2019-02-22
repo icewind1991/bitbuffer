@@ -71,6 +71,32 @@ impl MaybePaddedSlice for Padded {
 pub type Result<T> = std::result::Result<T, ReadError>;
 
 /// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
+///
+/// # Examples
+///
+/// ```
+/// use bitstream_reader::{BitBuffer, LittleEndian};
+///
+/// let bytes: &[u8] = &[
+///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+/// ];
+/// let buffer = BitBuffer::new(bytes, LittleEndian);
+/// ```
+///
+/// You can also provide a slice padded with at least `size_of::<usize>() - 1` bytes,
+/// when the input slice is padded, the BitBuffer can use some optimizations which result in a ~1.5 time performance increase
+///
+/// ```
+/// use bitstream_reader::{BitBuffer, LittleEndian};
+///
+/// let bytes: &[u8] = &[
+///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+///     0, 0, 0, 0, 0, 0, 0, 0
+/// ];
+/// let buffer = BitBuffer::from_padded_slice(bytes, LittleEndian);
+/// ```
 pub struct BitBuffer<'a, E, S>
     where
         E: Endianness,
@@ -138,7 +164,7 @@ impl<'a, E> BitBuffer<'a, E, Padded>
     /// ```
     pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize, _endianness: E) -> Self {
         if bytes.len() < byte_len + USIZE_SIZE - 1 {
-            panic!("not enough padding bytes, {} required", USIZE_SIZE - 1)
+            panic!("not enough padding bytes, {} required, {} provided", USIZE_SIZE - 1, byte_len - bytes.len())
         }
         BitBuffer {
             bytes,
