@@ -5,10 +5,10 @@ pub trait Endianness {
 }
 
 /// Trait for specifying that the bit buffer is big endian
-pub struct BigEndian {}
+pub struct BigEndian;
 
 /// Trait for specifying that the bit buffer is little endian
-pub struct LittleEndian {}
+pub struct LittleEndian;
 
 macro_rules! impl_endianness {
     ($type:ty, $le:expr) => {

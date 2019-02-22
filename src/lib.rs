@@ -5,8 +5,8 @@
 
 extern crate test;
 
-use endianness::Endianness;
 pub use endianness::{BigEndian, LittleEndian};
+use endianness::Endianness;
 use is_signed::IsSigned;
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
@@ -40,25 +40,52 @@ pub enum ReadError {
     },
 }
 
+/// Mark source slice as not including padding
+pub struct NonPadded;
+
+/// Mark source slice as including padding
+pub struct Padded;
+
+/// Determine whether or not the source slice is padded
+pub trait MaybePaddedSlice {
+    /// Whether or not the slice is padded
+    fn is_padded() -> bool;
+}
+
+impl MaybePaddedSlice for NonPadded {
+    #[inline]
+    fn is_padded() -> bool {
+        false
+    }
+}
+
+impl MaybePaddedSlice for Padded {
+    #[inline]
+    fn is_padded() -> bool {
+        true
+    }
+}
+
+
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
 pub type Result<T> = std::result::Result<T, ReadError>;
 
 /// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
-///
-/// The endianness used when reading from the buffer is specified as type parameter
-pub struct BitBuffer<'a, E>
-where
-    E: Endianness,
+pub struct BitBuffer<'a, E, S>
+    where
+        E: Endianness,
+        S: MaybePaddedSlice
 {
     bytes: &'a [u8],
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
+    is_padded: PhantomData<S>,
 }
 
-impl<'a, E> BitBuffer<'a, E>
-where
-    E: Endianness,
+impl<'a, E> BitBuffer<'a, E, NonPadded>
+    where
+        E: Endianness
 {
     /// Create a new BitBuffer from a byte slice
     ///
@@ -71,18 +98,63 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// ```
-    pub fn new(bytes: &'a [u8]) -> Self {
+    pub fn new(bytes: &'a [u8], _endianness: E) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
             bytes,
             byte_len,
             bit_len: byte_len * 8,
             endianness: PhantomData,
+            is_padded: PhantomData,
         }
     }
+}
 
+impl<'a, E> BitBuffer<'a, E, Padded>
+    where
+        E: Endianness
+{
+    /// Create a new BitBuffer from a byte slice with included padding
+    ///
+    /// by including at least `size_of::<usize>() - 1` bytes of padding reading can be further optimized
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if not enough bytes of padding are included 
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
+    /// ```
+    pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize, _endianness: E) -> Self {
+        if bytes.len() < byte_len + USIZE_SIZE - 1 {
+            panic!("not enough padding bytes, {} required", USIZE_SIZE - 1)
+        }
+        BitBuffer {
+            bytes,
+            byte_len,
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+            is_padded: PhantomData,
+        }
+    }
+}
+
+impl<'a, E, S> BitBuffer<'a, E, S>
+    where
+        E: Endianness,
+        S: MaybePaddedSlice
+{
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
         self.bit_len
@@ -100,7 +172,12 @@ where
                 bits_left: self.bit_len - position,
             });
         }
-        let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
+        let byte_index = if S::is_padded() {
+            position / 8
+        } else {
+            min(position / 8, self.byte_len - USIZE_SIZE)
+        };
+        //let byte_index = position / 8;
         let bit_offset = position - byte_index * 8;
         let slice = &self.bytes[byte_index..byte_index + USIZE_SIZE];
         let bytes: [u8; USIZE_SIZE] = unsafe { *(slice.as_ptr() as *const [u8; USIZE_SIZE]) };
@@ -133,7 +210,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_bool(5).unwrap();
     /// assert_eq!(result, true);
     /// ```
@@ -169,13 +246,13 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read::<u16>(10, 9).unwrap();
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-    where
-        T: PrimInt + BitOrAssign + IsSigned,
+        where
+            T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -247,7 +324,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let bytes = buffer.read_bytes(5, 3).unwrap();
     /// assert_eq!(bytes, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// ```
@@ -284,12 +361,12 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer: BitBuffer<LittleEndian> = BitBuffer::new(bytes);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-    where
-        T: Float,
+        where
+            T: Float,
     {
         if size_of::<T>() == 4 {
             let int = self.read::<u32>(position, 32)?;

@@ -1,5 +1,5 @@
-use super::*;
 use std::fs;
+use super::*;
 use test::Bencher;
 
 const BYTES: &'static [u8] = &[
@@ -19,7 +19,7 @@ const BYTES: &'static [u8] = &[
 
 #[test]
 fn read_u8_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read::<u8>(0, 1).unwrap(), 0b1);
     assert_eq!(buffer.read::<u8>(1, 1).unwrap(), 0b0);
@@ -31,7 +31,7 @@ fn read_u8_le() {
 
 #[test]
 fn read_u8_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(buffer.read::<u8>(0, 1).unwrap(), 0b1);
     assert_eq!(buffer.read::<u8>(1, 1).unwrap(), 0b0);
@@ -43,21 +43,21 @@ fn read_u8_be() {
 
 #[test]
 fn read_u16_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read::<u16>(6, 12).unwrap(), 0b00_0110_1010_10);
 }
 
 #[test]
 fn read_u16_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(buffer.read::<u16>(6, 12).unwrap(), 0b01_0110_1010_10);
 }
 
 #[test]
 fn read_u32_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(
         buffer.read::<u32>(6, 24).unwrap(),
@@ -67,7 +67,7 @@ fn read_u32_le() {
 
 #[test]
 fn read_u32_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(
         buffer.read::<u32>(6, 24).unwrap(),
@@ -77,7 +77,7 @@ fn read_u32_be() {
 
 #[test]
 fn read_u64_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(
         buffer.read::<u64>(6, 34).unwrap(),
@@ -99,7 +99,7 @@ fn read_u64_le() {
 
 #[test]
 fn read_u64_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(
         buffer.read::<u64>(6, 34).unwrap(),
@@ -117,7 +117,7 @@ fn read_u64_be() {
 
 #[test]
 fn read_i8_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read::<i8>(0, 3).unwrap(), -0b01);
     assert_eq!(buffer.read::<i8>(0, 8).unwrap(), -0b011_0101);
@@ -125,7 +125,7 @@ fn read_i8_le() {
 
 #[test]
 fn read_i8_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(buffer.read::<i8>(1, 2).unwrap(), 0b1);
     assert_eq!(buffer.read::<i8>(0, 3).unwrap(), -0b01);
@@ -134,7 +134,7 @@ fn read_i8_be() {
 
 #[test]
 fn read_i16_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read::<i16>(6, 12).unwrap(), 0b0_0110_1010_10);
     assert_eq!(buffer.read::<i16>(6, 13).unwrap(), -0b00_0110_1010_10);
@@ -142,7 +142,7 @@ fn read_i16_le() {
 
 #[test]
 fn read_i16_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(buffer.read::<i16>(6, 12).unwrap(), 0b1_0110_1010_10);
     assert_eq!(buffer.read::<i16>(7, 12).unwrap(), -0b0110_1010_101);
@@ -150,7 +150,7 @@ fn read_i16_be() {
 
 #[test]
 fn read_i32_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(
         buffer.read::<i32>(6, 24).unwrap(),
@@ -164,7 +164,7 @@ fn read_i32_le() {
 
 #[test]
 fn read_i32_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(
         buffer.read::<i32>(7, 24).unwrap(),
@@ -174,7 +174,7 @@ fn read_i32_be() {
 
 #[test]
 fn read_i64_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(
         buffer.read::<i64>(6, 34).unwrap(),
@@ -192,7 +192,7 @@ fn read_i64_le() {
 
 #[test]
 fn read_i64_be() {
-    let buffer: BitBuffer<BigEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, BigEndian);
 
     assert_eq!(
         buffer.read::<i64>(7, 34).unwrap(),
@@ -210,19 +210,19 @@ fn read_i64_be() {
 
 #[test]
 fn read_f32_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
 #[test]
 fn read_f64_le() {
-    let buffer: BitBuffer<LittleEndian> = BitBuffer::new(BYTES);
+    let buffer = BitBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
-fn read_perf<E: Endianness>(buffer: BitBuffer<E>) -> u16 {
+fn read_perf<E: Endianness, S: MaybePaddedSlice>(buffer: BitBuffer<E, S>) -> u16 {
     let size = 5;
     let mut pos = 0;
     let len = buffer.bit_len();
@@ -238,11 +238,25 @@ fn read_perf<E: Endianness>(buffer: BitBuffer<E>) -> u16 {
 }
 
 #[bench]
-fn perf(b: &mut Bencher) {
+fn perf_padded(b: &mut Bencher) {
+    let mut file = fs::read("/bulk/tmp/test.dem").expect("Unable to read file");
+    let len = file.len();
+    file.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+    let bytes = file.as_slice();
+    b.iter(|| {
+        let buffer = BitBuffer::from_padded_slice(&bytes, len, LittleEndian);
+        let data = read_perf(buffer);
+        assert_eq!(data, 43943);
+        test::black_box(data);
+    });
+}
+
+#[bench]
+fn perf_non_padded(b: &mut Bencher) {
     let file = fs::read("/bulk/tmp/test.dem").expect("Unable to read file");
     let bytes = file.as_slice();
     b.iter(|| {
-        let buffer: BitBuffer<LittleEndian> = BitBuffer::new(&bytes);
+        let buffer = BitBuffer::new(&bytes, LittleEndian);
         let data = read_perf(buffer);
         assert_eq!(data, 43943);
         test::black_box(data);
