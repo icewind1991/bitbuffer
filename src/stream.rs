@@ -230,22 +230,22 @@ impl<'a, E, S> BitStream<'a, E, S>
     /// let mut stream = BitStream::new(&buffer, None, None);
     /// // Fixed length string
     /// stream.set_pos(0);
-    /// assert_eq!(stream.read_string(Some(13)).unwrap(), "Hello world".to_owned());
-    /// assert_eq!(13, stream.pos());
+    /// assert_eq!(stream.read_string(Some(11)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(11 * 8, stream.pos());
     /// // fixed length with null padding
     /// stream.set_pos(0);
     /// assert_eq!(stream.read_string(Some(16)).unwrap(), "Hello world".to_owned());
-    /// assert_eq!(16, stream.pos());
+    /// assert_eq!(16 * 8, stream.pos());
     /// // null terminated
     /// stream.set_pos(0);
     /// assert_eq!(stream.read_string(None).unwrap(), "Hello world".to_owned());
-    /// assert_eq!(12, stream.pos()); // 1 more for the terminating null byte
+    /// assert_eq!(12 * 8, stream.pos()); // 1 more for the terminating null byte
     /// ```
     pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
         let result = self.buffer.read_string(self.pos, byte_len)?;
         let read = match byte_len {
-            Some(len) => len,
-            None => result.len() + 1
+            Some(len) => len * 8,
+            None => (result.len() + 1) * 8
         };
         self.pos += read;
         Ok(result)
