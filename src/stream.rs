@@ -1,11 +1,11 @@
-use crate::endianness::Endianness;
-use crate::is_signed::IsSigned;
 use crate::{ReadError, Result};
 use crate::BitBuffer;
+use crate::buffer::IsPadded;
+use crate::endianness::Endianness;
+use crate::is_signed::IsSigned;
 use num_traits::{Float, PrimInt};
 use std::mem::size_of;
 use std::ops::BitOrAssign;
-use crate::buffer::IsPadded;
 
 /// Stream that provides an easy way to iterate trough a BitBuffer
 ///
@@ -192,8 +192,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let mut stream = BitStream::new(&buffer, None, None);
-    /// let bytes = stream.read_bytes(3).unwrap();
-    /// assert_eq!(bytes, &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
+    /// assert_eq!(stream.read_bytes(3).unwrap(), &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
     /// ```
     pub fn read_bytes(&mut self, byte_count: usize) -> Result<Vec<u8>> {
@@ -205,6 +204,51 @@ impl<'a, E, S> BitStream<'a, E, S>
             Err(_) => {}
         }
         result
+    }
+
+    /// Read a series of bytes from the stream as utf8 string
+    ///
+    /// You can either read a fixed number of bytes, or a dynamic length null-terminated string
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::Utf8Error`](enum.ReadError.html#variant.Utf8Error): the read bytes are not valid utf8
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0x48, 0x65, 0x6c, 0x6c,
+    ///     0x6f, 0x20, 0x77, 0x6f,
+    ///     0x72, 0x6c, 0x64, 0,
+    ///     0,    0,    0,    0
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// // Fixed length string
+    /// stream.set_pos(0);
+    /// assert_eq!(stream.read_string(Some(13)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(13, stream.pos());
+    /// // fixed length with null padding
+    /// stream.set_pos(0);
+    /// assert_eq!(stream.read_string(Some(16)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(16, stream.pos());
+    /// // null terminated
+    /// stream.set_pos(0);
+    /// assert_eq!(stream.read_string(None).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(12, stream.pos()); // 1 more for the terminating null byte
+    /// ```
+    pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
+        let result = self.buffer.read_string(self.pos, byte_len)?;
+        let read = match byte_len {
+            Some(len) => len,
+            None => result.len() + 1
+        };
+        self.pos += read;
+        Ok(result)
     }
 
     /// Read a sequence of bits from the stream as a BitStream

@@ -321,8 +321,11 @@ impl<'a, E, S> BitBuffer<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let bytes = buffer.read_bytes(5, 3).unwrap();
-    /// assert_eq!(bytes, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
+    /// assert_eq!(buffer.read_bytes(5, 3).unwrap(), &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
+    /// assert_eq!(buffer.read_bytes(0, 8).unwrap(), &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ]);
     /// ```
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         let mut data = vec![];
@@ -336,9 +339,58 @@ impl<'a, E, S> BitBuffer<'a, E, S>
             let usable_bytes = &bytes[0..read];
             data.extend_from_slice(usable_bytes);
             byte_left -= read;
-            read_pos += read;
+            read_pos += read * 8;
         }
         Ok(data)
+    }
+
+    /// Read a series of bytes from the buffer as string
+    ///
+    /// You can either read a fixed number of bytes, or a dynamic length null-terminated string
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::Utf8Error`](enum.ReadError.html#variant.Utf8Error): the read bytes are not valid utf8
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0x48, 0x65, 0x6c, 0x6c,
+    ///     0x6f, 0x20, 0x77, 0x6f,
+    ///     0x72, 0x6c, 0x64, 0,
+    ///     0,    0,    0,    0
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// // Fixed length string
+    /// assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
+    /// // fixed length with null padding
+    /// assert_eq!(buffer.read_string(0, Some(16)).unwrap(), "Hello world".to_owned());
+    /// // null terminated
+    /// assert_eq!(buffer.read_string(0, None).unwrap(), "Hello world".to_owned());
+    /// ```
+    pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
+        let bytes = match byte_len {
+            Some(len) => self.read_bytes(position, len)?,
+            None => {
+                let mut acc = vec![];
+                let mut pos = position;
+                loop {
+                    let byte = self.read(pos, 8)?;
+                    acc.push(byte);
+                    if byte == 0 {
+                        break;
+                    }
+                    pos += 8;
+                }
+                acc
+            }
+        };
+        let raw_string = String::from_utf8(bytes)?;
+        Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
     }
 
     /// Read a sequence of bits from the buffer as float

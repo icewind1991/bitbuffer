@@ -1,24 +1,25 @@
 #![warn(missing_docs)]
-#![feature(test)]
+//#![feature(test)]
 
 //! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
 
 // for bench on nightly
-extern crate test;
+//extern crate test;
 
 pub use buffer::{BitBuffer, IsPadded};
-pub use stream::BitStream;
 pub use endianness::*;
+pub use std::string::FromUtf8Error;
+pub use stream::BitStream;
 
 mod buffer;
-mod stream;
 mod endianness;
 mod is_signed;
+mod stream;
 #[cfg(test)]
 mod tests;
 
 /// Errors that can be returned when trying to read from a buffer
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug)]
 pub enum ReadError {
     /// Too many bits requested to fit in the requested data type
     TooManyBits {
@@ -41,6 +42,14 @@ pub enum ReadError {
         /// the number of bits in the buffer
         size: usize,
     },
+    /// The read slice of bytes are not valid utf8
+    Utf8Error(FromUtf8Error),
+}
+
+impl From<FromUtf8Error> for ReadError {
+    fn from(err: FromUtf8Error) -> ReadError {
+        ReadError::Utf8Error(err)
+    }
 }
 
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
