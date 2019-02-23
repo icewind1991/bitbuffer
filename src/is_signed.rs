@@ -5,7 +5,7 @@ pub trait IsSigned {
 macro_rules! impl_is_signed {
     ($type:ty, $signed:expr) => {
         impl IsSigned for $type {
-            #[inline]
+            #[inline(always)]
             fn is_signed() -> bool {
                 $signed
             }

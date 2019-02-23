@@ -1,6 +1,8 @@
 /// Trait for specifying endianness of bit buffer
 pub trait Endianness {
+    /// Input is little endian
     fn is_le() -> bool;
+    /// Input is big endian
     fn is_be() -> bool;
 }
 
@@ -13,12 +15,12 @@ pub struct LittleEndian;
 macro_rules! impl_endianness {
     ($type:ty, $le:expr) => {
         impl Endianness for $type {
-            #[inline]
+            #[inline(always)]
             fn is_le() -> bool {
                 $le
             }
 
-            #[inline]
+            #[inline(always)]
             fn is_be() -> bool {
                 !$le
             }

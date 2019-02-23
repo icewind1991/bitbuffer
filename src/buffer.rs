@@ -1,0 +1,375 @@
+use crate::endianness::Endianness;
+use crate::is_signed::IsSigned;
+use crate::{ReadError, Result};
+use num_traits::{Float, PrimInt};
+use std::cmp::min;
+use std::marker::PhantomData;
+use std::mem::size_of;
+use std::ops::BitOrAssign;
+
+const USIZE_SIZE: usize = size_of::<usize>();
+
+/// Mark source slice as not including padding
+pub struct NonPadded;
+
+/// Mark source slice as including padding
+pub struct Padded;
+
+/// Determine whether or not the source slice is padded
+pub trait IsPadded {
+    /// Whether or not the slice is padded
+    fn is_padded() -> bool;
+}
+
+impl IsPadded for NonPadded {
+    #[inline(always)]
+    fn is_padded() -> bool {
+        false
+    }
+}
+
+impl IsPadded for Padded {
+    #[inline(always)]
+    fn is_padded() -> bool {
+        true
+    }
+}
+
+/// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
+///
+/// # Examples
+///
+/// ```
+/// use bitstream_reader::{BitBuffer, LittleEndian};
+///
+/// let bytes: &[u8] = &[
+///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+/// ];
+/// let buffer = BitBuffer::new(bytes, LittleEndian);
+/// ```
+///
+/// You can also provide a slice padded with at least `size_of::<usize>() - 1` bytes,
+/// when the input slice is padded, the BitBuffer can use some optimizations which result in a ~1.5 time performance increase
+///
+/// ```
+/// use bitstream_reader::{BitBuffer, LittleEndian};
+///
+/// let bytes: &[u8] = &[
+///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+///     0, 0, 0, 0, 0, 0, 0, 0
+/// ];
+/// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
+/// ```
+pub struct BitBuffer<'a, E, S>
+where
+    E: Endianness,
+    S: IsPadded,
+{
+    bytes: &'a [u8],
+    bit_len: usize,
+    byte_len: usize,
+    endianness: PhantomData<E>,
+    is_padded: PhantomData<S>,
+}
+
+impl<'a, E> BitBuffer<'a, E, NonPadded>
+where
+    E: Endianness,
+{
+    /// Create a new BitBuffer from a byte slice
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// ```
+    pub fn new(bytes: &'a [u8], _endianness: E) -> Self {
+        let byte_len = bytes.len();
+        BitBuffer {
+            bytes,
+            byte_len,
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+            is_padded: PhantomData,
+        }
+    }
+}
+
+impl<'a, E> BitBuffer<'a, E, Padded>
+where
+    E: Endianness,
+{
+    /// Create a new BitBuffer from a byte slice with included padding
+    ///
+    /// by including at least `size_of::<usize>() - 1` bytes of padding reading can be further optimized
+    ///
+    /// # Panics
+    ///
+    /// Panics if not enough bytes of padding are included
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
+    ///     0, 0, 0, 0, 0, 0, 0, 0
+    /// ];
+    /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
+    /// ```
+    pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize, _endianness: E) -> Self {
+        if bytes.len() < byte_len + USIZE_SIZE - 1 {
+            panic!(
+                "not enough padding bytes, {} required, {} provided",
+                USIZE_SIZE - 1,
+                byte_len - bytes.len()
+            )
+        }
+        BitBuffer {
+            bytes,
+            byte_len,
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+            is_padded: PhantomData,
+        }
+    }
+}
+
+impl<'a, E, S> BitBuffer<'a, E, S>
+where
+    E: Endianness,
+    S: IsPadded,
+{
+    /// The available number of bits in the buffer
+    pub fn bit_len(&self) -> usize {
+        self.bit_len
+    }
+
+    /// The available number of bytes in the buffer
+    pub fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
+    #[inline]
+    fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
+        if position + count > self.bit_len {
+            return Err(ReadError::NotEnoughData {
+                requested: count,
+                bits_left: self.bit_len - position,
+            });
+        }
+        let byte_index = if S::is_padded() {
+            position / 8
+        } else {
+            min(position / 8, self.byte_len - USIZE_SIZE)
+        };
+        //let byte_index = position / 8;
+        let bit_offset = position - byte_index * 8;
+        let slice = &self.bytes[byte_index..byte_index + USIZE_SIZE];
+        let bytes: [u8; USIZE_SIZE] = unsafe { *(slice.as_ptr() as *const [u8; USIZE_SIZE]) };
+        let container = if E::is_le() {
+            usize::from_le_bytes(bytes)
+        } else {
+            usize::from_be_bytes(bytes)
+        };
+        let shifted = if E::is_le() {
+            container >> bit_offset
+        } else {
+            container >> USIZE_SIZE * 8 - bit_offset - count
+        };
+        let mask = !(usize::max_value() << count);
+        Ok(shifted & mask)
+    }
+
+    /// Read a single bit from the buffer as boolean
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let result = buffer.read_bool(5).unwrap();
+    /// assert_eq!(result, true);
+    /// ```
+    pub fn read_bool(&self, position: usize) -> Result<bool> {
+        let byte_index = position / 8;
+        let bit_offset = position & 7;
+
+        if position >= self.bit_len {
+            return Err(ReadError::NotEnoughData {
+                requested: 1,
+                bits_left: self.bit_len - position,
+            });
+        }
+
+        let byte = self.bytes[byte_index];
+        let shifted = byte >> bit_offset;
+        Ok(shifted & 1u8 == 1)
+    }
+
+    /// Read a sequence of bits from the buffer as integer
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let result = buffer.read::<u16>(10, 9).unwrap();
+    /// assert_eq!(result, 0b100_0110_10);
+    /// ```
+    pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
+    where
+        T: PrimInt + BitOrAssign + IsSigned,
+    {
+        let value = {
+            let type_bit_size = size_of::<T>() * 8;
+            let usize_bit_size = size_of::<usize>() * 8;
+
+            if type_bit_size < count {
+                return Err(ReadError::TooManyBits {
+                    requested: count,
+                    max: type_bit_size,
+                });
+            }
+
+            let bit_offset = position & 7;
+            if size_of::<usize>() > size_of::<T>() || count + bit_offset < usize_bit_size {
+                let raw = self.read_usize(position, count)?;
+                let max_signed_value = (1 << (type_bit_size - 1)) - 1;
+                if T::is_signed() && raw > max_signed_value {
+                    return Ok(T::zero() - T::from(raw & max_signed_value).unwrap());
+                } else {
+                    T::from(raw).unwrap()
+                }
+            } else {
+                let mut left_to_read = count;
+                let mut partial = T::zero();
+                let max_read = (size_of::<usize>() - 1) * 8;
+                let mut read_pos = position;
+                let mut bit_offset = 0;
+                while left_to_read > 0 {
+                    let bits_left = self.bit_len - read_pos;
+                    let read = min(min(left_to_read, max_read), bits_left);
+                    let data = T::from(self.read_usize(read_pos, read)?).unwrap();
+                    if E::is_le() {
+                        partial |= data << bit_offset;
+                    } else {
+                        partial = partial << read;
+                        partial |= data;
+                    }
+                    bit_offset += read;
+                    read_pos += read;
+                    left_to_read -= read;
+                }
+
+                partial
+            }
+        };
+
+        if T::is_signed() {
+            let sign_bit = value >> (count - 1) & T::one();
+            let absolute_value = value & !(T::max_value() << (count - 1));
+            let sign = T::one() - sign_bit - sign_bit;
+            Ok(absolute_value * sign)
+        } else {
+            Ok(value)
+        }
+    }
+
+    /// Read a series of bytes from the buffer
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let bytes = buffer.read_bytes(5, 3).unwrap();
+    /// assert_eq!(bytes, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
+    /// ```
+    pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
+        let mut data = vec![];
+        data.reserve_exact(byte_count);
+        let mut byte_left = byte_count;
+        let max_read = size_of::<usize>() - 1;
+        let mut read_pos = position;
+        while byte_left > 0 {
+            let read = min(byte_left, max_read);
+            let bytes: [u8; USIZE_SIZE] = self.read_usize(read_pos, read * 8)?.to_le_bytes();
+            let usable_bytes = &bytes[0..read];
+            data.extend_from_slice(usable_bytes);
+            byte_left -= read;
+            read_pos += read;
+        }
+        Ok(data)
+    }
+
+    /// Read a sequence of bits from the buffer as float
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    ///
+    /// let bytes: &[u8] = &[
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let result = buffer.read_float::<f32>(10).unwrap();
+    /// ```
+    pub fn read_float<T>(&self, position: usize) -> Result<T>
+    where
+        T: Float,
+    {
+        if size_of::<T>() == 4 {
+            let int = self.read::<u32>(position, 32)?;
+            Ok(T::from(f32::from_bits(int)).unwrap())
+        } else {
+            let int = self.read::<u64>(position, 64)?;
+            Ok(T::from(f64::from_bits(int)).unwrap())
+        }
+    }
+}
