@@ -1,6 +1,6 @@
+use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
-use crate::{ReadError, Result};
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
 use std::marker::PhantomData;
@@ -63,9 +63,9 @@ impl IsPadded for Padded {
 /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
 /// ```
 pub struct BitBuffer<'a, E, S>
-where
-    E: Endianness,
-    S: IsPadded,
+    where
+        E: Endianness,
+        S: IsPadded,
 {
     bytes: &'a [u8],
     bit_len: usize,
@@ -75,8 +75,8 @@ where
 }
 
 impl<'a, E> BitBuffer<'a, E, NonPadded>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice
     ///
@@ -104,8 +104,8 @@ where
 }
 
 impl<'a, E> BitBuffer<'a, E, Padded>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice with included padding
     ///
@@ -146,9 +146,9 @@ where
 }
 
 impl<'a, E, S> BitBuffer<'a, E, S>
-where
-    E: Endianness,
-    S: IsPadded,
+    where
+        E: Endianness,
+        S: IsPadded,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -160,7 +160,6 @@ where
         self.byte_len
     }
 
-    #[inline]
     fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
         if position + count > self.bit_len {
             return Err(ReadError::NotEnoughData {
@@ -173,14 +172,15 @@ where
         } else {
             min(position / 8, self.byte_len - USIZE_SIZE)
         };
-        //let byte_index = position / 8;
         let bit_offset = position - byte_index * 8;
-        let slice = &self.bytes[byte_index..byte_index + USIZE_SIZE];
-        let bytes: [u8; USIZE_SIZE] = unsafe { *(slice.as_ptr() as *const [u8; USIZE_SIZE]) };
+        let raw_container: &usize = unsafe {
+            // this is only safe for us because we're sure that there is enough data in the slice
+            std::mem::transmute(self.bytes.as_ptr().offset(byte_index as isize))
+        };
         let container = if E::is_le() {
-            usize::from_le_bytes(bytes)
+            usize::from_le(*raw_container)
         } else {
-            usize::from_be_bytes(bytes)
+            usize::from_be(*raw_container)
         };
         let shifted = if E::is_le() {
             container >> bit_offset
@@ -247,8 +247,8 @@ where
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
     pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-    where
-        T: PrimInt + BitOrAssign + IsSigned,
+        where
+            T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -361,8 +361,8 @@ where
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-    where
-        T: Float,
+        where
+            T: Float,
     {
         if size_of::<T>() == 4 {
             let int = self.read::<u32>(position, 32)?;
