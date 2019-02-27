@@ -17,7 +17,7 @@
 //!    float: f32,
 //!    #[size = 3]
 //!    asd: u8,
-//!    #[size_bits = 2] // first read 2 bits, then use the resulting value as size as size for the read
+//!    #[size_bits = 2] // first read 2 bits as unsigned integer, then use the resulting value as size for the read
 //!    dynamic_length: u8,
 //!    #[size = "asd"] // use a previously defined field as size
 //!    previous_field: u8,

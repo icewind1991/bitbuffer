@@ -1,6 +1,32 @@
 use crate::{BitStream, Endianness, Result};
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
+///
+/// The `Read` trait can be used with `#[derive]` is all fields implement `Read` or `ReadSized`,
+/// when `derive`d for structs, it will read all fields in the struct in the order they are defined in.
+/// If a field only implements `ReadSized` then the size needs to be defined using a field attribute.
+///
+/// # Examples
+///
+/// ```
+/// use bitstream_reader::Read;
+///
+/// #[derive(Read)]
+/// struct TestStruct {
+///    foo: u8,
+///    str: String,
+///    #[size = 2] // when `size` is set, the attributed will be read using `read_sized`
+///    truncated: String,
+///    bar: u16,
+///    float: f32,
+///    #[size = 3]
+///    asd: u8,
+///    #[size_bits = 2] // first read 2 bits as unsigned integer, then use the resulting value as size for the read
+///    dynamic_length: u8,
+///    #[size = "asd"] // use a previously defined field as size
+///    previous_field: u8,
+/// }
+/// ```
 pub trait Read<E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitStream<E>) -> Result<Self>;

@@ -12,7 +12,8 @@
 //!   - [`Read`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
 //!   - [`ReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
 //!
-//!
+//! The [`Read`] trait can be used with `#[derive]` if all fields implement [`Read`] or [`ReadSized`],
+//! when `derive`d for structs, it will read all fields in the struct in the order they are defined in.
 //!
 //! # Examples
 //!
@@ -25,7 +26,6 @@
 //! ];
 //! let buffer = BitBuffer::new(bytes, LittleEndian);
 //! let stream = BitStream::new(buffer);
-//!
 //! ```
 //!
 //! [`BitBuffer`]: struct.BitBuffer.html
