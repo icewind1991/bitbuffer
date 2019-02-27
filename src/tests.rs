@@ -236,15 +236,46 @@ fn read_trait() {
     assert_eq!(-0b0010_1100_1001_1001, c);
     let d: bool = stream.read().unwrap();
     assert_eq!(true, d);
+    let e: Option<u8> = stream.read().unwrap();
+    assert_eq!(None, e);
+    stream.set_pos(0).unwrap();
+    let f: Option<u8> = stream.read().unwrap();
+    assert_eq!(Some(0b011_0101_0), f);
 }
 
 #[test]
 fn read_sized_trait() {
     let buffer = BitBuffer::new(BYTES, BigEndian);
     let mut stream = BitStream::new(buffer, None, None);
-    let a: u8 = stream.read_size(4).unwrap();
+    let a: u8 = stream.read_sized(4).unwrap();
     assert_eq!(0b1011, a);
+    stream.set_pos(0).unwrap();
+    let vec: Vec<u16> = stream.read_sized(3).unwrap();
+    assert_eq!(
+        vec![
+            0b1011_0101_0110_1010,
+            0b1010_1100_1001_1001,
+            0b1001_1001_1001_1001
+        ],
+        vec
+    );
+    stream.set_pos(0).unwrap();
+    let vec: Vec<u8> = stream.read_sized(3).unwrap();
+    assert_eq!(vec![0b1011_0101, 0b0110_1010, 0b1010_1100], vec);
 }
+
+//0b1011_0101,
+//    0b0110_1010,
+//    0b1010_1100,
+//    0b1001_1001,
+//    0b1001_1001,
+//    0b1001_1001,
+//    0b1001_1001,
+//    0b1110_0111,
+//    0b1001_1001,
+//    0b1001_1001,
+//    0b1001_1001,
+//    0b1110_0111,
 
 // for bench on nightly
 //fn read_perf<P: IsPadded>(buffer: BitBuffer<LittleEndian, P>) -> u16 {

@@ -8,7 +8,7 @@
 
 pub use buffer::{BitBuffer, IsPadded, NonPadded, Padded};
 pub use endianness::*;
-pub use read::{Read, ReadSize};
+pub use read::{Read, ReadSized};
 pub use std::string::FromUtf8Error;
 pub use stream::BitStream;
 

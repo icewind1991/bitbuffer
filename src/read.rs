@@ -57,14 +57,14 @@ impl<'a, E: Endianness, P: IsPadded> Read<'a, E, P> for String {
 }
 
 /// Trait for types that can be read from a stream wit requiring the size to be configured
-pub trait ReadSize<'a, E: Endianness, P: IsPadded>: Sized {
+pub trait ReadSized<'a, E: Endianness, P: IsPadded>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitStream<'a, E, P>, size: usize) -> Result<Self>;
 }
 
 macro_rules! impl_read_int_sized {
     ($type:ty) => {
-        impl<'a, E: Endianness, P: IsPadded> ReadSize<'a, E, P> for $type {
+        impl<'a, E: Endianness, P: IsPadded> ReadSized<'a, E, P> for $type {
             #[inline(always)]
             fn read(stream: &mut BitStream<'a, E, P>, size: usize) -> Result<$type> {
                 stream.read_int::<$type>(size)
@@ -84,9 +84,38 @@ impl_read_int_sized!(i32);
 impl_read_int_sized!(i64);
 impl_read_int_sized!(i128);
 
-impl<'a, E: Endianness, P: IsPadded> ReadSize<'a, E, P> for String {
+impl<'a, E: Endianness, P: IsPadded> ReadSized<'a, E, P> for String {
     #[inline(always)]
     fn read(stream: &mut BitStream<'a, E, P>, size: usize) -> Result<String> {
         stream.read_string(Some(size))
     }
 }
+
+/// Read a boolean, if true, read the value, else return None
+impl<'a, E: Endianness, P: IsPadded, T: Read<'a, E, P>> Read<'a, E, P> for Option<T> {
+    fn read(stream: &mut BitStream<'a, E, P>) -> Result<Self> {
+        if stream.read()? {
+            Ok(Some(stream.read()?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl<'a, E: Endianness, P: IsPadded, T: Read<'a, E, P>> ReadSized<'a, E, P> for Vec<T> {
+    fn read(stream: &mut BitStream<'a, E, P>, size: usize) -> Result<Self> {
+        let mut vec = Vec::with_capacity(size);
+        for _ in 0..size {
+            vec.push(stream.read()?)
+        }
+        Ok(vec)
+    }
+}
+
+// Once we have something like https://github.com/rust-lang/rfcs/issues/1053 we can do this optimization
+//impl<'a, E: Endianness, P: IsPadded> ReadSized<'a, E, P> for Vec<u8> {
+//    #[inline(always)]
+//    fn read(stream: &mut BitStream<'a, E, P>, size: usize) -> Result<Self> {
+//        stream.read_bytes(size)
+//    }
+//}
