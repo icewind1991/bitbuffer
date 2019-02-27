@@ -84,17 +84,21 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// assert_eq!(stream.read_bool().unwrap(), true);
-    /// assert_eq!(stream.read_bool().unwrap(), false);
+    /// assert_eq!(stream.read_bool()?, true);
+    /// assert_eq!(stream.read_bool()?, false);
     /// assert_eq!(stream.pos(), 2);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -117,17 +121,21 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b101);
-    /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.read_int::<u16>(3)?, 0b101);
+    /// assert_eq!(stream.read_int::<u16>(3)?, 0b110);
     /// assert_eq!(stream.pos(), 6);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -153,16 +161,20 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// let result = stream.read_float::<f32>().unwrap();
+    /// let result = stream.read_float::<f32>()?;
     /// assert_eq!(stream.pos(), 32);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -188,16 +200,20 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// assert_eq!(stream.read_bytes(3).unwrap(), &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
+    /// assert_eq!(stream.read_bytes(3)?, &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -223,8 +239,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0x48, 0x65, 0x6c, 0x6c,
     /// #     0x6f, 0x20, 0x77, 0x6f,
@@ -235,16 +252,19 @@ where
     /// # let mut stream = BitStream::new(buffer);
     /// // Fixed length string
     /// stream.set_pos(0);
-    /// assert_eq!(stream.read_string(Some(11)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(stream.read_string(Some(11))?, "Hello world".to_owned());
     /// assert_eq!(11 * 8, stream.pos());
     /// // fixed length with null padding
     /// stream.set_pos(0);
-    /// assert_eq!(stream.read_string(Some(16)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(stream.read_string(Some(16))?, "Hello world".to_owned());
     /// assert_eq!(16 * 8, stream.pos());
     /// // null terminated
     /// stream.set_pos(0);
-    /// assert_eq!(stream.read_string(None).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(stream.read_string(None)?, "Hello world".to_owned());
     /// assert_eq!(12 * 8, stream.pos()); // 1 more for the terminating null byte
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -268,20 +288,24 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// let mut bits = stream.read_bits(3).unwrap();
+    /// let mut bits = stream.read_bits(3)?;
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(bits.pos(), 0);
     /// assert_eq!(bits.bit_len(), 3);
-    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
-    /// assert_eq!(bits.read_int::<u8>(3).unwrap(), 0b101);
+    /// assert_eq!(stream.read_int::<u8>(3)?, 0b110);
+    /// assert_eq!(bits.read_int::<u8>(3)?, 0b101);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -306,17 +330,21 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// stream.skip(3).unwrap();
+    /// stream.skip(3)?;
     /// assert_eq!(stream.pos(), 3);
-    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.read_int::<u8>(3)?, 0b110);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -335,17 +363,21 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// stream.set_pos(3).unwrap();
+    /// stream.set_pos(3)?;
     /// assert_eq!(stream.pos(), 3);
-    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.read_int::<u8>(3)?, 0b110);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::IndexOutOfBounds`]: enum.ReadError.html#variant.IndexOutOfBounds
@@ -365,8 +397,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
@@ -374,6 +407,9 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.bit_len(), 64);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     pub fn bit_len(&self) -> usize {
         self.bit_len
@@ -384,8 +420,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
@@ -393,8 +430,11 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.pos(), 0);
-    /// stream.skip(5).unwrap();
+    /// stream.skip(5)?;
     /// assert_eq!(stream.pos(), 5);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     pub fn pos(&self) -> usize {
         self.pos - self.start_pos
@@ -405,8 +445,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
@@ -414,19 +455,64 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.bits_left(), 64);
-    /// stream.skip(5).unwrap();
+    /// stream.skip(5)?;
     /// assert_eq!(stream.bits_left(), 59);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     pub fn bits_left(&self) -> usize {
         self.bit_len - self.pos()
     }
 
     /// Read a value based on the provided type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// # let mut stream = BitStream::new(buffer);
+    /// let int: u8 = stream.read()?;
+    /// assert_eq!(int, 0b1011_0101);
+    /// let boolean: bool = stream.read()?;
+    /// assert_eq!(false, boolean);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    /// #[inline(always)]
     pub fn read<T: Read<E>>(&mut self) -> Result<T> {
         T::read(self)
     }
 
     /// Read a value based on the provided type and size
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// # let mut stream = BitStream::new(buffer);
+    /// let int: u8 = stream.read_sized(7)?;
+    /// assert_eq!(int, 0b011_0101);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline(always)]
     pub fn read_sized<T: ReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
     }

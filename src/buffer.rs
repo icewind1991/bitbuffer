@@ -14,15 +14,19 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # Examples
 ///
 /// ```
-/// use bitstream_reader::{BitBuffer, LittleEndian};
+/// use bitstream_reader::{BitBuffer, LittleEndian, Result};
 ///
+/// # fn main() -> Result<()> {
 /// let bytes = vec![
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
 /// let buffer = BitBuffer::new(bytes, LittleEndian);
 /// // read 7 bits as u8, starting from bit 3
-/// let result: u8 = buffer.read_int(3, 7).unwrap();
+/// let result: u8 = buffer.read_int(3, 7)?;
+/// #
+/// #     Ok(())
+/// # }
 /// ```
 pub struct BitBuffer<E>
 where
@@ -114,15 +118,20 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let result = buffer.read_bool(5).unwrap();
+    /// let result = buffer.read_bool(5)?;
     /// assert_eq!(result, true);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -152,15 +161,20 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let result = buffer.read_int::<u16>(10, 9).unwrap();
+    /// let result = buffer.read_int::<u16>(10, 9)?;
     /// assert_eq!(result, 0b100_0110_10);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -233,18 +247,23 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// assert_eq!(buffer.read_bytes(5, 3).unwrap(), &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
-    /// assert_eq!(buffer.read_bytes(0, 8).unwrap(), &[
+    /// assert_eq!(buffer.read_bytes(5, 3)?, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
+    /// assert_eq!(buffer.read_bytes(0, 8)?, &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ]);
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -277,8 +296,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0x48, 0x65, 0x6c, 0x6c,
     /// #     0x6f, 0x20, 0x77, 0x6f,
@@ -287,11 +308,14 @@ where
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// // Fixed length string
-    /// assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(buffer.read_string(0, Some(13))?, "Hello world".to_owned());
     /// // fixed length with null padding
-    /// assert_eq!(buffer.read_string(0, Some(16)).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(buffer.read_string(0, Some(16))?, "Hello world".to_owned());
     /// // null terminated
-    /// assert_eq!(buffer.read_string(0, None).unwrap(), "Hello world".to_owned());
+    /// assert_eq!(buffer.read_string(0, None)?, "Hello world".to_owned());
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
@@ -326,14 +350,19 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
+    /// # fn main() -> Result<()> {
     /// # let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let result = buffer.read_float::<f32>(10).unwrap();
+    /// let result = buffer.read_float::<f32>(10)?;
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData

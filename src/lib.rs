@@ -25,6 +25,7 @@
 //! ];
 //! let buffer = BitBuffer::new(bytes, LittleEndian);
 //! let stream = BitStream::new(buffer);
+//!
 //! ```
 //!
 //! [`BitBuffer`]: struct.BitBuffer.html
