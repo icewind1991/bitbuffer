@@ -225,6 +225,13 @@ fn read_f64_le() {
 }
 
 #[test]
+fn test_from() {
+    let buffer: BitBuffer<LittleEndian> = BitBuffer::from(BYTES.to_vec());
+    let _: BitStream<LittleEndian> = BitStream::from(buffer);
+    let _: BitStream<LittleEndian> = BitStream::from(BYTES.to_vec());
+}
+
+#[test]
 fn read_trait() {
     let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
     let mut stream = BitStream::new(buffer);

@@ -517,3 +517,15 @@ where
         T::read(self, size)
     }
 }
+
+impl<E: Endianness> From<BitBuffer<E>> for BitStream<E> {
+    fn from(buffer: BitBuffer<E>) -> Self {
+        BitStream::new(buffer)
+    }
+}
+
+impl<E: Endianness> From<Vec<u8>> for BitStream<E> {
+    fn from(bytes: Vec<u8>) -> Self {
+        BitStream::new(BitBuffer::from(bytes))
+    }
+}

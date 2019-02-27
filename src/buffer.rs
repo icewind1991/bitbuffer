@@ -379,3 +379,15 @@ where
         }
     }
 }
+
+impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
+    fn from(bytes: Vec<u8>) -> Self {
+        let byte_len = bytes.len();
+        BitBuffer {
+            bytes,
+            byte_len,
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+        }
+    }
+}
