@@ -82,10 +82,17 @@ where
 
     fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
         if position + count > self.bit_len {
-            return Err(ReadError::NotEnoughData {
-                requested: count,
-                bits_left: self.bit_len - position,
-            });
+            if position > self.bit_len {
+                return Err(ReadError::IndexOutOfBounds{
+                    pos: position,
+                    size: self.bit_len,
+                });
+            } else {
+                return Err(ReadError::NotEnoughData {
+                    requested: count,
+                    bits_left: self.bit_len - position,
+                });
+            }
         }
         let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
         let bit_offset = position - byte_index * 8;

@@ -44,10 +44,14 @@
 // for bench on nightly
 //extern crate test;
 
+use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
+pub use std::string::FromUtf8Error;
+
 pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{Read, ReadSized};
-pub use std::string::FromUtf8Error;
 pub use stream::BitStream;
 
 mod buffer;
@@ -75,7 +79,7 @@ pub enum ReadError {
         /// the number of bits left in the buffer
         bits_left: usize,
     },
-    /// The requested position is outside the bounds of the buffer
+    /// The requested position is outside the bounds of the stream or buffer
     IndexOutOfBounds {
         /// The requested position
         pos: usize,
@@ -86,9 +90,32 @@ pub enum ReadError {
     Utf8Error(FromUtf8Error),
 }
 
+impl Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReadError::TooManyBits { requested, max } =>
+                write!(f, "Too many bits requested to fit in the requested data type, requested to read {} bits while only {} fit in the datatype", requested, max),
+            ReadError::NotEnoughData { requested, bits_left } =>
+                write!(f, "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left", requested, bits_left),
+            ReadError::IndexOutOfBounds { pos, size } =>
+                write!(f, "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long", pos, size),
+            ReadError::Utf8Error(err) => err.fmt(f)
+        }
+    }
+}
+
 impl From<FromUtf8Error> for ReadError {
     fn from(err: FromUtf8Error) -> ReadError {
         ReadError::Utf8Error(err)
+    }
+}
+
+impl Error for ReadError {
+    fn cause(&self) -> Option<&Error> {
+        match self {
+            ReadError::Utf8Error(err) => Some(err),
+            _ => None
+        }
     }
 }
 
