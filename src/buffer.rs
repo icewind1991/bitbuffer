@@ -83,7 +83,7 @@ where
     fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
         if position + count > self.bit_len {
             if position > self.bit_len {
-                return Err(ReadError::IndexOutOfBounds{
+                return Err(ReadError::IndexOutOfBounds {
                     pos: position,
                     size: self.bit_len,
                 });

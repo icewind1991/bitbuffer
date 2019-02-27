@@ -49,6 +49,7 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
+pub use bitstream_reader_derive::Read;
 pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{Read, ReadSized};
@@ -114,7 +115,7 @@ impl Error for ReadError {
     fn cause(&self) -> Option<&Error> {
         match self {
             ReadError::Utf8Error(err) => Some(err),
-            _ => None
+            _ => None,
         }
     }
 }
