@@ -7,7 +7,7 @@ use crate::buffer::IsPadded;
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::BitBuffer;
-use crate::{ReadError, Result};
+use crate::{Read, ReadError, ReadSize, Result};
 
 /// Stream that provides an easy way to iterate trough a BitBuffer
 ///
@@ -408,5 +408,15 @@ where
     /// ```
     pub fn bits_left(&self) -> usize {
         self.bit_len - self.pos()
+    }
+
+    /// Read a value based on the provided type
+    pub fn read<T: Read<'a, E, S>>(&mut self) -> Result<T> {
+        T::read(self)
+    }
+
+    /// Read a value based on the provided type and size
+    pub fn read_size<T: ReadSize<'a, E, S>>(&mut self, size: usize) -> Result<T> {
+        T::read(self, size)
     }
 }

@@ -224,6 +224,28 @@ fn read_f64_le() {
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
+#[test]
+fn read_trait() {
+    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let mut stream = BitStream::new(buffer, None, None);
+    let a: u8 = stream.read().unwrap();
+    assert_eq!(0b1011_0101, a);
+    let b: i8 = stream.read().unwrap();
+    assert_eq!(0b110_1010, b);
+    let c: i16 = stream.read().unwrap();
+    assert_eq!(-0b0010_1100_1001_1001, c);
+    let d: bool = stream.read().unwrap();
+    assert_eq!(true, d);
+}
+
+#[test]
+fn read_sized_trait() {
+    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let mut stream = BitStream::new(buffer, None, None);
+    let a: u8 = stream.read_size(4).unwrap();
+    assert_eq!(0b1011, a);
+}
+
 // for bench on nightly
 //fn read_perf<P: IsPadded>(buffer: BitBuffer<LittleEndian, P>) -> u16 {
 //    let size = 5;
