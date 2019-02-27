@@ -46,7 +46,7 @@ impl IsPadded for Padded {
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
-/// let buffer = BitBuffer::new(bytes, LittleEndian);
+/// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
 /// ```
 ///
 /// You can also provide a slice padded with at least `size_of::<usize>() - 1` bytes,
@@ -60,22 +60,21 @@ impl IsPadded for Padded {
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
 ///     0, 0, 0, 0, 0, 0, 0, 0
 /// ];
-/// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
+/// let buffer = BitBuffer::from_padded(bytes.to_vec(), 8, LittleEndian);
 /// ```
-#[derive(Copy)]
-pub struct BitBuffer<'a, E, S>
+pub struct BitBuffer<E, S>
 where
     E: Endianness,
     S: IsPadded,
 {
-    bytes: &'a [u8],
+    bytes: Vec<u8>,
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
     is_padded: PhantomData<S>,
 }
 
-impl<'a, E> BitBuffer<'a, E, NonPadded>
+impl<E> BitBuffer<E, NonPadded>
 where
     E: Endianness,
 {
@@ -90,9 +89,9 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// ```
-    pub fn new(bytes: &'a [u8], _endianness: E) -> Self {
+    pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
             bytes,
@@ -104,7 +103,7 @@ where
     }
 }
 
-impl<'a, E> BitBuffer<'a, E, Padded>
+impl<E> BitBuffer<E, Padded>
 where
     E: Endianness,
 {
@@ -126,9 +125,9 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
     ///     0, 0, 0, 0, 0, 0, 0, 0
     /// ];
-    /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
+    /// let buffer = BitBuffer::from_padded(bytes.to_vec(), 8, LittleEndian);
     /// ```
-    pub fn from_padded_slice(bytes: &'a [u8], byte_len: usize, _endianness: E) -> Self {
+    pub fn from_padded(bytes: Vec<u8>, byte_len: usize, _endianness: E) -> Self {
         if bytes.len() < byte_len + USIZE_SIZE - 1 {
             panic!(
                 "not enough padding bytes, {} required, {} provided",
@@ -146,7 +145,7 @@ where
     }
 }
 
-impl<'a, E, S> BitBuffer<'a, E, S>
+impl<E, S> BitBuffer<E, S>
 where
     E: Endianness,
     S: IsPadded,
@@ -209,7 +208,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// let result = buffer.read_bool(5).unwrap();
     /// assert_eq!(result, true);
     /// ```
@@ -245,7 +244,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// let result = buffer.read_int::<u16>(10, 9).unwrap();
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
@@ -323,7 +322,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// assert_eq!(buffer.read_bytes(5, 3).unwrap(), &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// assert_eq!(buffer.read_bytes(0, 8).unwrap(), &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -367,7 +366,7 @@ where
     ///     0x72, 0x6c, 0x64, 0,
     ///     0,    0,    0,    0
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// // Fixed length string
     /// assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
     /// // fixed length with null padding
@@ -412,7 +411,7 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
@@ -425,22 +424,6 @@ where
         } else {
             let int = self.read_int::<u64>(position, 64)?;
             Ok(T::from(f64::from_bits(int)).unwrap())
-        }
-    }
-}
-
-impl<'a, E, P> Clone for BitBuffer<'a, E, P>
-where
-    E: Endianness,
-    P: IsPadded,
-{
-    fn clone(&self) -> Self {
-        BitBuffer {
-            bytes: self.bytes,
-            byte_len: self.byte_len,
-            bit_len: self.bit_len,
-            endianness: PhantomData,
-            is_padded: PhantomData,
         }
     }
 }

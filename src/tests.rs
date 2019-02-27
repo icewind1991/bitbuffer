@@ -20,7 +20,7 @@ const BYTES: &'static [u8] = &[
 
 #[test]
 fn read_u8_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<u8>(0, 1).unwrap(), 0b1);
     assert_eq!(buffer.read_int::<u8>(1, 1).unwrap(), 0b0);
@@ -33,7 +33,7 @@ fn read_u8_le() {
 
 #[test]
 fn read_u8_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(buffer.read_int::<u8>(0, 1).unwrap(), 0b1);
     assert_eq!(buffer.read_int::<u8>(1, 1).unwrap(), 0b0);
@@ -45,21 +45,21 @@ fn read_u8_be() {
 
 #[test]
 fn read_u16_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b00_0110_1010_10);
 }
 
 #[test]
 fn read_u16_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b01_0110_1010_10);
 }
 
 #[test]
 fn read_u32_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(
         buffer.read_int::<u32>(6, 24).unwrap(),
@@ -69,7 +69,7 @@ fn read_u32_le() {
 
 #[test]
 fn read_u32_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(
         buffer.read_int::<u32>(6, 24).unwrap(),
@@ -79,7 +79,7 @@ fn read_u32_be() {
 
 #[test]
 fn read_u64_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(
         buffer.read_int::<u64>(6, 34).unwrap(),
@@ -101,7 +101,7 @@ fn read_u64_le() {
 
 #[test]
 fn read_u64_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(
         buffer.read_int::<u64>(6, 34).unwrap(),
@@ -119,7 +119,7 @@ fn read_u64_be() {
 
 #[test]
 fn read_i8_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<i8>(0, 3).unwrap(), -0b01);
     assert_eq!(buffer.read_int::<i8>(0, 8).unwrap(), -0b011_0101);
@@ -127,7 +127,7 @@ fn read_i8_le() {
 
 #[test]
 fn read_i8_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(buffer.read_int::<i8>(1, 2).unwrap(), 0b1);
     assert_eq!(buffer.read_int::<i8>(0, 3).unwrap(), -0b01);
@@ -136,7 +136,7 @@ fn read_i8_be() {
 
 #[test]
 fn read_i16_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b0_0110_1010_10);
     assert_eq!(buffer.read_int::<i16>(6, 13).unwrap(), -0b00_0110_1010_10);
@@ -144,7 +144,7 @@ fn read_i16_le() {
 
 #[test]
 fn read_i16_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b1_0110_1010_10);
     assert_eq!(buffer.read_int::<i16>(7, 12).unwrap(), -0b0110_1010_101);
@@ -152,7 +152,7 @@ fn read_i16_be() {
 
 #[test]
 fn read_i32_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(
         buffer.read_int::<i32>(6, 24).unwrap(),
@@ -166,7 +166,7 @@ fn read_i32_le() {
 
 #[test]
 fn read_i32_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(
         buffer.read_int::<i32>(7, 24).unwrap(),
@@ -176,7 +176,7 @@ fn read_i32_be() {
 
 #[test]
 fn read_i64_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(
         buffer.read_int::<i64>(6, 34).unwrap(),
@@ -194,7 +194,7 @@ fn read_i64_le() {
 
 #[test]
 fn read_i64_be() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
 
     assert_eq!(
         buffer.read_int::<i64>(7, 34).unwrap(),
@@ -212,21 +212,21 @@ fn read_i64_be() {
 
 #[test]
 fn read_f32_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
 #[test]
 fn read_f64_le() {
-    let buffer = BitBuffer::new(BYTES, LittleEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_float::<f64>(6).unwrap(), 135447455835963910000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
 }
 
 #[test]
 fn read_trait() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
     let mut stream = BitStream::new(buffer, None, None);
     let a: u8 = stream.read().unwrap();
     assert_eq!(0b1011_0101, a);
@@ -245,7 +245,7 @@ fn read_trait() {
 
 #[test]
 fn read_sized_trait() {
-    let buffer = BitBuffer::new(BYTES, BigEndian);
+    let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
     let mut stream = BitStream::new(buffer, None, None);
     let a: u8 = stream.read_sized(4).unwrap();
     assert_eq!(0b1011, a);
