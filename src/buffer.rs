@@ -48,37 +48,21 @@ impl IsPadded for Padded {
 /// ];
 /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
 /// ```
-///
-/// You can also provide a slice padded with at least `size_of::<usize>() - 1` bytes,
-/// when the input slice is padded, the BitBuffer can use some optimizations which result in a ~1.5 time performance increase
-///
-/// ```
-/// use bitstream_reader::{BitBuffer, LittleEndian};
-///
-/// let bytes: &[u8] = &[
-///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
-///     0, 0, 0, 0, 0, 0, 0, 0
-/// ];
-/// let buffer = BitBuffer::from_padded(bytes.to_vec(), 8, LittleEndian);
-/// ```
-pub struct BitBuffer<E, S>
+pub struct BitBuffer<E>
 where
     E: Endianness,
-    S: IsPadded,
 {
     bytes: Vec<u8>,
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
-    is_padded: PhantomData<S>,
 }
 
-impl<E> BitBuffer<E, NonPadded>
+impl<E> BitBuffer<E>
 where
     E: Endianness,
 {
-    /// Create a new BitBuffer from a byte slice
+    /// Create a new BitBuffer from a byte vector
     ///
     /// # Examples
     ///
@@ -98,57 +82,13 @@ where
             byte_len,
             bit_len: byte_len * 8,
             endianness: PhantomData,
-            is_padded: PhantomData,
         }
     }
 }
 
-impl<E> BitBuffer<E, Padded>
+impl<E> BitBuffer<E>
 where
     E: Endianness,
-{
-    /// Create a new BitBuffer from a byte slice with included padding
-    ///
-    /// by including at least `size_of::<usize>() - 1` bytes of padding reading can be further optimized
-    ///
-    /// # Panics
-    ///
-    /// Panics if not enough bytes of padding are included
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111,
-    ///     0, 0, 0, 0, 0, 0, 0, 0
-    /// ];
-    /// let buffer = BitBuffer::from_padded(bytes.to_vec(), 8, LittleEndian);
-    /// ```
-    pub fn from_padded(bytes: Vec<u8>, byte_len: usize, _endianness: E) -> Self {
-        if bytes.len() < byte_len + USIZE_SIZE - 1 {
-            panic!(
-                "not enough padding bytes, {} required, {} provided",
-                USIZE_SIZE - 1,
-                byte_len - bytes.len()
-            )
-        }
-        BitBuffer {
-            bytes,
-            byte_len,
-            bit_len: byte_len * 8,
-            endianness: PhantomData,
-            is_padded: PhantomData,
-        }
-    }
-}
-
-impl<E, S> BitBuffer<E, S>
-where
-    E: Endianness,
-    S: IsPadded,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -167,11 +107,7 @@ where
                 bits_left: self.bit_len - position,
             });
         }
-        let byte_index = if S::is_padded() {
-            position / 8
-        } else {
-            min(position / 8, self.byte_len - USIZE_SIZE)
-        };
+        let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
         let bit_offset = position - byte_index * 8;
         let raw_container: &usize = unsafe {
             // this is safe here because it's already verified that there is enough data in the slice

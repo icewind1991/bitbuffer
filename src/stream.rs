@@ -24,21 +24,19 @@ use crate::{Read, ReadError, ReadSized, Result};
 /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
 /// let mut stream = BitStream::new(buffer, None, None);
 /// ```
-pub struct BitStream<E, S>
+pub struct BitStream<E>
 where
     E: Endianness,
-    S: IsPadded,
 {
-    buffer: Rc<BitBuffer<E, S>>,
+    buffer: Rc<BitBuffer<E>>,
     start_pos: usize,
     pos: usize,
     bit_len: usize,
 }
 
-impl<E, S> BitStream<E, S>
+impl<E> BitStream<E>
 where
     E: Endianness,
-    S: IsPadded,
 {
     /// Create a new stream for a buffer
     ///
@@ -59,7 +57,7 @@ where
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
     /// let mut stream = BitStream::new(buffer, None, None);
     /// ```
-    pub fn new(buffer: BitBuffer<E, S>, start_pos: Option<usize>, bit_len: Option<usize>) -> Self {
+    pub fn new(buffer: BitBuffer<E>, start_pos: Option<usize>, bit_len: Option<usize>) -> Self {
         let buffer_len = buffer.bit_len();
         let start = start_pos.unwrap_or_default();
         if start > buffer_len {
@@ -413,12 +411,12 @@ where
     }
 
     /// Read a value based on the provided type
-    pub fn read<T: Read<E, S>>(&mut self) -> Result<T> {
+    pub fn read<T: Read<E>>(&mut self) -> Result<T> {
         T::read(self)
     }
 
     /// Read a value based on the provided type and size
-    pub fn read_sized<T: ReadSized<E, S>>(&mut self, size: usize) -> Result<T> {
+    pub fn read_sized<T: ReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
     }
 }
