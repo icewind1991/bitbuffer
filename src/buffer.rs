@@ -16,11 +16,13 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// ```
 /// use bitstream_reader::{BitBuffer, LittleEndian};
 ///
-/// let bytes: &[u8] = &[
+/// let bytes = vec![
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
-/// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+/// let buffer = BitBuffer::new(bytes, LittleEndian);
+/// // read 7 bits as u8, starting from bit 3
+/// let result: u8 = buffer.read_int(3, 7).unwrap();
 /// ```
 pub struct BitBuffer<E>
 where
@@ -43,11 +45,11 @@ where
     /// ```
     /// use bitstream_reader::{BitBuffer, LittleEndian};
     ///
-    /// let bytes: &[u8] = &[
+    /// let bytes = vec![
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// ```
     pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
@@ -112,13 +114,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+    /// #
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_bool(5).unwrap();
     /// assert_eq!(result, true);
     /// ```
@@ -148,13 +150,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+    /// #
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_int::<u16>(10, 9).unwrap();
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
@@ -226,13 +228,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+    /// #
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// assert_eq!(buffer.read_bytes(5, 3).unwrap(), &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// assert_eq!(buffer.read_bytes(0, 8).unwrap(), &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -268,15 +270,15 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0x48, 0x65, 0x6c, 0x6c,
-    ///     0x6f, 0x20, 0x77, 0x6f,
-    ///     0x72, 0x6c, 0x64, 0,
-    ///     0,    0,    0,    0
-    /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// #
+    /// # let bytes = vec![
+    /// #     0x48, 0x65, 0x6c, 0x6c,
+    /// #     0x6f, 0x20, 0x77, 0x6f,
+    /// #     0x72, 0x6c, 0x64, 0,
+    /// #     0,    0,    0,    0
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// // Fixed length string
     /// assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
     /// // fixed length with null padding
@@ -315,13 +317,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
-    ///
-    /// let bytes: &[u8] = &[
-    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// ];
-    /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
+    /// # use bitstream_reader::{BitBuffer, LittleEndian};
+    /// #
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
