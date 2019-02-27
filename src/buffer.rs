@@ -109,7 +109,7 @@ where
     ///
     /// # Errors
     ///
-    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
     ///
     /// # Examples
     ///
@@ -124,6 +124,8 @@ where
     /// let result = buffer.read_bool(5).unwrap();
     /// assert_eq!(result, true);
     /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bool(&self, position: usize) -> Result<bool> {
         let byte_index = position / 8;
         let bit_offset = position & 7;
@@ -144,8 +146,8 @@ where
     ///
     /// # Errors
     ///
-    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
-    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`]: to many bits requested for the chosen integer type
     ///
     /// # Examples
     ///
@@ -160,6 +162,9 @@ where
     /// let result = buffer.read_int::<u16>(10, 9).unwrap();
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
     where
         T: PrimInt + BitOrAssign + IsSigned,
@@ -223,7 +228,7 @@ where
     ///
     /// # Errors
     ///
-    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
     ///
     /// # Examples
     ///
@@ -241,6 +246,8 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ]);
     /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         let mut data = vec![];
         data.reserve_exact(byte_count);
@@ -264,8 +271,8 @@ where
     ///
     /// # Errors
     ///
-    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
-    /// - [`ReadError::Utf8Error`](enum.ReadError.html#variant.Utf8Error): the read bytes are not valid utf8
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
+    /// - [`ReadError::Utf8Error`]: the read bytes are not valid utf8
     ///
     /// # Examples
     ///
@@ -286,6 +293,9 @@ where
     /// // null terminated
     /// assert_eq!(buffer.read_string(0, None).unwrap(), "Hello world".to_owned());
     /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
         let bytes = match byte_len {
             Some(len) => self.read_bytes(position, len)?,
@@ -311,8 +321,7 @@ where
     ///
     /// # Errors
     ///
-    /// - [`ReadError::NotEnoughData`](enum.ReadError.html#variant.NotEnoughData): not enough bits available in the buffer
-    /// - [`ReadError::TooManyBits`](enum.ReadError.html#variant.TooManyBits): to many bits requested for the chosen integer type
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
     ///
     /// # Examples
     ///
@@ -326,6 +335,8 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
     where
         T: Float,

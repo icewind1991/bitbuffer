@@ -91,7 +91,7 @@ impl<E: Endianness> ReadSized<E> for String {
     }
 }
 
-/// Read a boolean, if true, read the value, else return None
+/// Read a boolean, if true, read `T`, else return `None`
 impl<E: Endianness, T: Read<E>> Read<E> for Option<T> {
     fn read(stream: &mut BitStream<E>) -> Result<Self> {
         if stream.read()? {
@@ -102,6 +102,7 @@ impl<E: Endianness, T: Read<E>> Read<E> for Option<T> {
     }
 }
 
+/// Read `T` `size` times and return as `Vec<T>`
 impl<E: Endianness, T: Read<E>> ReadSized<E> for Vec<T> {
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
         let mut vec = Vec::with_capacity(size);

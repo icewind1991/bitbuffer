@@ -1,5 +1,17 @@
 //! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
 //!
+//! The main way of handling with the binary data is to first create a [`BitBuffer`]
+//! ,wrap it into a [`BitStream`] and then read from the stream.
+//!
+//! If performance is critical, working directly on the BitBuffer can be faster.
+//!
+//! Once you have a BitStream, there are 2 different approaches of reading data
+//!
+//! - read primitives, Strings and byte arrays, using [`read_bool`], [`read_int`], [`read_float`], [`read_byes`] and [`read_string`]
+//! - read any type implementing the  [`Read`] or [`ReadSized`] traits using [`read`] and [`read_sized`]
+//!   - [`Read`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+//!   - [`ReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
+//!
 //!
 //!
 //! # Examples
@@ -13,6 +25,17 @@
 //! ];
 //! let buffer = BitBuffer::new(bytes, LittleEndian);
 //! let stream = BitStream::new(buffer);
+//! ```
+//!
+//! [`BitBuffer`]: struct.BitBuffer.html
+//! [`BitStream`]: struct.BitStream.html
+//! [`read_bool`]: struct.BitStream.html#method.read_bool
+//! [`read_int`]: struct.BitStream.html#method.read_int
+//! [`read_float`]: struct.BitStream.html#method.read_float
+//! [`read_byes`]: struct.BitStream.html#method.read_bytes
+//! [`read_string`]: struct.BitStream.html#method.read_string
+//! [`Read`]: trait.Read.html
+//! [`ReadSized`]: trait.ReadSized.html
 
 #![warn(missing_docs)]
 //#![feature(test)]

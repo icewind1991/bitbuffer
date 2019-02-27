@@ -6,10 +6,10 @@ pub trait Endianness {
     fn is_be() -> bool;
 }
 
-/// Trait for specifying that the bit buffer is big endian
+/// Marks the buffer or stream as big endian
 pub struct BigEndian;
 
-/// Trait for specifying that the bit buffer is little endian
+/// Marks the buffer or stream as little endian
 pub struct LittleEndian;
 
 macro_rules! impl_endianness {
