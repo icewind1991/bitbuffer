@@ -1,6 +1,6 @@
-use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
+use crate::{ReadError, Result};
 use num_traits::{Float, PrimInt};
 use std::cmp::min;
 use std::marker::PhantomData;
@@ -62,10 +62,11 @@ impl IsPadded for Padded {
 /// ];
 /// let buffer = BitBuffer::from_padded_slice(bytes, 8, LittleEndian);
 /// ```
+#[derive(Copy)]
 pub struct BitBuffer<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded,
+where
+    E: Endianness,
+    S: IsPadded,
 {
     bytes: &'a [u8],
     bit_len: usize,
@@ -75,8 +76,8 @@ pub struct BitBuffer<'a, E, S>
 }
 
 impl<'a, E> BitBuffer<'a, E, NonPadded>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice
     ///
@@ -104,8 +105,8 @@ impl<'a, E> BitBuffer<'a, E, NonPadded>
 }
 
 impl<'a, E> BitBuffer<'a, E, Padded>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte slice with included padding
     ///
@@ -146,9 +147,9 @@ impl<'a, E> BitBuffer<'a, E, Padded>
 }
 
 impl<'a, E, S> BitBuffer<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded,
+where
+    E: Endianness,
+    S: IsPadded,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -174,8 +175,10 @@ impl<'a, E, S> BitBuffer<'a, E, S>
         };
         let bit_offset = position - byte_index * 8;
         let raw_container: &usize = unsafe {
-            // this is only safe for us because we're sure that there is enough data in the slice
-            std::mem::transmute(self.bytes.as_ptr().offset(byte_index as isize))
+            // this is safe here because it's already verified that there is enough data in the slice
+            // to read a usize from byte_index
+            let ptr = self.bytes.as_ptr().add(byte_index);
+            std::mem::transmute(ptr)
         };
         let container = if E::is_le() {
             usize::from_le(*raw_container)
@@ -185,7 +188,7 @@ impl<'a, E, S> BitBuffer<'a, E, S>
         let shifted = if E::is_le() {
             container >> bit_offset
         } else {
-            container >> USIZE_SIZE * 8 - bit_offset - count
+            container >> (USIZE_SIZE * 8 - bit_offset - count)
         };
         let mask = !(usize::max_value() << count);
         Ok(shifted & mask)
@@ -243,12 +246,12 @@ impl<'a, E, S> BitBuffer<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let result = buffer.read::<u16>(10, 9).unwrap();
+    /// let result = buffer.read_int::<u16>(10, 9).unwrap();
     /// assert_eq!(result, 0b100_0110_10);
     /// ```
-    pub fn read<T>(&self, position: usize, count: usize) -> Result<T>
-        where
-            T: PrimInt + BitOrAssign + IsSigned,
+    pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
+    where
+        T: PrimInt + BitOrAssign + IsSigned,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -379,7 +382,7 @@ impl<'a, E, S> BitBuffer<'a, E, S>
                 let mut acc = vec![];
                 let mut pos = position;
                 loop {
-                    let byte = self.read(pos, 8)?;
+                    let byte = self.read_int(pos, 8)?;
                     acc.push(byte);
                     if byte == 0 {
                         break;
@@ -413,15 +416,31 @@ impl<'a, E, S> BitBuffer<'a, E, S>
     /// let result = buffer.read_float::<f32>(10).unwrap();
     /// ```
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-        where
-            T: Float,
+    where
+        T: Float,
     {
         if size_of::<T>() == 4 {
-            let int = self.read::<u32>(position, 32)?;
+            let int = self.read_int::<u32>(position, 32)?;
             Ok(T::from(f32::from_bits(int)).unwrap())
         } else {
-            let int = self.read::<u64>(position, 64)?;
+            let int = self.read_int::<u64>(position, 64)?;
             Ok(T::from(f64::from_bits(int)).unwrap())
+        }
+    }
+}
+
+impl<'a, E, P> Clone for BitBuffer<'a, E, P>
+where
+    E: Endianness,
+    P: IsPadded,
+{
+    fn clone(&self) -> Self {
+        BitBuffer {
+            bytes: self.bytes,
+            byte_len: self.byte_len,
+            bit_len: self.bit_len,
+            endianness: PhantomData,
+            is_padded: PhantomData,
         }
     }
 }

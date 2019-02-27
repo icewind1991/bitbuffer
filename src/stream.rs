@@ -1,11 +1,13 @@
-use crate::{ReadError, Result};
-use crate::BitBuffer;
+use std::mem::size_of;
+use std::ops::BitOrAssign;
+
+use num_traits::{Float, PrimInt};
+
 use crate::buffer::IsPadded;
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
-use num_traits::{Float, PrimInt};
-use std::mem::size_of;
-use std::ops::BitOrAssign;
+use crate::BitBuffer;
+use crate::{ReadError, Result};
 
 /// Stream that provides an easy way to iterate trough a BitBuffer
 ///
@@ -19,25 +21,30 @@ use std::ops::BitOrAssign;
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
 /// let buffer = BitBuffer::new(bytes, LittleEndian);
-/// let mut stream = BitStream::new(&buffer, None, None);
+/// let mut stream = BitStream::new(buffer, None, None);
 /// ```
 pub struct BitStream<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded,
+where
+    E: Endianness,
+    S: IsPadded,
 {
-    buffer: &'a BitBuffer<'a, E, S>,
+    buffer: BitBuffer<'a, E, S>,
     start_pos: usize,
     pos: usize,
     bit_len: usize,
 }
 
 impl<'a, E, S> BitStream<'a, E, S>
-    where
-        E: Endianness,
-        S: IsPadded,
+where
+    E: Endianness,
+    S: IsPadded,
 {
     /// Create a new stream for a buffer
+    ///
+    /// # Panics
+    ///
+    /// - If the start_pos is higher than the bit length of the buffer
+    ///
     ///
     /// # Examples
     ///
@@ -49,17 +56,22 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// ```
     pub fn new(
-        buffer: &'a BitBuffer<'a, E, S>,
+        buffer: BitBuffer<'a, E, S>,
         start_pos: Option<usize>,
         bit_len: Option<usize>,
     ) -> Self {
+        let buffer_len = buffer.bit_len();
+        let start = start_pos.unwrap_or_default();
+        if start > buffer_len {
+            panic!("start_pos out opf bounds of the buffer")
+        }
         BitStream {
-            start_pos: start_pos.unwrap_or(0),
-            pos: start_pos.unwrap_or(0),
-            bit_len: bit_len.unwrap_or(buffer.bit_len()),
+            start_pos: start,
+            pos: start,
+            bit_len: bit_len.unwrap_or(buffer_len - start),
             buffer,
         }
     }
@@ -91,7 +103,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// assert_eq!(stream.read_bool().unwrap(), true);
     /// assert_eq!(stream.read_bool().unwrap(), false);
     /// assert_eq!(stream.pos(), 2);
@@ -99,9 +111,8 @@ impl<'a, E, S> BitStream<'a, E, S>
     pub fn read_bool(&mut self) -> Result<bool> {
         self.verify_bits_left(1)?;
         let result = self.buffer.read_bool(self.pos);
-        match result {
-            Ok(_) => self.pos += 1,
-            Err(_) => {}
+        if result.is_ok() {
+            self.pos += 1;
         }
         result
     }
@@ -123,20 +134,19 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
-    /// assert_eq!(stream.read::<u16>(3).unwrap(), 0b101);
-    /// assert_eq!(stream.read::<u16>(3).unwrap(), 0b110);
+    /// let mut stream = BitStream::new(buffer, None, None);
+    /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b101);
+    /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b110);
     /// assert_eq!(stream.pos(), 6);
     /// ```
-    pub fn read<T>(&mut self, count: usize) -> Result<T>
-        where
-            T: PrimInt + BitOrAssign + IsSigned,
+    pub fn read_int<T>(&mut self, count: usize) -> Result<T>
+    where
+        T: PrimInt + BitOrAssign + IsSigned,
     {
         self.verify_bits_left(count)?;
-        let result = self.buffer.read(self.pos, count);
-        match result {
-            Ok(_) => self.pos += count,
-            Err(_) => {}
+        let result = self.buffer.read_int(self.pos, count);
+        if result.is_ok() {
+            self.pos += count;
         }
         result
     }
@@ -157,20 +167,19 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// let result = stream.read_float::<f32>().unwrap();
     /// assert_eq!(stream.pos(), 32);
     /// ```
     pub fn read_float<T>(&mut self) -> Result<T>
-        where
-            T: Float,
+    where
+        T: Float,
     {
         let count = size_of::<T>() * 8;
         self.verify_bits_left(count)?;
         let result = self.buffer.read_float(self.pos);
-        match result {
-            Ok(_) => self.pos += count,
-            Err(_) => {}
+        if result.is_ok() {
+            self.pos += count;
         }
         result
     }
@@ -191,7 +200,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// assert_eq!(stream.read_bytes(3).unwrap(), &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
     /// ```
@@ -199,9 +208,8 @@ impl<'a, E, S> BitStream<'a, E, S>
         let count = byte_count * 8;
         self.verify_bits_left(count)?;
         let result = self.buffer.read_bytes(self.pos, byte_count);
-        match result {
-            Ok(_) => self.pos += count,
-            Err(_) => {}
+        if result.is_ok() {
+            self.pos += count;
         }
         result
     }
@@ -227,7 +235,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0,    0,    0,    0
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// // Fixed length string
     /// stream.set_pos(0);
     /// assert_eq!(stream.read_string(Some(11)).unwrap(), "Hello world".to_owned());
@@ -245,7 +253,7 @@ impl<'a, E, S> BitStream<'a, E, S>
         let result = self.buffer.read_string(self.pos, byte_len)?;
         let read = match byte_len {
             Some(len) => len * 8,
-            None => (result.len() + 1) * 8
+            None => (result.len() + 1) * 8,
         };
         self.pos += read;
         Ok(result)
@@ -267,17 +275,17 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// let mut bits = stream.read_bits(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(bits.pos(), 0);
     /// assert_eq!(bits.bit_len(), 3);
-    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
-    /// assert_eq!(bits.read::<u8>(3).unwrap(), 0b101);
+    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(bits.read_int::<u8>(3).unwrap(), 0b101);
     /// ```
     pub fn read_bits(&mut self, count: usize) -> Result<Self> {
         self.verify_bits_left(count)?;
-        let result = BitStream::new(&self.buffer, Some(self.pos), Some(count));
+        let result = BitStream::new(self.buffer.clone(), Some(self.pos), Some(count));
         self.pos += count;
         Ok(result)
     }
@@ -298,10 +306,10 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// stream.skip(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
-    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
     /// ```
     pub fn skip(&mut self, count: usize) -> Result<()> {
         self.verify_bits_left(count)?;
@@ -325,10 +333,10 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// stream.set_pos(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
-    /// assert_eq!(stream.read::<u8>(3).unwrap(), 0b110);
+    /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
     /// ```
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
         if pos > self.bit_len {
@@ -353,7 +361,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// assert_eq!(stream.bit_len(), 64);
     /// ```
     pub fn bit_len(&self) -> usize {
@@ -372,7 +380,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// assert_eq!(stream.pos(), 0);
     /// stream.skip(5).unwrap();
     /// assert_eq!(stream.pos(), 5);
@@ -393,7 +401,7 @@ impl<'a, E, S> BitStream<'a, E, S>
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let mut stream = BitStream::new(&buffer, None, None);
+    /// let mut stream = BitStream::new(buffer, None, None);
     /// assert_eq!(stream.bits_left(), 64);
     /// stream.skip(5).unwrap();
     /// assert_eq!(stream.bits_left(), 59);

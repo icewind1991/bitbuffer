@@ -6,7 +6,7 @@
 // for bench on nightly
 //extern crate test;
 
-pub use buffer::{BitBuffer, IsPadded};
+pub use buffer::{BitBuffer, IsPadded, NonPadded, Padded};
 pub use endianness::*;
 pub use std::string::FromUtf8Error;
 pub use stream::BitStream;
