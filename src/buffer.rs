@@ -9,32 +9,6 @@ use std::ops::BitOrAssign;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
-/// Mark source slice as not including padding
-pub struct NonPadded;
-
-/// Mark source slice as including padding
-pub struct Padded;
-
-/// Determine whether or not the source slice is padded
-pub trait IsPadded {
-    /// Whether or not the slice is padded
-    fn is_padded() -> bool;
-}
-
-impl IsPadded for NonPadded {
-    #[inline(always)]
-    fn is_padded() -> bool {
-        false
-    }
-}
-
-impl IsPadded for Padded {
-    #[inline(always)]
-    fn is_padded() -> bool {
-        true
-    }
-}
-
 /// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
 ///
 /// # Examples

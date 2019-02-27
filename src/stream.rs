@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
-use crate::buffer::IsPadded;
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::BitBuffer;
@@ -22,7 +21,7 @@ use crate::{Read, ReadError, ReadSized, Result};
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
 /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-/// let mut stream = BitStream::new(buffer, None, None);
+/// let mut stream = BitStream::new(buffer);
 /// ```
 pub struct BitStream<E>
 where
@@ -55,18 +54,13 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// ```
-    pub fn new(buffer: BitBuffer<E>, start_pos: Option<usize>, bit_len: Option<usize>) -> Self {
-        let buffer_len = buffer.bit_len();
-        let start = start_pos.unwrap_or_default();
-        if start > buffer_len {
-            panic!("start_pos out opf bounds of the buffer")
-        }
+    pub fn new(buffer: BitBuffer<E>) -> Self {
         BitStream {
-            start_pos: start,
-            pos: start,
-            bit_len: bit_len.unwrap_or(buffer_len - start),
+            start_pos: 0,
+            pos: 0,
+            bit_len: buffer.bit_len(),
             buffer: Rc::new(buffer),
         }
     }
@@ -98,7 +92,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.read_bool().unwrap(), true);
     /// assert_eq!(stream.read_bool().unwrap(), false);
     /// assert_eq!(stream.pos(), 2);
@@ -129,7 +123,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b101);
     /// assert_eq!(stream.read_int::<u16>(3).unwrap(), 0b110);
     /// assert_eq!(stream.pos(), 6);
@@ -162,7 +156,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// let result = stream.read_float::<f32>().unwrap();
     /// assert_eq!(stream.pos(), 32);
     /// ```
@@ -195,7 +189,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.read_bytes(3).unwrap(), &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
     /// ```
@@ -230,7 +224,7 @@ where
     ///     0,    0,    0,    0
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// // Fixed length string
     /// stream.set_pos(0);
     /// assert_eq!(stream.read_string(Some(11)).unwrap(), "Hello world".to_owned());
@@ -270,7 +264,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// let mut bits = stream.read_bits(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(bits.pos(), 0);
@@ -306,7 +300,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// stream.skip(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
@@ -333,7 +327,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// stream.set_pos(3).unwrap();
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(stream.read_int::<u8>(3).unwrap(), 0b110);
@@ -361,7 +355,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.bit_len(), 64);
     /// ```
     pub fn bit_len(&self) -> usize {
@@ -380,7 +374,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.pos(), 0);
     /// stream.skip(5).unwrap();
     /// assert_eq!(stream.pos(), 5);
@@ -401,7 +395,7 @@ where
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
     /// let buffer = BitBuffer::new(bytes.to_vec(), LittleEndian);
-    /// let mut stream = BitStream::new(buffer, None, None);
+    /// let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.bits_left(), 64);
     /// stream.skip(5).unwrap();
     /// assert_eq!(stream.bits_left(), 59);

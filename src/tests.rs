@@ -227,7 +227,7 @@ fn read_f64_le() {
 #[test]
 fn read_trait() {
     let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
-    let mut stream = BitStream::new(buffer, None, None);
+    let mut stream = BitStream::new(buffer);
     let a: u8 = stream.read().unwrap();
     assert_eq!(0b1011_0101, a);
     let b: i8 = stream.read().unwrap();
@@ -246,7 +246,7 @@ fn read_trait() {
 #[test]
 fn read_sized_trait() {
     let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
-    let mut stream = BitStream::new(buffer, None, None);
+    let mut stream = BitStream::new(buffer);
     let a: u8 = stream.read_sized(4).unwrap();
     assert_eq!(0b1011, a);
     stream.set_pos(0).unwrap();

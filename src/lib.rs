@@ -1,12 +1,26 @@
+//! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
+//!
+//!
+//!
+//! # Examples
+//!
+//! ```
+//! use bitstream_reader::{BitBuffer, LittleEndian, BitStream};
+//!
+//! let bytes = vec![
+//!     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+//!     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+//! ];
+//! let buffer = BitBuffer::new(bytes, LittleEndian);
+//! let stream = BitStream::new(buffer);
+
 #![warn(missing_docs)]
 //#![feature(test)]
-
-//! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
 
 // for bench on nightly
 //extern crate test;
 
-pub use buffer::{BitBuffer, IsPadded, NonPadded, Padded};
+pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{Read, ReadSized};
 pub use std::string::FromUtf8Error;
