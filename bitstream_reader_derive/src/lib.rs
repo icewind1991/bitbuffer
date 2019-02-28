@@ -1,13 +1,13 @@
-//! Automatically generate `Read` implementations for structs
+//! Automatically generate `BitRead` implementations for structs
 //!
-//! The implementation can be derived as long as every field in the struct implements `Read` or `ReadSized`
+//! The implementation can be derived as long as every field in the struct implements `BitRead` or `BitReadSized`
 //!
 //! # Examples
 //!
 //! ```
 //! use bitstream_reader_derive::Read;
 //!
-//! #[derive(Read)]
+//! #[derive(BitRead)]
 //! struct TestStruct {
 //!    foo: u8,
 //!    str: String,
@@ -34,7 +34,7 @@ use syn::{
 };
 
 /// See the [crate documentation](index.html) for details
-#[proc_macro_derive(Read, attributes(size, size_bits))]
+#[proc_macro_derive(BitRead, attributes(size, size_bits))]
 pub fn derive_helper_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -52,7 +52,7 @@ pub fn derive_helper_attr(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     let parse = parse(&input.data, &name);
 
     let expanded = quote! {
-        impl #impl_generics ::bitstream_reader::Read<_E> for #name #ty_generics #where_clause {
+        impl #impl_generics ::bitstream_reader::BitRead<_E> for #name #ty_generics #where_clause {
             fn read(stream: &mut ::bitstream_reader::BitStream<_E>) -> ::bitstream_reader::Result<Self> {
                 #parse
             }

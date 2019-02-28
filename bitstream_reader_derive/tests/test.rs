@@ -1,7 +1,7 @@
 use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
-use bitstream_reader_derive::Read;
+use bitstream_reader_derive::BitRead;
 
-#[derive(Read, PartialEq, Debug)]
+#[derive(BitRead, PartialEq, Debug)]
 struct TestStruct {
     foo: u8,
     str: String,

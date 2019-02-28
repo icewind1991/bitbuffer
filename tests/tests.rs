@@ -1,4 +1,4 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian, Read};
+use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian, BitRead};
 
 // for bench on nightly
 //use std::fs;
@@ -272,7 +272,7 @@ fn read_sized_trait() {
     assert_eq!(vec![0b1011_0101, 0b0110_1010, 0b1010_1100], vec);
 }
 
-#[derive(Read, PartialEq, Debug)]
+#[derive(BitRead, PartialEq, Debug)]
 struct TestStruct {
     foo: u8,
     str: String,

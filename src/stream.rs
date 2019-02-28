@@ -7,7 +7,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::BitBuffer;
-use crate::{Read, ReadError, ReadSized, Result};
+use crate::{BitRead, ReadError, BitReadSized, Result};
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
 ///
@@ -488,7 +488,7 @@ where
     /// # }
     /// ```
     /// #[inline(always)]
-    pub fn read<T: Read<E>>(&mut self) -> Result<T> {
+    pub fn read<T: BitRead<E>>(&mut self) -> Result<T> {
         T::read(self)
     }
 
@@ -513,7 +513,7 @@ where
     /// # }
     /// ```
     #[inline(always)]
-    pub fn read_sized<T: ReadSized<E>>(&mut self, size: usize) -> Result<T> {
+    pub fn read_sized<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
     }
 }

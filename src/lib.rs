@@ -8,11 +8,11 @@
 //! Once you have a BitStream, there are 2 different approaches of reading data
 //!
 //! - read primitives, Strings and byte arrays, using [`read_bool`], [`read_int`], [`read_float`], [`read_byes`] and [`read_string`]
-//! - read any type implementing the  [`Read`] or [`ReadSized`] traits using [`read`] and [`read_sized`]
-//!   - [`Read`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
-//!   - [`ReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
+//! - read any type implementing the  [`BitRead`] or [`BitReadSized`] traits using [`read`] and [`read_sized`]
+//!   - [`BitRead`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+//!   - [`BitReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
 //!
-//! The [`Read`] trait can be used with `#[derive]` if all fields implement [`Read`] or [`ReadSized`],
+//! The [`BitRead`] trait can be used with `#[derive]` if all fields implement [`BitRead`] or [`BitReadSized`],
 //! when `derive`d for structs, it will read all fields in the struct in the order they are defined in.
 //!
 //! # Examples
@@ -35,8 +35,8 @@
 //! [`read_float`]: struct.BitStream.html#method.read_float
 //! [`read_byes`]: struct.BitStream.html#method.read_bytes
 //! [`read_string`]: struct.BitStream.html#method.read_string
-//! [`Read`]: trait.Read.html
-//! [`ReadSized`]: trait.ReadSized.html
+//! [`BitRead`]: trait.BitRead.html
+//! [`BitReadSized`]: trait.BitReadSized.html
 
 #![warn(missing_docs)]
 //#![feature(test)]
@@ -49,10 +49,10 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
-pub use bitstream_reader_derive::Read;
+pub use bitstream_reader_derive::BitRead;
 pub use buffer::BitBuffer;
 pub use endianness::*;
-pub use read::{Read, ReadSized};
+pub use read::{BitRead, BitReadSized};
 pub use stream::BitStream;
 
 mod buffer;
