@@ -275,15 +275,23 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
-        let mut data = vec![];
-        data.reserve_exact(byte_count);
+        let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
         let max_read = size_of::<usize>() - 1;
         let mut read_pos = position;
         while byte_left > 0 {
             let read = min(byte_left, max_read);
-            let bytes: [u8; USIZE_SIZE] = self.read_usize(read_pos, read * 8)?.to_le_bytes();
-            let usable_bytes = &bytes[0..read];
+            let raw_bytes = self.read_usize(read_pos, read * 8)?;
+            let bytes: [u8; USIZE_SIZE] = if E::is_le() {
+                raw_bytes.to_le_bytes()
+            } else {
+                raw_bytes.to_be_bytes()
+            };
+            let usable_bytes = if E::is_le() {
+                &bytes[0..read]
+            } else {
+                &bytes[8-read..8]
+            };
             data.extend_from_slice(usable_bytes);
             byte_left -= read;
             read_pos += read * 8;

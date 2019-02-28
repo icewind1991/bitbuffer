@@ -235,6 +235,20 @@ fn test_from() {
 }
 
 #[test]
+fn test_read_str_be() {
+    let bytes = vec![
+        0x48, 0x65, 0x6c, 0x6c,
+        0x6f, 0x20, 0x77, 0x6f,
+        0x72, 0x6c, 0x64, 0,
+        0, 0, 0, 0
+    ];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
+    assert_eq!(buffer.read_string(0, Some(16)).unwrap(), "Hello world".to_owned());
+    assert_eq!(buffer.read_string(0, None).unwrap(), "Hello world".to_owned());
+}
+
+#[test]
 fn read_trait() {
     let buffer = BitBuffer::new(BYTES.to_vec(), BigEndian);
     let mut stream = BitStream::new(buffer);
