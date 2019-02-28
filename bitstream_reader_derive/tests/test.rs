@@ -1,4 +1,4 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian};
+use bitstream_reader::{BigEndian, BitBuffer, BitStream, Endianness, LittleEndian};
 use bitstream_reader_derive::{BitRead, BitReadSized};
 
 #[derive(BitRead, PartialEq, Debug)]
@@ -211,4 +211,22 @@ fn test_read_struct2() {
         },
         stream.read().unwrap()
     );
+}
+
+#[derive(BitRead)]
+#[endianness = "E"]
+struct TestStruct3<E: Endianness> {
+    size: u8,
+    #[size = "size"]
+    stream: BitStream<E>,
+}
+
+#[test]
+fn test_read_struct3() {
+    let bytes = vec![0b0000_0101, 0, 0, 0, 0, 0, 0, 0];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    let mut stream = BitStream::from(buffer);
+    let result: TestStruct3<BigEndian> = stream.read().unwrap();
+    assert_eq!(5, result.size);
+    assert_eq!(5, result.stream.bit_len());
 }

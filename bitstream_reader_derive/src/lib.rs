@@ -102,71 +102,103 @@
 //!     Asd(u8),
 //! }
 //! ```
+//!
+//! # Endianness
+//!
+//! If the struct that `BitRead` or `BitReadSized` is derived for requires a Endianness type parameter, you need to tell the derive macro the name of the type parameter used
+//!
+//! ```
+//! # use bitstream_reader_derive::BitRead;
+//! # use bitstream_reader::{Endianness, BitStream};
+//! #
+//! #[derive(BitRead)]
+//! #[endianness = "E"]
+//! struct EndiannessStruct<E: Endianness> {
+//!     size: u8,
+//!     #[size = "size"]
+//!     stream: BitStream<E>,
+//! }
+//! ```
+//!
+//! This is also required if you specify which endianness the struct has
+//! ```
+//! # use bitstream_reader_derive::BitRead;
+//! # use bitstream_reader::{BigEndian, BitStream};
+//! #
+//! #[derive(BitRead)]
+//! #[endianness = "BigEndian"]
+//! struct EndiannessStruct {
+//!     size: u8,
+//!     #[size = "size"]
+//!     stream: BitStream<BigEndian>,
+//! }
+//! ```
 extern crate proc_macro;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields,
-    GenericParam, Generics, Ident, Lit, LitStr, Meta,
+    parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
+    Lit, LitStr, Meta, Path,
 };
 
 /// See the [crate documentation](index.html) for details
-#[proc_macro_derive(BitRead, attributes(size, size_bits, discriminant_bits, discriminant))]
+#[proc_macro_derive(
+    BitRead,
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+)]
 pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: DeriveInput = parse_macro_input!(input as DeriveInput);
-
-    let name = input.ident;
-
-    let generics = add_trait_bounds(input.generics);
-    let mut trait_generics = generics.clone();
-    // we need these separate generics to only add out Endianness param to the 'impl'
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
-    trait_generics
-        .params
-        .push(parse_quote!(_E: ::bitstream_reader::Endianness));
-    let (impl_generics, _, _) = trait_generics.split_for_impl();
-
-    let parse = parse(&input.data, &name, &input.attrs);
-
-    let expanded = quote! {
-        impl #impl_generics ::bitstream_reader::BitRead<_E> for #name #ty_generics #where_clause {
-            fn read(stream: &mut ::bitstream_reader::BitStream<_E>) -> ::bitstream_reader::Result<Self> {
-                #parse
-            }
-        }
-    };
-
-    // panic!("{}", TokenStream::to_string(&expanded));
-
-    proc_macro::TokenStream::from(expanded)
+    derive_bitread_trait(input, "BitRead".to_owned(), None)
 }
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitReadSized,
-    attributes(size, size_bits, discriminant_bits, discriminant)
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
 )]
 pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
+    derive_bitread_trait(input, "BitReadSized".to_owned(), Some(extra_param))
+}
+
+fn derive_bitread_trait(
+    input: proc_macro::TokenStream,
+    trait_name: String,
+    extra_param: Option<TokenStream>,
+) -> proc_macro::TokenStream {
     let input: DeriveInput = parse_macro_input!(input as DeriveInput);
 
-    let name = input.ident;
+    let name = &input.ident;
 
-    let generics = add_trait_bounds(input.generics);
-    let mut trait_generics = generics.clone();
+    let endianness = get_attr(&input.attrs, "endianness").map(|lit| match lit {
+        Lit::Str(str) => str.value(),
+        _ => panic!("endianness attribute is required to be a string"),
+    });
+    let mut trait_generics = input.generics.clone();
     // we need these separate generics to only add out Endianness param to the 'impl'
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
-    trait_generics
-        .params
-        .push(parse_quote!(_E: ::bitstream_reader::Endianness));
+    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+    if endianness.is_none() {
+        trait_generics
+            .params
+            .push(parse_quote!(_E: ::bitstream_reader::Endianness));
+    }
     let (impl_generics, _, _) = trait_generics.split_for_impl();
 
     let parse = parse(&input.data, &name, &input.attrs);
 
+    let endianness_placeholder = endianness.unwrap_or("_E".to_owned());
+    let trait_def_str = format!(
+        "::bitstream_reader::{}<{}>",
+        trait_name, &endianness_placeholder
+    );
+    let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
+
+    let endianness_ident = Ident::new(&endianness_placeholder, input.span());
+
     let expanded = quote! {
-        impl #impl_generics ::bitstream_reader::BitReadSized<_E> for #name #ty_generics #where_clause {
-            fn read(stream: &mut ::bitstream_reader::BitStream<_E>, input_size: usize) -> ::bitstream_reader::Result<Self> {
+        impl #impl_generics #trait_def for #name #ty_generics #where_clause {
+            fn read(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
                 #parse
             }
         }
@@ -175,18 +207,6 @@ pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::Token
     // panic!("{}", TokenStream::to_string(&expanded));
 
     proc_macro::TokenStream::from(expanded)
-}
-
-// Add a bound `T: Read` to every type parameter T.
-fn add_trait_bounds(mut generics: Generics) -> Generics {
-    for param in &mut generics.params {
-        if let GenericParam::Type(ref mut type_param) = *param {
-            type_param
-                .bounds
-                .push(parse_quote!(::bitstream_reader::Read));
-        }
-    }
-    generics
 }
 
 fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream {
