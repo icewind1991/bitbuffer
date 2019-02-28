@@ -1,4 +1,4 @@
-//! Tools for reading integers of arbitrary bit length and non byte-aligned integers and other data types
+//! Tools for reading data types of arbitrary bit length and might not be byte-aligned in the source data
 //!
 //! The main way of handling with the binary data is to first create a [`BitBuffer`]
 //! ,wrap it into a [`BitStream`] and then read from the stream.
@@ -17,14 +17,29 @@
 //! # Examples
 //!
 //! ```
-//! use bitstream_reader::{BitBuffer, LittleEndian, BitStream};
+//! # use bitstream_reader::Result;
+//! use bitstream_reader::{BitBuffer, LittleEndian, BitStream, BitRead};
 //!
+//! #[derive(BitRead)]
+//! struct ComplexType {
+//!     first: u8,
+//!     #[size = 15]
+//!     second: u16,
+//!     third: bool,
+//! }
+//!
+//! # fn main() -> Result<()> {
 //! let bytes = vec![
 //!     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 //!     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 //! ];
 //! let buffer = BitBuffer::new(bytes, LittleEndian);
-//! let stream = BitStream::new(buffer);
+//! let mut stream = BitStream::new(buffer);
+//! let value: u8 = stream.read_int(7)?;
+//! let complex: ComplexType = stream.read()?;
+//! #
+//! #     Ok(())
+//! # }
 //! ```
 //!
 //! [`BitBuffer`]: struct.BitBuffer.html
