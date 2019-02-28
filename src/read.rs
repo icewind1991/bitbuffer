@@ -1,4 +1,6 @@
 use crate::{BitStream, Endianness, Result};
+use std::collections::HashMap;
+use std::hash::Hash;
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
 ///
@@ -269,3 +271,16 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
 //        stream.read_bytes(size)
 //    }
 //}
+
+/// Read `K` and `T` `size` times and return as `HashMap<K, T>`
+impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> for HashMap<K, T> {
+    fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
+        let mut map = HashMap::with_capacity(size);
+        for _ in 0..size {
+            let key = stream.read()?;
+            let value = stream.read()?;
+            map.insert(key, value);
+        }
+        Ok(map)
+    }
+}

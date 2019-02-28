@@ -1,4 +1,6 @@
 use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
+use maplit::hashmap;
+use std::collections::HashMap;
 
 // for bench on nightly
 //use std::fs;
@@ -270,6 +272,12 @@ fn read_sized_trait() {
     stream.set_pos(0).unwrap();
     let vec: Vec<u8> = stream.read_sized(3).unwrap();
     assert_eq!(vec![0b1011_0101, 0b0110_1010, 0b1010_1100], vec);
+    stream.set_pos(0).unwrap();
+    let result: HashMap<u8, u8> = stream.read_sized(2).unwrap();
+    assert_eq!(
+        hashmap!(0b1011_0101 => 0b0110_1010, 0b1010_1100 => 0b1001_1001),
+        result
+    );
 }
 
 #[derive(BitRead, PartialEq, Debug)]
