@@ -1,8 +1,8 @@
-//! Automatically generate `BitRead` implementations for structs and enums
+//! Automatically generate `BitRead` and `BitReadSized` implementations for structs and enums
 //!
 //! # Structs
 //!
-//! The implementation can be derived for struct as long as every field in the struct implements `BitRead` or `BitReadSized`
+//! The implementation can be derived for a struct as long as every field in the struct implements `BitRead` or `BitReadSized`
 //!
 //! The struct is read field by field in the order they are defined in, if the size for a field is set `stream.read_sized()`
 //! will be used, otherwise `stream_read()` will be used.
@@ -11,6 +11,8 @@
 //!  - set the size as an integer using the `size` attribute,
 //!  - use a previously defined field as the size using the `size` attribute
 //!  - read a set number of bits as an integer, using the resulting value as size using the `read_bits` attribute
+//!
+//! When deriving `BitReadSized` the input size can be used in the size attribute as the `input_size` field.
 //!
 //! ## Examples
 //!
@@ -34,9 +36,24 @@
 //! }
 //! ```
 //!
+//! ```
+//! use bitstream_reader_derive::BitReadSized;
+//!
+//! #[derive(BitReadSized, PartialEq, Debug)]
+//! struct TestStructSized {
+//!     foo: u8,
+//!     #[size = "input_size"]
+//!     string: String,
+//!     #[size = "input_size"]
+//!     int: u8,
+//! }
+//! ```
+//!
 //! # Enums
 //!
-//! The implementation can be derived for enums as long as every variant of the enums either has no field, or an unnamed field that implements `BitRead`
+//! The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead`
+//!
+//! Deriving `BitReadSized` for enums is not supported, only `BitRead` can be derived.
 //!
 //! The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
 //!
@@ -73,12 +90,15 @@ extern crate proc_macro;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
-use syn::{Attribute, Data, DeriveInput, Expr, Field, Fields, GenericParam, Generics, Ident, Lit, Meta, parse_macro_input, parse_quote, LitStr};
 use syn::spanned::Spanned;
+use syn::{
+    parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Field, Fields,
+    GenericParam, Generics, Ident, Lit, LitStr, Meta,
+};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(BitRead, attributes(size, size_bits, discriminant_bits, discriminant))]
-pub fn derive_helper_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = parse_macro_input!(input as DeriveInput);
 
     let name = input.ident;
@@ -97,6 +117,40 @@ pub fn derive_helper_attr(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     let expanded = quote! {
         impl #impl_generics ::bitstream_reader::BitRead<_E> for #name #ty_generics #where_clause {
             fn read(stream: &mut ::bitstream_reader::BitStream<_E>) -> ::bitstream_reader::Result<Self> {
+                #parse
+            }
+        }
+    };
+
+    // panic!("{}", TokenStream::to_string(&expanded));
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(
+    BitReadSized,
+    attributes(size, size_bits, discriminant_bits, discriminant)
+)]
+pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input: DeriveInput = parse_macro_input!(input as DeriveInput);
+
+    let name = input.ident;
+
+    let generics = add_trait_bounds(input.generics);
+    let mut trait_generics = generics.clone();
+    // we need these separate generics to only add out Endianness param to the 'impl'
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+    trait_generics
+        .params
+        .push(parse_quote!(_E: ::bitstream_reader::Endianness));
+    let (impl_generics, _, _) = trait_generics.split_for_impl();
+
+    let parse = parse(&input.data, &name, &input.attrs);
+
+    let expanded = quote! {
+        impl #impl_generics ::bitstream_reader::BitReadSized<_E> for #name #ty_generics #where_clause {
+            fn read(stream: &mut ::bitstream_reader::BitStream<_E>, input_size: usize) -> ::bitstream_reader::Result<Self> {
                 #parse
             }
         }
@@ -166,9 +220,13 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
             let discriminant_bits = match get_attr(attrs, "discriminant_bits") {
                 Some(bits_lit) => match bits_lit {
                     Lit::Int(bits) => bits.value(),
-                    _ => panic!("'discriminant_bits' attribute is required to be an integer literal")
+                    _ => {
+                        panic!("'discriminant_bits' attribute is required to be an integer literal")
+                    }
                 },
-                None => panic!("'discriminant_bits' attribute is required when deriving `BinRead` for enums")
+                None => panic!(
+                    "'discriminant_bits' attribute is required when deriving `BinRead` for enums"
+                ),
             };
             let discriminant_read = quote! {
                 let discriminant:usize = stream.read_int(#discriminant_bits as usize)?;
@@ -177,38 +235,43 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
             let mut last_discriminant = -1;
             let mut discriminants = Vec::with_capacity(data.variants.len());
             for variant in &data.variants {
-                let discriminant = variant.discriminant.clone()
+                let discriminant = variant
+                    .discriminant
+                    .clone()
                     .map(|(_, expr)| match expr {
                         Expr::Lit(expr_lit) => expr_lit.lit,
-                        _ => panic!("discriminant is required to be an integer literal")
+                        _ => panic!("discriminant is required to be an integer literal"),
                     })
                     .or_else(|| get_attr(&variant.attrs, "discriminant"))
                     .map(|lit| match lit {
                         Lit::Int(lit) => lit.value(),
-                        _ => panic!("discriminant is required to be an integer literal")
+                        _ => panic!("discriminant is required to be an integer literal"),
                     })
-                    .unwrap_or_else(|| {
-                        (last_discriminant + 1) as u64
-                    }) as usize;
+                    .unwrap_or_else(|| (last_discriminant + 1) as u64)
+                    as usize;
                 last_discriminant = discriminant as isize;
                 discriminants.push(discriminant)
             }
-            let match_arms = data.variants.iter().zip(discriminants.iter()).map(|(variant, discriminant)| {
-                let span = variant.span();
-                let variant_name = &variant.ident;
-                let read_fields = match &variant.fields {
-                    Fields::Unit => quote_spanned! {span=>
-                        #struct_name::#variant_name
-                    },
-                    Fields::Unnamed(_) => quote_spanned! {span=>
-                        #struct_name::#variant_name(stream.read()?)
-                    },
-                    _ => unimplemented!()
-                };
-                quote_spanned! {span=>
-                    #discriminant => #read_fields,
-                }
-            });
+            let match_arms =
+                data.variants
+                    .iter()
+                    .zip(discriminants.iter())
+                    .map(|(variant, discriminant)| {
+                        let span = variant.span();
+                        let variant_name = &variant.ident;
+                        let read_fields = match &variant.fields {
+                            Fields::Unit => quote_spanned! {span=>
+                                #struct_name::#variant_name
+                            },
+                            Fields::Unnamed(_) => quote_spanned! {span=>
+                                #struct_name::#variant_name(stream.read()?)
+                            },
+                            _ => unimplemented!(),
+                        };
+                        quote_spanned! {span=>
+                            #discriminant => #read_fields,
+                        }
+                    });
 
             let span = data.enum_token.span();
 

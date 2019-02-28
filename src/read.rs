@@ -6,7 +6,7 @@ use crate::{BitStream, Endianness, Result};
 ///
 /// # Structs
 ///
-/// The implementation can be derived for struct as long as every field in the struct implements `BitRead` or [`BitReadSized`]
+/// The implementation can be derived for a struct as long as every field in the struct implements `BitRead` or [`BitReadSized`]
 ///
 /// The struct is read field by field in the order they are defined in, if the size for a field is set [`stream.read_sized()`][read_sized]
 /// will be used, otherwise [`stream_read()`][read] will be used.
@@ -19,8 +19,8 @@ use crate::{BitStream, Endianness, Result};
 /// ## Examples
 ///
 /// ```
-/// use bitstream_reader_derive::BitRead;
-///
+/// # use bitstream_reader_derive::BitRead;
+/// #
 /// #[derive(BitRead)]
 /// struct TestStruct {
 ///     foo: u8,
@@ -40,7 +40,7 @@ use crate::{BitStream, Endianness, Result};
 ///
 /// # Enums
 ///
-/// The implementation can be derived for enums as long as every variant of the enums either has no field, or an unnamed field that implements `BitRead`
+/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead`
 ///
 /// The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
 ///
@@ -136,6 +136,38 @@ impl<E: Endianness> BitRead<E> for String {
 ///
 /// The meaning of the set sized depends on the type being read (e.g, number of bits for integers,
 /// number of bytes for strings, number of items for Vec's, etc)
+///
+/// The `BitReadSized` trait can be used with `#[derive]` on structs
+///
+/// The implementation can be derived for a struct as long as every field in the struct implements [`BitRead`] or `BitReadSized`
+///
+/// The struct is read field by field in the order they are defined in, if the size for a field is set [`stream.read_sized()`][read_sized]
+/// will be used, otherwise [`stream_read()`][read] will be used.
+///
+/// The size for a field can be set using 4 different methods
+///  - set the size as an integer using the `size` attribute,
+///  - use a previously defined field as the size using the `size` attribute
+///  - based on the input size by setting `size` attribute to `"input_size"`
+///  - read a set number of bits as an integer, using the resulting value as size using the `read_bits` attribute
+///
+/// ## Examples
+///
+/// ```
+/// # use bitstream_reader_derive::BitReadSized;
+/// #
+/// #[derive(BitReadSized, PartialEq, Debug)]
+/// struct TestStructSized {
+///     foo: u8,
+///     #[size = "input_size"]
+///     string: String,
+///     #[size = "input_size"]
+///     int: u8,
+/// }
+/// ```
+///
+/// [`BitRead`]: trait.BitRead.html
+/// [read_sized]: struct.BitStream.html#method.read_sized
+/// [read]: struct.BitStream.html#method.read
 pub trait BitReadSized<E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self>;

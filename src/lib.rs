@@ -12,8 +12,7 @@
 //!   - [`BitRead`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
 //!   - [`BitReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
 //!
-//! The [`BitRead`] trait can be used with `#[derive]` if all fields implement [`BitRead`] or [`BitReadSized`],
-//! when `derive`d for structs, it will read all fields in the struct in the order they are defined in.
+//! The [`BitRead`] and [`BitReadSized`] traits can be used with `#[derive]` if all fields implement [`BitRead`] or [`BitReadSized`].
 //!
 //! # Examples
 //!
