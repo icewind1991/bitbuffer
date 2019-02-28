@@ -84,7 +84,10 @@ impl<E: Endianness> BitRead<E> for String {
     }
 }
 
-/// Trait for types that can be read from a stream wit requiring the size to be configured
+/// Trait for types that can be read from a stream, requiring the size to be configured
+///
+/// The meaning of the set sized depends on the type being read (e.g, number of bits for integers,
+/// number of bytes for strings, number of items for Vec's, etc)
 pub trait BitReadSized<E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self>;
@@ -127,6 +130,13 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Option<T> {
         } else {
             Ok(None)
         }
+    }
+}
+
+impl<E: Endianness> BitReadSized<E> for BitStream<E> {
+    #[inline(always)]
+    fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
+        stream.read_bits(size)
     }
 }
 

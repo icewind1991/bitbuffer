@@ -1,4 +1,4 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian, BitRead};
+use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
 
 // for bench on nightly
 //use std::fs;
