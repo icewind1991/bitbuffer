@@ -40,9 +40,11 @@ use crate::{BitStream, Endianness, Result};
 ///
 /// # Enums
 ///
-/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead`
+/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead` or [`BitReadSized`]
 ///
 /// The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
+///
+/// For details about setting the input size for fields implementing [`BitReadSized`] see the block about size in the `Structs` section above.
 ///
 /// The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
 /// You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
@@ -67,6 +69,7 @@ use crate::{BitStream, Endianness, Result};
 /// #[derive(BitRead)]
 /// #[discriminant_bits = 2]
 /// enum TestUnnamedFieldEnum {
+///     #[size = 5]
 ///     Foo(i8),
 ///     Bar(bool),
 ///     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
@@ -162,6 +165,34 @@ impl<E: Endianness> BitRead<E> for String {
 ///     string: String,
 ///     #[size = "input_size"]
 ///     int: u8,
+/// }
+/// ```
+///
+/// # Enums
+///
+/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements [`BitRead`] or `BitReadSized`
+///
+/// The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
+///
+/// For details about setting the input size for fields implementing `BitReadSized` see the block about size in the `Structs` section above.
+///
+/// The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
+/// You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
+///
+/// ## Examples
+///
+/// ```
+/// # use bitstream_reader_derive::BitReadSized;
+/// #
+/// #[derive(BitReadSized)]
+/// #[discriminant_bits = 2]
+/// enum TestUnnamedFieldEnum {
+///     #[size = 5]
+///     Foo(i8),
+///     Bar(bool),
+///     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
+///     #[size = "input_size"]
+///     Asd(u8),
 /// }
 /// ```
 ///

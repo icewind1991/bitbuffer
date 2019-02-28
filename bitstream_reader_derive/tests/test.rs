@@ -87,6 +87,7 @@ fn test_read_bare_enum() {
 #[derive(BitRead, PartialEq, Debug)]
 #[discriminant_bits = 2]
 enum TestUnnamedFieldEnum {
+    #[size = 5]
     Foo(i8),
     Bar(bool),
     #[discriminant = 3]
@@ -113,11 +114,8 @@ fn test_read_unnamed_field_enum() {
     );
     assert_eq!(10, stream.pos());
     stream.set_pos(2).unwrap();
-    assert_eq!(
-        TestUnnamedFieldEnum::Foo(0b11_0_1000),
-        stream.read().unwrap()
-    );
-    assert_eq!(12, stream.pos());
+    assert_eq!(TestUnnamedFieldEnum::Foo(0b11_0_1), stream.read().unwrap());
+    assert_eq!(9, stream.pos());
     stream.set_pos(4).unwrap();
     assert_eq!(TestUnnamedFieldEnum::Bar(true), stream.read().unwrap());
     assert_eq!(7, stream.pos());
@@ -147,4 +145,36 @@ fn test_read_struct_sized() {
         },
         stream.read_sized(3).unwrap()
     );
+}
+
+#[derive(BitReadSized, PartialEq, Debug)]
+#[discriminant_bits = 2]
+enum TestUnnamedFieldEnumSized {
+    #[size = 5]
+    Foo(i8),
+    Bar(bool),
+    #[discriminant = 3]
+    #[size = "input_size"]
+    Asd(u8),
+}
+
+#[test]
+fn test_read_unnamed_field_enum_sized() {
+    let bytes = vec![
+        0b1100_0110,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+    ];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    let mut stream = BitStream::from(buffer);
+    assert_eq!(
+        TestUnnamedFieldEnumSized::Asd(0b_00_0110),
+        stream.read_sized(6).unwrap()
+    );
+    assert_eq!(8, stream.pos());
 }

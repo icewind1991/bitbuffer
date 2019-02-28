@@ -48,7 +48,7 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
-pub use bitstream_reader_derive::BitRead;
+pub use bitstream_reader_derive::{BitRead, BitReadSized};
 pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized};

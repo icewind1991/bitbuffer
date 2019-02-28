@@ -51,11 +51,11 @@
 //!
 //! # Enums
 //!
-//! The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead`
-//!
-//! Deriving `BitReadSized` for enums is not supported, only `BitRead` can be derived.
+//! The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitRead` or `BitReadSized`
 //!
 //! The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
+//!
+//! For details about setting the input size for fields implementing `BitReadSized` see the block about size in the `Structs` section above.
 //!
 //! The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
 //! You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
@@ -80,9 +80,25 @@
 //! #[derive(BitRead)]
 //! #[discriminant_bits = 2]
 //! enum TestUnnamedFieldEnum {
+//!     #[size = 5]
 //!     Foo(i8),
 //!     Bar(bool),
 //!     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
+//!     Asd(u8),
+//! }
+//! ```
+//!
+//! ```
+//! # use bitstream_reader_derive::BitReadSized;
+//! #
+//! #[derive(BitReadSized, PartialEq, Debug)]
+//! #[discriminant_bits = 2]
+//! enum TestUnnamedFieldEnumSized {
+//!     #[size = 5]
+//!     Foo(i8),
+//!     Bar(bool),
+//!     #[discriminant = 3]
+//!     #[size = "input_size"]
 //!     Asd(u8),
 //! }
 //! ```
@@ -92,8 +108,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Field, Fields,
-    GenericParam, Generics, Ident, Lit, LitStr, Meta,
+    parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Fields, GenericParam,
+    Generics, Ident, Lit, LitStr, Meta,
 };
 
 /// See the [crate documentation](index.html) for details
@@ -122,7 +138,7 @@ pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         }
     };
 
-    // panic!("{}", TokenStream::to_string(&expanded));
+    //panic!("{}", TokenStream::to_string(&expanded));
 
     proc_macro::TokenStream::from(expanded)
 }
@@ -181,7 +197,7 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                     let definitions = fields.named.iter().map(|f| {
                         let name = &f.ident;
                         // Get attributes `#[..]` on each field
-                        let size = get_field_size(f);
+                        let size = get_field_size(&f.attrs, f.span());
                         let field_type = &f.ty;
                         let span = f.span();
                         match size {
@@ -263,9 +279,24 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                             Fields::Unit => quote_spanned! {span=>
                                 #struct_name::#variant_name
                             },
-                            Fields::Unnamed(_) => quote_spanned! {span=>
-                                #struct_name::#variant_name(stream.read()?)
-                            },
+                            Fields::Unnamed(f) => {
+                                let size = get_field_size(&variant.attrs, f.span());
+                                match size {
+                                    Some(size) => {
+                                        quote_spanned! {span=>
+                                            #struct_name::#variant_name({
+                                                let size:usize = #size;
+                                                stream.read_sized(size)?
+                                            })
+                                        }
+                                    }
+                                    None => {
+                                        quote_spanned! {span=>
+                                            #struct_name::#variant_name(stream.read()?)
+                                        }
+                                    }
+                                }
+                            }
                             _ => unimplemented!(),
                         };
                         quote_spanned! {span=>
@@ -290,9 +321,8 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
     }
 }
 
-fn get_field_size(field: &Field) -> Option<TokenStream> {
-    let span = field.span();
-    get_attr(&field.attrs, "size")
+fn get_field_size(attrs: &Vec<Attribute>, span: Span) -> Option<TokenStream> {
+    get_attr(attrs, "size")
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
                 quote_spanned! {span=>
@@ -300,7 +330,7 @@ fn get_field_size(field: &Field) -> Option<TokenStream> {
                 }
             }
             Lit::Str(size_field) => {
-                let size = Ident::new(&size_field.value(), Span::call_site());
+                let size = Ident::new(&size_field.value(), span);
                 quote_spanned! {span=>
                     #size as usize
                 }
@@ -308,7 +338,7 @@ fn get_field_size(field: &Field) -> Option<TokenStream> {
             _ => panic!("Unsupported value for size attribute"),
         })
         .or_else(|| {
-            get_attr(&field.attrs, "size_bits").map(|size_bits_lit| {
+            get_attr(attrs, "size_bits").map(|size_bits_lit| {
                 quote_spanned! {span=>
                     stream.read_int::<usize>(#size_bits_lit)?
                 }
