@@ -1,11 +1,15 @@
-use crate::endianness::Endianness;
-use crate::is_signed::IsSigned;
-use crate::{ReadError, Result};
-use num_traits::{Float, PrimInt};
 use std::cmp::min;
+use std::fmt;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
+
+use num_traits::{Float, PrimInt};
+
+use crate::endianness::Endianness;
+use crate::is_signed::IsSigned;
+use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -290,7 +294,7 @@ where
             let usable_bytes = if E::is_le() {
                 &bytes[0..read]
             } else {
-                &bytes[8-read..8]
+                &bytes[8 - read..8]
             };
             data.extend_from_slice(usable_bytes);
             byte_left -= read;
@@ -404,5 +408,20 @@ impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
+    }
+}
+
+impl<E: Endianness> Debug for BitBuffer<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "BitBuffer {{ bit_len: {}, endianness: {} }}",
+            self.bit_len,
+            if E::is_le() {
+                "LittleEndian"
+            } else {
+                "BigEndian"
+            }
+        )
     }
 }

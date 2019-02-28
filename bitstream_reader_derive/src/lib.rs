@@ -107,7 +107,10 @@ extern crate proc_macro;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Fields, GenericParam, Generics, Ident, Lit, LitStr, Meta, parse_str};
+use syn::{
+    parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields,
+    GenericParam, Generics, Ident, Lit, LitStr, Meta,
+};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(BitRead, attributes(size, size_bits, discriminant_bits, discriminant))]

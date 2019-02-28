@@ -25,6 +25,7 @@ use crate::{BitRead, BitReadSized, ReadError, Result};
 /// ```
 ///
 /// [`BitBuffer`]: struct.BitBuffer.html
+#[derive(Debug)]
 pub struct BitStream<E>
 where
     E: Endianness,

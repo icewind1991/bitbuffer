@@ -237,15 +237,21 @@ fn test_from() {
 #[test]
 fn test_read_str_be() {
     let bytes = vec![
-        0x48, 0x65, 0x6c, 0x6c,
-        0x6f, 0x20, 0x77, 0x6f,
-        0x72, 0x6c, 0x64, 0,
-        0, 0, 0, 0
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0, 0, 0, 0, 0,
     ];
     let buffer = BitBuffer::new(bytes, BigEndian);
-    assert_eq!(buffer.read_string(0, Some(13)).unwrap(), "Hello world".to_owned());
-    assert_eq!(buffer.read_string(0, Some(16)).unwrap(), "Hello world".to_owned());
-    assert_eq!(buffer.read_string(0, None).unwrap(), "Hello world".to_owned());
+    assert_eq!(
+        buffer.read_string(0, Some(13)).unwrap(),
+        "Hello world".to_owned()
+    );
+    assert_eq!(
+        buffer.read_string(0, Some(16)).unwrap(),
+        "Hello world".to_owned()
+    );
+    assert_eq!(
+        buffer.read_string(0, None).unwrap(),
+        "Hello world".to_owned()
+    );
 }
 
 #[test]
@@ -292,6 +298,9 @@ fn read_sized_trait() {
         hashmap!(0b1011_0101 => 0b0110_1010, 0b1010_1100 => 0b1001_1001),
         result
     );
+    stream.set_pos(0).unwrap();
+    let mut result: BitStream<BigEndian> = stream.read_sized(4).unwrap();
+    assert_eq!(0b10u8, result.read_int(2).unwrap());
 }
 
 #[derive(BitRead, PartialEq, Debug)]

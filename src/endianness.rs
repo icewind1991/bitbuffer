@@ -7,9 +7,11 @@ pub trait Endianness {
 }
 
 /// Marks the buffer or stream as big endian
+#[derive(Debug)]
 pub struct BigEndian;
 
 /// Marks the buffer or stream as little endian
+#[derive(Debug)]
 pub struct LittleEndian;
 
 macro_rules! impl_endianness {
