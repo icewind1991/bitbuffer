@@ -85,6 +85,13 @@ pub enum ReadError {
         /// the number of bits in the buffer
         size: usize,
     },
+    /// Unmatched discriminant found while trying to read an enum
+    UnmatchedDiscriminant {
+        /// The read discriminant
+        discriminant: usize,
+        /// The name of the enum that is trying to be read
+        enum_name: String,
+    },
     /// The read slice of bytes are not valid utf8
     Utf8Error(FromUtf8Error),
 }
@@ -98,6 +105,8 @@ impl Display for ReadError {
                 write!(f, "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left", requested, bits_left),
             ReadError::IndexOutOfBounds { pos, size } =>
                 write!(f, "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long", pos, size),
+            ReadError::UnmatchedDiscriminant { discriminant, enum_name } =>
+                write!(f, "Unmatched discriminant '{}' found while trying to read enum '{}'", discriminant, enum_name),
             ReadError::Utf8Error(err) => err.fmt(f)
         }
     }
