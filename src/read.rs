@@ -246,6 +246,16 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Option<T> {
     }
 }
 
+impl<E: Endianness, T: BitReadSized<E>> BitReadSized<E> for Option<T> {
+    fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
+        if stream.read()? {
+            Ok(Some(stream.read_sized(size)?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 impl<E: Endianness> BitReadSized<E> for BitStream<E> {
     #[inline(always)]
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
