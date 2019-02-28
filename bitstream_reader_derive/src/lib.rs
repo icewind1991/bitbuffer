@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```
-//! use bitstream_reader_derive::Read;
+//! use bitstream_reader_derive::BitRead;
 //!
 //! #[derive(BitRead)]
 //! struct TestStruct {
@@ -86,15 +86,16 @@ fn parse(data: &Data, struct_name: &Ident) -> TokenStream {
                         // Get attributes `#[..]` on each field
                         let size = get_field_size(f);
                         let field_type = &f.ty;
+                        let span = f.span();
                         match size {
                             Some(size) => {
-                                quote_spanned! { f.span() =>
+                                quote_spanned! {span=>
                                     let size: usize = #size;
                                     let #name:#field_type  = stream.read_sized(size)?;
                                 }
                             }
                             None => {
-                                quote_spanned! { f.span() =>
+                                quote_spanned! {span=>
                                     let #name:#field_type = stream.read()?;
                                 }
                             }
@@ -102,11 +103,12 @@ fn parse(data: &Data, struct_name: &Ident) -> TokenStream {
                     });
                     let struct_definition = fields.named.iter().map(|f| {
                         let name = &f.ident;
-                        quote_spanned! { f.span() =>
+                        quote_spanned! {f.span()=>
                             #name,
                         }
                     });
-                    quote! {
+                    let span = data.struct_token.span();
+                    quote_spanned! {span=>
                         #(#definitions)*
 
                         Ok(#struct_name {
@@ -122,16 +124,17 @@ fn parse(data: &Data, struct_name: &Ident) -> TokenStream {
 }
 
 fn get_field_size(field: &Field) -> Option<TokenStream> {
+    let span = field.span();
     get_field_attr(field, "size")
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
-                quote! {
+                quote_spanned! {span=>
                     #size
                 }
             }
             Lit::Str(size_field) => {
                 let size = Ident::new(&size_field.value(), Span::call_site());
-                quote! {
+                quote_spanned! {span=>
                     #size as usize
                 }
             }
@@ -139,7 +142,7 @@ fn get_field_size(field: &Field) -> Option<TokenStream> {
         })
         .or_else(|| {
             get_field_attr(field, "size_bits").map(|size_bits_lit| {
-                quote_spanned! { field.span() =>
+                quote_spanned! {span=>
                     stream.read_int::<usize>(#size_bits_lit)?
                 }
             })
