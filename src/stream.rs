@@ -518,6 +518,17 @@ where
     }
 }
 
+impl<E: Endianness> Clone for BitStream<E> {
+    fn clone(&self) -> Self {
+        BitStream {
+            buffer: Rc::clone(&self.buffer),
+            start_pos: self.pos,
+            pos: self.pos,
+            bit_len: self.bit_len,
+        }
+    }
+}
+
 impl<E: Endianness> From<BitBuffer<E>> for BitStream<E> {
     fn from(buffer: BitBuffer<E>) -> Self {
         BitStream::new(buffer)
