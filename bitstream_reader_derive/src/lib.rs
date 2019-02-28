@@ -107,10 +107,7 @@ extern crate proc_macro;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{
-    parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Fields, GenericParam,
-    Generics, Ident, Lit, LitStr, Meta,
-};
+use syn::{parse_macro_input, parse_quote, Attribute, Data, DeriveInput, Expr, Fields, GenericParam, Generics, Ident, Lit, LitStr, Meta, parse_str};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(BitRead, attributes(size, size_bits, discriminant_bits, discriminant))]
@@ -138,7 +135,7 @@ pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         }
     };
 
-    //panic!("{}", TokenStream::to_string(&expanded));
+    // panic!("{}", TokenStream::to_string(&expanded));
 
     proc_macro::TokenStream::from(expanded)
 }
@@ -203,8 +200,10 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                         match size {
                             Some(size) => {
                                 quote_spanned! {span=>
-                                    let size: usize = #size;
-                                    let #name:#field_type  = stream.read_sized(size)?;
+                                    let #name:#field_type = {
+                                        let _size: usize = #size;
+                                        stream.read_sized(_size)?
+                                    };
                                 }
                             }
                             None => {
@@ -285,8 +284,8 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                                     Some(size) => {
                                         quote_spanned! {span=>
                                             #struct_name::#variant_name({
-                                                let size:usize = #size;
-                                                stream.read_sized(size)?
+                                                let _size:usize = #size;
+                                                stream.read_sized(_size)?
                                             })
                                         }
                                     }
@@ -330,9 +329,9 @@ fn get_field_size(attrs: &Vec<Attribute>, span: Span) -> Option<TokenStream> {
                 }
             }
             Lit::Str(size_field) => {
-                let size = Ident::new(&size_field.value(), span);
+                let size = parse_str::<Expr>(&size_field.value()).unwrap();
                 quote_spanned! {span=>
-                    #size as usize
+                    (#size) as usize
                 }
             }
             _ => panic!("Unsupported value for size attribute"),

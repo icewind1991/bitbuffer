@@ -178,3 +178,37 @@ fn test_read_unnamed_field_enum_sized() {
     );
     assert_eq!(8, stream.pos());
 }
+
+#[derive(BitRead, PartialEq, Debug)]
+struct TestStruct2 {
+    size: u8,
+    #[size = "size * 2"]
+    str: String,
+}
+
+#[test]
+fn test_read_struct2() {
+    let bytes = vec![
+        0b0000_0101,
+        'h' as u8,
+        'e' as u8,
+        'l' as u8,
+        'l' as u8,
+        'o' as u8,
+        ' ' as u8,
+        'w' as u8,
+        'o' as u8,
+        'r' as u8,
+        'l' as u8,
+        'e' as u8,
+    ];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    let mut stream = BitStream::from(buffer);
+    assert_eq!(
+        TestStruct2 {
+            size: 5,
+            str: "hello worl".to_owned(),
+        },
+        stream.read().unwrap()
+    );
+}
