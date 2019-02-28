@@ -1,26 +1,72 @@
-//! Automatically generate `BitRead` implementations for structs
+//! Automatically generate `BitRead` implementations for structs and enums
 //!
-//! The implementation can be derived as long as every field in the struct implements `BitRead` or `BitReadSized`
+//! # Structs
 //!
-//! # Examples
+//! The implementation can be derived for struct as long as every field in the struct implements `BitRead` or `BitReadSized`
+//!
+//! The struct is read field by field in the order they are defined in, if the size for a field is set `stream.read_sized()`
+//! will be used, otherwise `stream_read()` will be used.
+//!
+//! The size for a field can be set using 3 different methods
+//!  - set the size as an integer using the `size` attribute,
+//!  - use a previously defined field as the size using the `size` attribute
+//!  - read a set number of bits as an integer, using the resulting value as size using the `read_bits` attribute
+//!
+//! ## Examples
 //!
 //! ```
 //! use bitstream_reader_derive::BitRead;
 //!
 //! #[derive(BitRead)]
 //! struct TestStruct {
-//!    foo: u8,
-//!    str: String,
-//!    #[size = 2] // when `size` is set, the attributed will be read using `read_sized`
-//!    truncated: String,
-//!    bar: u16,
-//!    float: f32,
-//!    #[size = 3]
-//!    asd: u8,
-//!    #[size_bits = 2] // first read 2 bits as unsigned integer, then use the resulting value as size for the read
-//!    dynamic_length: u8,
-//!    #[size = "asd"] // use a previously defined field as size
-//!    previous_field: u8,
+//!     foo: u8,
+//!     str: String,
+//!     #[size = 2] // when `size` is set, the attributed will be read using `read_sized`
+//!     truncated: String,
+//!     bar: u16,
+//!     float: f32,
+//!     #[size = 3]
+//!     asd: u8,
+//!     #[size_bits = 2] // first read 2 bits as unsigned integer, then use the resulting value as size for the read
+//!     dynamic_length: u8,
+//!     #[size = "asd"] // use a previously defined field as size
+//!     previous_field: u8,
+//! }
+//! ```
+//!
+//! # Enums
+//!
+//! The implementation can be derived for enums as long as every variant of the enums either has no field, or an unnamed field that implements `BitRead`
+//!
+//! The enum is read by first reading a set number of bits as the discriminant of the enum, then the variant for the read discriminant is read.
+//!
+//! The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
+//! You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
+//!
+//! ## Examples
+//!
+//! ```
+//! # use bitstream_reader_derive::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[discriminant_bits = 2]
+//! enum TestBareEnum {
+//!     Foo,
+//!     Bar,
+//!     Asd = 3, // manually set the discriminant value for a field
+//! }
+//! ```
+//!
+//! ```
+//! # use bitstream_reader_derive::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[discriminant_bits = 2]
+//! enum TestUnnamedFieldEnum {
+//!     Foo(i8),
+//!     Bar(bool),
+//!     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
+//!     Asd(u8),
 //! }
 //! ```
 extern crate proc_macro;
@@ -154,7 +200,7 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                     Fields::Unit => quote_spanned! {span=>
                         #struct_name::#variant_name
                     },
-                    Fields::Unnamed(f) => quote_spanned! {span=>
+                    Fields::Unnamed(_) => quote_spanned! {span=>
                         #struct_name::#variant_name(stream.read()?)
                     },
                     _ => unimplemented!()

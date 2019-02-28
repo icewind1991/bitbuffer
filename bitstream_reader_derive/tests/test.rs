@@ -1,4 +1,4 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian, ReadError};
+use bitstream_reader::{BigEndian, BitBuffer, BitStream, LittleEndian};
 use bitstream_reader_derive::BitRead;
 
 #[derive(BitRead, PartialEq, Debug)]
