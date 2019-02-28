@@ -17,4 +17,4 @@ quote = "0.6"
 proc-macro2 = "0.4"
 
 [dev-dependencies]
-bitstream_reader = { path = ".." }
+bitstream_reader = { version = "0.3", path = ".." }
