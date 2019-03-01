@@ -138,9 +138,10 @@ extern crate proc_macro;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
+use syn::token::Token;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
-    Lit, LitStr, Meta, Path,
+    Lit, LitStr, Meta, Pat, Path,
 };
 
 /// See the [crate documentation](index.html) for details
@@ -273,7 +274,7 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
             let mut last_discriminant = -1;
             let mut discriminants = Vec::with_capacity(data.variants.len());
             for variant in &data.variants {
-                let discriminant = variant
+                let discriminant: Option<usize> = variant
                     .discriminant
                     .clone()
                     .map(|(_, expr)| match expr {
@@ -282,12 +283,19 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                     })
                     .or_else(|| get_attr(&variant.attrs, "discriminant"))
                     .map(|lit| match lit {
-                        Lit::Int(lit) => lit.value(),
-                        _ => panic!("discriminant is required to be an integer literal"),
+                        Lit::Int(lit) => Some(lit.value() as usize),
+                        Lit::Str(lit) => match lit.value().as_str() {
+                            "_" => None,
+                            _ => {
+                                panic!("discriminant is required to be an integer literal or \"_\"")
+                            }
+                        },
+                        _ => panic!("discriminant is required to be an integer literal or \"_\""),
                     })
-                    .unwrap_or_else(|| (last_discriminant + 1) as u64)
-                    as usize;
-                last_discriminant = discriminant as isize;
+                    .unwrap_or_else(|| Some((last_discriminant + 1) as usize));
+                if let Some(disc) = discriminant {
+                    last_discriminant = disc as isize;
+                }
                 discriminants.push(discriminant)
             }
             let match_arms =
@@ -297,6 +305,10 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                     .map(|(variant, discriminant)| {
                         let span = variant.span();
                         let variant_name = &variant.ident;
+                        let discriminant_string = discriminant
+                            .map(|value| value.to_string())
+                            .unwrap_or("_".to_string());
+                        let discriminant = parse_str::<Pat>(discriminant_string.as_str()).unwrap();
                         let read_fields = match &variant.fields {
                             Fields::Unit => quote_spanned! {span=>
                                 #struct_name::#variant_name

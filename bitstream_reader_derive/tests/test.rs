@@ -230,3 +230,32 @@ fn test_read_struct3() {
     assert_eq!(5, result.size);
     assert_eq!(5, result.stream.bit_len());
 }
+
+#[derive(BitRead, PartialEq, Debug)]
+#[discriminant_bits = 2]
+enum TestEnumRest {
+    Foo,
+    Bar,
+    #[discriminant = "_"]
+    Asd,
+}
+
+#[test]
+fn test_read_rest_enum() {
+    let bytes = vec![
+        0b1100_0110,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+        0b1000_0100,
+    ];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    let mut stream = BitStream::from(buffer);
+    assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
+    assert_eq!(TestEnumRest::Foo, stream.read().unwrap());
+    assert_eq!(TestEnumRest::Bar, stream.read().unwrap());
+    assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
+}
