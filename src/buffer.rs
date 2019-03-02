@@ -294,7 +294,7 @@ where
             let usable_bytes = if E::is_le() {
                 &bytes[0..read]
             } else {
-                &bytes[8 - read..8]
+                &bytes[USIZE_SIZE - read..USIZE_SIZE]
             };
             data.extend_from_slice(usable_bytes);
             byte_left -= read;
@@ -340,24 +340,37 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
-        let bytes = match byte_len {
-            Some(len) => self.read_bytes(position, len)?,
-            None => {
-                let mut acc = vec![];
-                let mut pos = position;
-                loop {
-                    let byte = self.read_int(pos, 8)?;
-                    acc.push(byte);
-                    if byte == 0 {
-                        break;
-                    }
-                    pos += 8;
-                }
-                acc
-            }
-        };
+        let bytes = self.read_string_bytes(position, byte_len)?;
         let raw_string = String::from_utf8(bytes)?;
         Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
+    }
+
+    fn read_string_bytes(&self, position: usize, byte_len: Option<usize>) -> Result<Vec<u8>> {
+        match byte_len {
+            Some(len) => return self.read_bytes(position, len),
+            None => {
+                let mut acc = Vec::with_capacity(25);
+                let mut pos = position;
+                loop {
+                    let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
+                    let raw_bytes = self.read_usize(pos, read)?;
+                    let bytes: [u8; USIZE_SIZE] = if E::is_le() {
+                        raw_bytes.to_le_bytes()
+                    } else {
+                        raw_bytes.to_be_bytes()
+                    };
+                    for i in 0..(USIZE_SIZE - 1) {
+                        let byte = if E::is_le() { bytes[i] } else { bytes[1 + i] };
+
+                        if byte == 0 {
+                            return Ok(acc);
+                        }
+                        acc.push(byte);
+                    }
+                    pos += read;
+                }
+            }
+        };
     }
 
     /// Read a sequence of bits from the buffer as float
