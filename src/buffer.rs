@@ -116,7 +116,6 @@ where
     /// # Examples
     ///
     /// ```
-
     /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
@@ -159,7 +158,6 @@ where
     /// # Examples
     ///
     /// ```
-
     /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
@@ -259,7 +257,6 @@ where
     /// # Examples
     ///
     /// ```
-
     /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
@@ -330,7 +327,6 @@ where
     /// # Examples
     ///
     /// ```
-
     /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
@@ -375,6 +371,7 @@ where
                         raw_bytes.to_be_bytes()
                     };
                     for i in 0..(USIZE_SIZE - 1) {
+                        // ony LE we use the first 7 bytes, on BE the last 7
                         let byte = if E::is_le() { bytes[i] } else { bytes[1 + i] };
 
                         if byte == 0 {
@@ -397,7 +394,6 @@ where
     /// # Examples
     ///
     /// ```
-
     /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
