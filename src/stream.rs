@@ -1,6 +1,5 @@
 use std::mem::size_of;
 use std::ops::BitOrAssign;
-use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
@@ -31,7 +30,7 @@ pub struct BitStream<E>
 where
     E: Endianness,
 {
-    buffer: Rc<BitBuffer<E>>,
+    buffer: BitBuffer<E>,
     start_pos: usize,
     pos: usize,
     bit_len: usize,
@@ -62,18 +61,7 @@ where
             start_pos: 0,
             pos: 0,
             bit_len: buffer.bit_len(),
-            buffer: Rc::new(buffer),
-        }
-    }
-
-    fn verify_bits_left(&self, count: usize) -> Result<()> {
-        if self.bits_left() < count {
-            Err(ReadError::NotEnoughData {
-                bits_left: self.bits_left(),
-                requested: count,
-            })
-        } else {
-            Ok(())
+            buffer,
         }
     }
 
@@ -105,7 +93,6 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bool(&mut self) -> Result<bool> {
-        self.verify_bits_left(1)?;
         let result = self.buffer.read_bool(self.pos);
         if result.is_ok() {
             self.pos += 1;
@@ -146,7 +133,6 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        self.verify_bits_left(count)?;
         let result = self.buffer.read_int(self.pos, count);
         if result.is_ok() {
             self.pos += count;
@@ -185,7 +171,6 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let count = size_of::<T>() * 8;
-        self.verify_bits_left(count)?;
         let result = self.buffer.read_float(self.pos);
         if result.is_ok() {
             self.pos += count;
@@ -221,7 +206,6 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bytes(&mut self, byte_count: usize) -> Result<Vec<u8>> {
         let count = byte_count * 8;
-        self.verify_bits_left(count)?;
         let result = self.buffer.read_bytes(self.pos, byte_count);
         if result.is_ok() {
             self.pos += count;
@@ -305,6 +289,7 @@ where
     /// assert_eq!(bits.bit_len(), 3);
     /// assert_eq!(stream.read_int::<u8>(3)?, 0b110);
     /// assert_eq!(bits.read_int::<u8>(3)?, 0b101);
+    /// assert_eq!(true, bits.read_int::<u8>(1).is_err());
     /// #
     /// #     Ok(())
     /// # }
@@ -312,9 +297,8 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bits(&mut self, count: usize) -> Result<Self> {
-        self.verify_bits_left(count)?;
         let result = BitStream {
-            buffer: Rc::clone(&self.buffer),
+            buffer: self.buffer.get_sub_buffer(self.pos + count)?,
             start_pos: self.pos,
             pos: self.pos,
             bit_len: count,
@@ -351,7 +335,6 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn skip(&mut self, count: usize) -> Result<()> {
-        self.verify_bits_left(count)?;
         self.pos += count;
         Ok(())
     }
@@ -523,7 +506,7 @@ where
 impl<E: Endianness> Clone for BitStream<E> {
     fn clone(&self) -> Self {
         BitStream {
-            buffer: Rc::clone(&self.buffer),
+            buffer: self.buffer.clone(),
             start_pos: self.pos,
             pos: self.pos,
             bit_len: self.bit_len,

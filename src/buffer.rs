@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::BitOrAssign;
+use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
@@ -37,7 +38,7 @@ pub struct BitBuffer<E>
 where
     E: Endianness,
 {
-    bytes: Vec<u8>,
+    bytes: Rc<Vec<u8>>,
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
@@ -63,7 +64,7 @@ where
     pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
-            bytes,
+            bytes: Rc::new(bytes),
             byte_len,
             bit_len: byte_len * 8,
             endianness: PhantomData,
@@ -439,15 +440,67 @@ where
             Ok(T::from_f64_unchecked(f64::from_bits(int)))
         }
     }
+
+    /// Get a clone of the buffer with a shorter length
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`]: if the requested length is higher than the buffer length
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let sub = buffer.get_sub_buffer(16)?;
+    /// let result: u8 = sub.read_int(0, 6)?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    pub fn get_sub_buffer(&self, bit_len: usize) -> Result<Self> {
+        if bit_len > self.bit_len {
+            return Err(ReadError::NotEnoughData {
+                requested: bit_len,
+                bits_left: self.bit_len,
+            });
+        }
+
+        Ok(BitBuffer {
+            bytes: Rc::clone(&self.bytes),
+            byte_len: bit_len / 8,
+            bit_len,
+            endianness: PhantomData,
+        })
+    }
 }
 
 impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
     fn from(bytes: Vec<u8>) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
-            bytes,
+            bytes: Rc::new(bytes),
             byte_len,
             bit_len: byte_len * 8,
+            endianness: PhantomData,
+        }
+    }
+}
+
+impl<E: Endianness> Clone for BitBuffer<E> {
+    fn clone(&self) -> Self {
+        BitBuffer {
+            bytes: Rc::clone(&self.bytes),
+            byte_len: self.byte_len,
+            bit_len: self.bit_len,
             endianness: PhantomData,
         }
     }
