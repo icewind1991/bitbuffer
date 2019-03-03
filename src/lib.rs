@@ -3,8 +3,6 @@
 //! The main way of handling with the binary data is to first create a [`BitBuffer`]
 //! ,wrap it into a [`BitStream`] and then read from the stream.
 //!
-//! If performance is critical, working directly on the BitBuffer can be faster.
-//!
 //! Once you have a BitStream, there are 2 different approaches of reading data
 //!
 //! - read primitives, Strings and byte arrays, using [`read_bool`], [`read_int`], [`read_float`], [`read_byes`] and [`read_string`]
