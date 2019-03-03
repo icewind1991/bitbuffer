@@ -87,12 +87,25 @@ pub trait BitRead<E: Endianness>: Sized {
     fn read(stream: &mut BitStream<E>) -> Result<Self>;
 }
 
+/// Trait to get the number of bits needed to read types that can be read from a stream without requiring the size to be configured.
+pub trait BitSize {
+    /// How many bits are required to read this type
+    fn bit_size() -> usize;
+}
+
 macro_rules! impl_read_int {
     ($type:ty, $len:expr) => {
         impl<E: Endianness> BitRead<E> for $type {
             #[inline(always)]
             fn read(stream: &mut BitStream<E>) -> Result<$type> {
                 stream.read_int::<$type>($len)
+            }
+        }
+
+        impl BitSize for $type {
+            #[inline(always)]
+            fn bit_size() -> usize {
+                $len
             }
         }
     };
@@ -116,6 +129,13 @@ impl<E: Endianness> BitRead<E> for f32 {
     }
 }
 
+impl BitSize for f32 {
+    #[inline(always)]
+    fn bit_size() -> usize {
+        32
+    }
+}
+
 impl<E: Endianness> BitRead<E> for f64 {
     #[inline(always)]
     fn read(stream: &mut BitStream<E>) -> Result<f64> {
@@ -123,10 +143,24 @@ impl<E: Endianness> BitRead<E> for f64 {
     }
 }
 
+impl BitSize for f64 {
+    #[inline(always)]
+    fn bit_size() -> usize {
+        64
+    }
+}
+
 impl<E: Endianness> BitRead<E> for bool {
     #[inline(always)]
     fn read(stream: &mut BitStream<E>) -> Result<bool> {
         stream.read_bool()
+    }
+}
+
+impl BitSize for bool {
+    #[inline(always)]
+    fn bit_size() -> usize {
+        1
     }
 }
 
@@ -206,12 +240,25 @@ pub trait BitReadSized<E: Endianness>: Sized {
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self>;
 }
 
+/// Trait to get the number of bits needed to read types that can be read from a stream requiring the size to be configured.
+pub trait BitSizeSized {
+    /// How many bits are required to read this type
+    fn bit_size(size: usize) -> usize;
+}
+
 macro_rules! impl_read_int_sized {
     ($type:ty) => {
         impl<E: Endianness> BitReadSized<E> for $type {
             #[inline(always)]
             fn read(stream: &mut BitStream<E>, size: usize) -> Result<$type> {
                 stream.read_int::<$type>(size)
+            }
+        }
+
+        impl BitSizeSized for $type {
+            #[inline(always)]
+            fn bit_size(size: usize) -> usize {
+                size
             }
         }
     };
@@ -235,6 +282,13 @@ impl<E: Endianness> BitReadSized<E> for String {
     }
 }
 
+impl BitSizeSized for String {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        8 * size
+    }
+}
+
 /// Read a boolean, if true, read `T`, else return `None`
 impl<E: Endianness, T: BitRead<E>> BitRead<E> for Option<T> {
     fn read(stream: &mut BitStream<E>) -> Result<Self> {
@@ -243,6 +297,13 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Option<T> {
         } else {
             Ok(None)
         }
+    }
+}
+
+impl<T: BitSize> BitSize for Option<T> {
+    #[inline(always)]
+    fn bit_size() -> usize {
+        1 + T::bit_size()
     }
 }
 
@@ -256,10 +317,24 @@ impl<E: Endianness, T: BitReadSized<E>> BitReadSized<E> for Option<T> {
     }
 }
 
+impl<T: BitSizeSized> BitSizeSized for Option<T> {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        1 + T::bit_size(size)
+    }
+}
+
 impl<E: Endianness> BitReadSized<E> for BitStream<E> {
     #[inline(always)]
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
         stream.read_bits(size)
+    }
+}
+
+impl<E: Endianness> BitSizeSized for BitStream<E> {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        size
     }
 }
 
@@ -271,6 +346,13 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
             vec.push(stream.read()?)
         }
         Ok(vec)
+    }
+}
+
+impl<T: BitSize> BitSizeSized for Vec<T> {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        size * T::bit_size()
     }
 }
 
@@ -292,5 +374,12 @@ impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> fo
             map.insert(key, value);
         }
         Ok(map)
+    }
+}
+
+impl<K: BitSize, T: BitSize> BitSizeSized for HashMap<K, T> {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        size * (K::bit_size() + T::bit_size())
     }
 }
