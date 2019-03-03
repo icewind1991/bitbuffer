@@ -391,3 +391,77 @@ fn get_attr(attrs: &Vec<Attribute>, name: &str) -> Option<Lit> {
     }
     None
 }
+
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(BitSize, attributes(size))]
+pub fn derive_bitsize(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    derive_bitsize_trait(input, "BitSize".to_owned(), None)
+}
+
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(BitSizeSized, attributes(size))]
+pub fn derive_bitsize_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let extra_param = parse_str::<TokenStream>("input_size: usize").unwrap();
+    derive_bitsize_trait(input, "BitSizeSized".to_owned(), Some(extra_param))
+}
+
+fn derive_bitsize_trait(
+    input: proc_macro::TokenStream,
+    trait_name: String,
+    extra_param: Option<TokenStream>,
+) -> proc_macro::TokenStream {
+    let input: DeriveInput = parse_macro_input!(input as DeriveInput);
+
+    let name = &input.ident;
+
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let sum = bit_size_sum(&input.data);
+
+    let trait_def_str = format!("::bitstream_reader::{}", trait_name);
+    let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
+
+    let expanded = quote! {
+        impl #impl_generics #trait_def for #name #ty_generics #where_clause {
+            fn bit_size(#extra_param) -> usize {
+                #sum
+            }
+        }
+    };
+
+    // panic!("{}", TokenStream::to_string(&expanded));
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+// Generate an expression to sum up the heap size of each field.
+fn bit_size_sum(data: &Data) -> TokenStream {
+    match *data {
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => {
+                let recurse = fields.named.iter().map(|f| {
+                    let field_type = &f.ty;
+                    let size = get_field_size(&f.attrs, f.span());
+                    match size {
+                        Some(size) => {
+                            quote_spanned! {f.span()=>
+                                ::bitstream_reader::bit_size_of_sized::<#field_type>(#size)
+                            }
+                        }
+                        None => {
+                            quote_spanned! {f.span()=>
+                                ::bitstream_reader::bit_size_of::<#field_type>()
+                            }
+                        }
+                    }
+                });
+                quote! {
+                    0 #(+ #recurse)*
+                }
+            }
+            Fields::Unit => quote!(0),
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    }
+}

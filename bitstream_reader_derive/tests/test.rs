@@ -1,5 +1,7 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitStream, Endianness, LittleEndian};
-use bitstream_reader_derive::{BitRead, BitReadSized};
+use bitstream_reader::{
+    bit_size_of, bit_size_of_sized, BigEndian, BitBuffer, BitStream, Endianness, LittleEndian,
+};
+use bitstream_reader_derive::{BitRead, BitReadSized, BitSize, BitSizeSized};
 
 #[derive(BitRead, PartialEq, Debug)]
 struct TestStruct {
@@ -258,4 +260,31 @@ fn test_read_rest_enum() {
     assert_eq!(TestEnumRest::Foo, stream.read().unwrap());
     assert_eq!(TestEnumRest::Bar, stream.read().unwrap());
     assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
+}
+
+#[derive(BitSize)]
+struct SizeStruct {
+    foo: u8,
+    #[size = 6]
+    str: String,
+    bar: bool,
+}
+
+#[test]
+fn test_bit_size() {
+    assert_eq!(bit_size_of::<SizeStruct>(), 8 + 8 * 6 + 1);
+}
+
+#[derive(BitSizeSized)]
+struct SizeStructSized {
+    foo: u8,
+    #[size = "input_size"]
+    str: String,
+    bar: bool,
+}
+
+#[test]
+fn test_bit_size_sized() {
+    assert_eq!(bit_size_of_sized::<SizeStructSized>(6), 8 + 8 * 6 + 1);
+    assert_eq!(bit_size_of_sized::<SizeStructSized>(16), 8 + 8 * 16 + 1);
 }
