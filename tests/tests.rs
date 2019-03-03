@@ -1,10 +1,16 @@
-use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
-use maplit::hashmap;
-use std::collections::HashMap;
+//#![feature(test)]
 
+// for bench on nightly
+//extern crate test;
+
+use std::collections::HashMap;
 // for bench on nightly
 //use std::fs;
 //use test::Bencher;
+
+use maplit::hashmap;
+
+use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
 
 const BYTES: &'static [u8] = &[
     0b1011_0101,
@@ -372,7 +378,7 @@ fn test_read_struct() {
 //    0b1110_0111,
 
 // for bench on nightly
-//fn read_perf<P: IsPadded>(buffer: BitBuffer<LittleEndian, P>) -> u16 {
+//fn read_perf(buffer: &BitBuffer<LittleEndian>) -> u16 {
 //    let size = 5;
 //    let mut pos = 0;
 //    let len = buffer.bit_len();
@@ -386,6 +392,7 @@ fn test_read_struct() {
 //        pos += size;
 //    }
 //}
+
 //
 //#[bench]
 //fn perf_padded(b: &mut Bencher) {
@@ -404,10 +411,9 @@ fn test_read_struct() {
 //#[bench]
 //fn perf_non_padded(b: &mut Bencher) {
 //    let file = fs::read("/bulk/tmp/test.dem").expect("Unable to read file");
-//    let bytes = file.as_slice();
+//    let buffer = BitBuffer::new(file, LittleEndian);
 //    b.iter(|| {
-//        let buffer = BitBuffer::new(&bytes, LittleEndian);
-//        let data = read_perf(buffer);
+//        let data = read_perf(&buffer);
 //        assert_eq!(data, 43943);
 //        test::black_box(data);
 //    });

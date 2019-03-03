@@ -9,6 +9,7 @@ use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
+use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
@@ -192,7 +193,7 @@ where
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
     where
-        T: PrimInt + BitOrAssign + IsSigned,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -210,9 +211,9 @@ where
                 let raw = self.read_usize(position, count)?;
                 let max_signed_value = (1 << (type_bit_size - 1)) - 1;
                 if T::is_signed() && raw > max_signed_value {
-                    return Ok(T::zero() - T::from(raw & max_signed_value).unwrap());
+                    return Ok(T::zero() - T::from_unchecked(raw & max_signed_value));
                 } else {
-                    T::from(raw).unwrap()
+                    T::from_unchecked(raw)
                 }
             } else {
                 let mut left_to_read = count;
@@ -223,7 +224,7 @@ where
                 while left_to_read > 0 {
                     let bits_left = self.bit_len - read_pos;
                     let read = min(min(left_to_read, max_read), bits_left);
-                    let data = T::from(self.read_usize(read_pos, read)?).unwrap();
+                    let data = T::from_unchecked(self.read_usize(read_pos, read)?);
                     if E::is_le() {
                         partial |= data << bit_offset;
                     } else {
@@ -400,14 +401,18 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
     where
-        T: Float,
+        T: Float + UncheckedPrimitiveFloat,
     {
         if size_of::<T>() == 4 {
-            let int = self.read_int::<u32>(position, 32)?;
-            Ok(T::from(f32::from_bits(int)).unwrap())
+            let int = if size_of::<T>() < USIZE_SIZE {
+                self.read_usize(position, 32)? as u32
+            } else {
+                self.read_int::<u32>(position, 32)?
+            };
+            Ok(T::from_f32_unchecked(f32::from_bits(int)))
         } else {
             let int = self.read_int::<u64>(position, 64)?;
-            Ok(T::from(f64::from_bits(int)).unwrap())
+            Ok(T::from_f64_unchecked(f64::from_bits(int)))
         }
     }
 }

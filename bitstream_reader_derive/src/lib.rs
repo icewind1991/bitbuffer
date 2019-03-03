@@ -138,7 +138,6 @@ extern crate proc_macro;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::token::Token;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
     Lit, LitStr, Meta, Pat, Path,

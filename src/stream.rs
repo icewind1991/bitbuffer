@@ -6,6 +6,7 @@ use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
+use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::BitBuffer;
 use crate::{BitRead, BitReadSized, ReadError, Result};
 
@@ -143,7 +144,7 @@ where
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     pub fn read_int<T>(&mut self, count: usize) -> Result<T>
     where
-        T: PrimInt + BitOrAssign + IsSigned,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         self.verify_bits_left(count)?;
         let result = self.buffer.read_int(self.pos, count);
@@ -181,7 +182,7 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&mut self) -> Result<T>
     where
-        T: Float,
+        T: Float + UncheckedPrimitiveFloat,
     {
         let count = size_of::<T>() * 8;
         self.verify_bits_left(count)?;

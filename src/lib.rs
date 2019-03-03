@@ -74,6 +74,7 @@ mod endianness;
 mod is_signed;
 mod read;
 mod stream;
+mod unchecked_primitive;
 
 /// Errors that can be returned when trying to read from a buffer
 #[derive(Debug)]
