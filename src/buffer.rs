@@ -86,11 +86,10 @@ impl<E> BitBuffer<E>
     }
 
     fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
-        let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
+        let byte_index = position / 8;
         let bit_offset = position - byte_index * 8;
         let raw_container: &usize = unsafe {
-            // this is safe here because it's already verified that there is enough data in the slice
-            // to read a usize from byte_index
+            // this is safe here because we already have checks that we don't read past the slice
             let ptr = self.bytes.as_ptr().add(byte_index);
             std::mem::transmute(ptr)
         };
