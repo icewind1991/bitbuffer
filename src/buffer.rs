@@ -7,10 +7,10 @@ use std::ops::BitOrAssign;
 
 use num_traits::{Float, PrimInt};
 
+use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -34,8 +34,8 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # }
 /// ```
 pub struct BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     bytes: Vec<u8>,
     bit_len: usize,
@@ -44,8 +44,8 @@ where
 }
 
 impl<E> BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte vector
     ///
@@ -72,8 +72,8 @@ where
 }
 
 impl<E> BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -86,19 +86,6 @@ where
     }
 
     fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
-        if position + count > self.bit_len {
-            if position > self.bit_len {
-                return Err(ReadError::IndexOutOfBounds {
-                    pos: position,
-                    size: self.bit_len,
-                });
-            } else {
-                return Err(ReadError::NotEnoughData {
-                    requested: count,
-                    bits_left: self.bit_len - position,
-                });
-            }
-        }
         let byte_index = min(position / 8, self.byte_len - USIZE_SIZE);
         let bit_offset = position - byte_index * 8;
         let raw_container: &usize = unsafe {
@@ -192,8 +179,8 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        where
+            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -204,6 +191,20 @@ where
                     requested: count,
                     max: type_bit_size,
                 });
+            }
+
+            if position + count > self.bit_len {
+                if position > self.bit_len {
+                    return Err(ReadError::IndexOutOfBounds {
+                        pos: position,
+                        size: self.bit_len,
+                    });
+                } else {
+                    return Err(ReadError::NotEnoughData {
+                        requested: count,
+                        bits_left: self.bit_len - position,
+                    });
+                }
             }
 
             let bit_offset = position & 7;
@@ -280,6 +281,20 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
+        if position + byte_count * 8 > self.bit_len {
+            if position > self.bit_len {
+                return Err(ReadError::IndexOutOfBounds {
+                    pos: position,
+                    size: self.bit_len,
+                });
+            } else {
+                return Err(ReadError::NotEnoughData {
+                    requested: byte_count * 8,
+                    bits_left: self.bit_len - position,
+                });
+            }
+        }
+
         let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
         let max_read = size_of::<usize>() - 1;
@@ -400,9 +415,23 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-    where
-        T: Float + UncheckedPrimitiveFloat,
+        where
+            T: Float + UncheckedPrimitiveFloat,
     {
+        if position + size_of::<T>() * 8 > self.bit_len {
+            if position > self.bit_len {
+                return Err(ReadError::IndexOutOfBounds {
+                    pos: position,
+                    size: self.bit_len,
+                });
+            } else {
+                return Err(ReadError::NotEnoughData {
+                    requested: size_of::<T>() * 8,
+                    bits_left: self.bit_len - position,
+                });
+            }
+        }
+
         if size_of::<T>() == 4 {
             let int = if size_of::<T>() < USIZE_SIZE {
                 self.read_usize(position, 32)? as u32
