@@ -2,7 +2,6 @@ use crate::{BitStream, Endianness, Result};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::fmt::{Debug, Formatter};
 use std::cell::RefCell;
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
@@ -388,6 +387,11 @@ impl<K: BitSize, T: BitSize> BitSizeSized for HashMap<K, T> {
 }
 
 #[derive(Clone, Debug)]
+/// Struct that lazily reads it's contents from the stream
+///
+/// Requires [`BitSize`] to be implemented for it's contents so it can grab the correct number of bytes
+///
+/// [`BitSize`]: trait.BitSize.html
 pub struct LazyBitRead<T: BitRead<E> + BitSize, E: Endianness> {
     source: RefCell<BitStream<E>>,
     inner_type: PhantomData<T>
@@ -395,7 +399,8 @@ pub struct LazyBitRead<T: BitRead<E> + BitSize, E: Endianness> {
 
 impl<T: BitRead<E> + BitSize, E: Endianness> LazyBitRead<T, E> {
     #[inline(always)]
-    fn read(self) -> Result<T> {
+    /// Get the contents of the lazy struct
+    pub fn read(self) -> Result<T> {
         self.source.borrow_mut().read::<T>()
     }
 }
@@ -419,6 +424,11 @@ impl<T: BitRead<E> + BitSize, E: Endianness> BitSize for LazyBitRead<T, E> {
 }
 
 #[derive(Clone, Debug)]
+/// Struct that lazily reads it's contents from the stream
+///
+/// Requires [`BitSizeSized`] to be implemented for it's contents so it can grab the correct number of bytes
+///
+/// [`BitReadSized`]: trait.BitReadSized.html
 pub struct LazyBitReadSized<T: BitReadSized<E> + BitSizeSized, E: Endianness> {
     source: RefCell<BitStream<E>>,
     size: usize,
@@ -427,7 +437,8 @@ pub struct LazyBitReadSized<T: BitReadSized<E> + BitSizeSized, E: Endianness> {
 
 impl<T: BitReadSized<E> + BitSizeSized, E: Endianness> LazyBitReadSized<T, E> {
     #[inline(always)]
-    fn value(self) -> Result<T> {
+    /// Get the contents of the lazy struct
+    pub fn value(self) -> Result<T> {
         self.source.borrow_mut().read_sized::<T>(self.size)
     }
 }
