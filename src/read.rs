@@ -1,6 +1,9 @@
 use crate::{BitStream, Endianness, Result};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::marker::PhantomData;
+use std::fmt::{Debug, Formatter};
+use std::cell::RefCell;
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
 ///
@@ -381,5 +384,69 @@ impl<K: BitSize, T: BitSize> BitSizeSized for HashMap<K, T> {
     #[inline(always)]
     fn bit_size(size: usize) -> usize {
         size * (K::bit_size() + T::bit_size())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LazyBitRead<T: BitRead<E> + BitSize, E: Endianness> {
+    source: RefCell<BitStream<E>>,
+    inner_type: PhantomData<T>
+}
+
+impl<T: BitRead<E> + BitSize, E: Endianness> LazyBitRead<T, E> {
+    #[inline(always)]
+    fn read(self) -> Result<T> {
+        self.source.borrow_mut().read::<T>()
+    }
+}
+
+impl<T: BitRead<E> + BitSize, E: Endianness> BitRead<E> for LazyBitRead<T, E> {
+    #[inline(always)]
+    fn read(stream: &mut BitStream<E>) -> Result<Self> {
+        let bit_size = T::bit_size();
+        Ok(LazyBitRead {
+            source:  RefCell::new(stream.read_bits(bit_size)?),
+            inner_type: PhantomData
+        })
+    }
+}
+
+impl<T: BitRead<E> + BitSize, E: Endianness> BitSize for LazyBitRead<T, E> {
+    #[inline(always)]
+    fn bit_size() -> usize {
+        T::bit_size()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LazyBitReadSized<T: BitReadSized<E> + BitSizeSized, E: Endianness> {
+    source: RefCell<BitStream<E>>,
+    size: usize,
+    inner_type: PhantomData<T>
+}
+
+impl<T: BitReadSized<E> + BitSizeSized, E: Endianness> LazyBitReadSized<T, E> {
+    #[inline(always)]
+    fn value(self) -> Result<T> {
+        self.source.borrow_mut().read_sized::<T>(self.size)
+    }
+}
+
+impl<T: BitReadSized<E> + BitSizeSized, E: Endianness> BitReadSized<E> for LazyBitReadSized<T, E> {
+    #[inline(always)]
+    fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
+        let bit_size = T::bit_size(size);
+        Ok(LazyBitReadSized {
+            source: RefCell::new(stream.read_bits(bit_size)?),
+            inner_type: PhantomData,
+            size
+        })
+    }
+}
+
+impl<T: BitReadSized<E> + BitSizeSized, E: Endianness> BitSizeSized for LazyBitReadSized<T, E> {
+    #[inline(always)]
+    fn bit_size(size: usize) -> usize {
+        T::bit_size(size)
     }
 }

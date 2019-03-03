@@ -61,10 +61,10 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
-pub use bitstream_reader_derive::{BitRead, BitReadSized};
+pub use bitstream_reader_derive::{BitRead, BitReadSized, BitSize, BitSizeSized};
 pub use buffer::BitBuffer;
 pub use endianness::*;
-pub use read::{BitRead, BitReadSized};
+pub use read::{BitRead, BitReadSized, BitSize, BitSizeSized, LazyBitRead, LazyBitReadSized};
 pub use stream::BitStream;
 
 mod buffer;
@@ -142,3 +142,15 @@ impl Error for ReadError {
 
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
 pub type Result<T> = std::result::Result<T, ReadError>;
+
+/// Get the number of bits required to read a type from stream
+#[inline(always)]
+pub fn bit_size_of<T: BitSize>() -> usize {
+    T::bit_size()
+}
+
+/// Get the number of bits required to read a type from stream
+#[inline(always)]
+pub fn bit_size_of_sized<T: BitSizeSized>(size: usize) -> usize {
+    T::bit_size(size)
+}
