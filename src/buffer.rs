@@ -85,7 +85,7 @@ where
         self.byte_len
     }
 
-    fn read_usize(&self, position: usize, count: usize) -> Result<usize> {
+    fn read_usize(&self, position: usize, count: usize) -> usize {
         let byte_index = position / 8;
         let bit_offset = position - byte_index * 8;
         let raw_container: &usize = unsafe {
@@ -104,7 +104,7 @@ where
             container >> (USIZE_SIZE * 8 - bit_offset - count)
         };
         let mask = !(usize::max_value() << count);
-        Ok(shifted & mask)
+        shifted & mask
     }
 
     /// Read a single bit from the buffer as boolean
@@ -208,7 +208,7 @@ where
 
             let bit_offset = position & 7;
             if size_of::<usize>() > size_of::<T>() || count + bit_offset < usize_bit_size {
-                let raw = self.read_usize(position, count)?;
+                let raw = self.read_usize(position, count);
                 let max_signed_value = (1 << (type_bit_size - 1)) - 1;
                 if T::is_signed() && raw > max_signed_value {
                     return Ok(T::zero() - T::from_unchecked(raw & max_signed_value));
@@ -224,7 +224,7 @@ where
                 while left_to_read > 0 {
                     let bits_left = self.bit_len - read_pos;
                     let read = min(min(left_to_read, max_read), bits_left);
-                    let data = T::from_unchecked(self.read_usize(read_pos, read)?);
+                    let data = T::from_unchecked(self.read_usize(read_pos, read));
                     if E::is_le() {
                         partial |= data << bit_offset;
                     } else {
@@ -300,7 +300,7 @@ where
         let mut read_pos = position;
         while byte_left > 0 {
             let read = min(byte_left, max_read);
-            let raw_bytes = self.read_usize(read_pos, read * 8)?;
+            let raw_bytes = self.read_usize(read_pos, read * 8);
             let bytes: [u8; USIZE_SIZE] = if E::is_le() {
                 raw_bytes.to_le_bytes()
             } else {
@@ -368,7 +368,7 @@ where
                 let mut pos = position;
                 loop {
                     let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
-                    let raw_bytes = self.read_usize(pos, read)?;
+                    let raw_bytes = self.read_usize(pos, read);
                     let bytes: [u8; USIZE_SIZE] = if E::is_le() {
                         raw_bytes.to_le_bytes()
                     } else {
@@ -433,7 +433,7 @@ where
 
         if size_of::<T>() == 4 {
             let int = if size_of::<T>() < USIZE_SIZE {
-                self.read_usize(position, 32)? as u32
+                self.read_usize(position, 32) as u32
             } else {
                 self.read_int::<u32>(position, 32)?
             };
