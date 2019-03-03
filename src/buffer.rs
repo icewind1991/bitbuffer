@@ -7,10 +7,10 @@ use std::ops::BitOrAssign;
 
 use num_traits::{Float, PrimInt};
 
-use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -34,8 +34,8 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # }
 /// ```
 pub struct BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     bytes: Vec<u8>,
     bit_len: usize,
@@ -44,8 +44,8 @@ pub struct BitBuffer<E>
 }
 
 impl<E> BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte vector
     ///
@@ -72,8 +72,8 @@ impl<E> BitBuffer<E>
 }
 
 impl<E> BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -178,8 +178,8 @@ impl<E> BitBuffer<E>
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
-        where
-            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
@@ -414,8 +414,8 @@ impl<E> BitBuffer<E>
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-        where
-            T: Float + UncheckedPrimitiveFloat,
+    where
+        T: Float + UncheckedPrimitiveFloat,
     {
         if position + size_of::<T>() * 8 > self.bit_len {
             if position > self.bit_len {
