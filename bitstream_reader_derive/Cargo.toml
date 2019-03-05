@@ -1,6 +1,6 @@
 [package]
 name = "bitstream_reader_derive"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -17,4 +17,4 @@ quote = "0.6"
 proc-macro2 = "0.4"
 
 [dev-dependencies]
-bitstream_reader = { version = "0.3", path = ".." }
+bitstream_reader = { version = "0.4", path = ".." }
