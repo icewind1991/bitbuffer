@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, transmute};
 use std::ops::BitOrAssign;
 use std::rc::Rc;
 
@@ -88,11 +88,12 @@ where
 
     fn read_usize(&self, position: usize, count: usize) -> usize {
         let byte_index = position / 8;
-        let bit_offset = position - byte_index * 8;
+        let bit_offset = position & 7;
+        let usize_bit_size = size_of::<usize>() * 8;
         let raw_container: &usize = unsafe {
             // this is safe here because we already have checks that we don't read past the slice
             let ptr = self.bytes.as_ptr().add(byte_index);
-            std::mem::transmute(ptr)
+            transmute(ptr)
         };
         let container = if E::is_le() {
             usize::from_le(*raw_container)
@@ -102,7 +103,7 @@ where
         let shifted = if E::is_le() {
             container >> bit_offset
         } else {
-            container >> (USIZE_SIZE * 8 - bit_offset - count)
+            container >> (usize_bit_size - bit_offset - count)
         };
         let mask = !(usize::max_value() << count);
         shifted & mask
@@ -182,82 +183,98 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
+        let usize_bit_size = size_of::<usize>() * 8;
 
-        // by splitting of the count check and the actual reading
-        // we can inline the count check (which get's resolved at compile time if a constant count is used)
-        // without having to pay the potentional cost of inlining a larger function
         if type_bit_size < count {
             return Err(ReadError::TooManyBits {
                 requested: count,
                 max: type_bit_size,
             });
         }
-        self.read_int_no_count_check(position, count)
+
+        if position + count > self.bit_len {
+            if position > self.bit_len {
+                return Err(ReadError::IndexOutOfBounds {
+                    pos: position,
+                    size: self.bit_len,
+                });
+            } else {
+                return Err(ReadError::NotEnoughData {
+                    requested: count,
+                    bits_left: self.bit_len - position,
+                });
+            }
+        }
+
+        let bit_offset = position & 7;
+
+        let fit_usize = count + bit_offset < usize_bit_size;
+        let value = if fit_usize {
+            self.read_fit_usize(position, count)
+        } else {
+            self.read_no_fit_usize(position, count)
+        };
+
+        Ok(if count == type_bit_size && fit_usize {
+            value
+        } else {
+            self.make_signed(value, count)
+        })
     }
 
-    fn read_int_no_count_check<T>(&self, position: usize, count: usize) -> Result<T>
+    #[inline]
+    fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        let value = {
-            let type_bit_size = size_of::<T>() * 8;
-            let usize_bit_size = size_of::<usize>() * 8;
+        let type_bit_size = size_of::<T>() * 8;
+        let raw = self.read_usize(position, count);
+        let max_signed_value = (1 << (type_bit_size - 1)) - 1;
+        if T::is_signed() && raw > max_signed_value {
+            T::zero() - T::from_unchecked(raw & max_signed_value)
+        } else {
+            T::from_unchecked(raw)
+        }
+    }
 
-            if position + count > self.bit_len {
-                if position > self.bit_len {
-                    return Err(ReadError::IndexOutOfBounds {
-                        pos: position,
-                        size: self.bit_len,
-                    });
-                } else {
-                    return Err(ReadError::NotEnoughData {
-                        requested: count,
-                        bits_left: self.bit_len - position,
-                    });
-                }
-            }
-
-            let bit_offset = position & 7;
-            if size_of::<usize>() > size_of::<T>() || count + bit_offset < usize_bit_size {
-                let raw = self.read_usize(position, count);
-                let max_signed_value = (1 << (type_bit_size - 1)) - 1;
-                if T::is_signed() && raw > max_signed_value {
-                    return Ok(T::zero() - T::from_unchecked(raw & max_signed_value));
-                } else {
-                    T::from_unchecked(raw)
-                }
+    fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    {
+        let mut left_to_read = count;
+        let mut acc = T::zero();
+        let max_read = (size_of::<usize>() - 1) * 8;
+        let mut read_pos = position;
+        let mut bit_offset = 0;
+        while left_to_read > 0 {
+            let bits_left = self.bit_len - read_pos;
+            let read = min(min(left_to_read, max_read), bits_left);
+            let data = T::from_unchecked(self.read_usize(read_pos, read));
+            if E::is_le() {
+                acc |= data << bit_offset;
             } else {
-                let mut left_to_read = count;
-                let mut partial = T::zero();
-                let max_read = (size_of::<usize>() - 1) * 8;
-                let mut read_pos = position;
-                let mut bit_offset = 0;
-                while left_to_read > 0 {
-                    let bits_left = self.bit_len - read_pos;
-                    let read = min(min(left_to_read, max_read), bits_left);
-                    let data = T::from_unchecked(self.read_usize(read_pos, read));
-                    if E::is_le() {
-                        partial |= data << bit_offset;
-                    } else {
-                        partial = partial << read;
-                        partial |= data;
-                    }
-                    bit_offset += read;
-                    read_pos += read;
-                    left_to_read -= read;
-                }
-
-                partial
+                acc = acc << read;
+                acc |= data;
             }
-        };
+            bit_offset += read;
+            read_pos += read;
+            left_to_read -= read;
+        }
 
+        acc
+    }
+
+    fn make_signed<T>(&self, value: T, count: usize) -> T
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    {
         if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
             let absolute_value = value & !(T::max_value() << (count - 1));
             let sign = T::one() - sign_bit - sign_bit;
-            Ok(absolute_value * sign)
+            absolute_value * sign
         } else {
-            Ok(value)
+            value
         }
     }
 
@@ -426,7 +443,8 @@ where
     where
         T: Float + UncheckedPrimitiveFloat,
     {
-        if position + size_of::<T>() * 8 > self.bit_len {
+        let type_bit_size = size_of::<T>() * 8;
+        if position + type_bit_size > self.bit_len {
             if position > self.bit_len {
                 return Err(ReadError::IndexOutOfBounds {
                     pos: position,
@@ -442,13 +460,13 @@ where
 
         if size_of::<T>() == 4 {
             let int = if size_of::<T>() < USIZE_SIZE {
-                self.read_usize(position, 32) as u32
+                self.read_fit_usize::<u32>(position, 32)
             } else {
-                self.read_int::<u32>(position, 32)?
+                self.read_no_fit_usize::<u32>(position, 32)
             };
             Ok(T::from_f32_unchecked(f32::from_bits(int)))
         } else {
-            let int = self.read_int::<u64>(position, 64)?;
+            let int = self.read_no_fit_usize::<u64>(position, 64);
             Ok(T::from_f64_unchecked(f64::from_bits(int)))
         }
     }
