@@ -176,20 +176,32 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
+    #[inline]
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    {
+        let type_bit_size = size_of::<T>() * 8;
+
+        // by splitting of the count check and the actual reading
+        // we can inline the count check (which get's resolved at compile time if a constant count is used)
+        // without having to pay the potentional cost of inlining a larger function
+        if type_bit_size < count {
+            return Err(ReadError::TooManyBits {
+                requested: count,
+                max: type_bit_size,
+            });
+        }
+        self.read_int_no_count_check(position, count)
+    }
+
+    fn read_int_no_count_check<T>(&self, position: usize, count: usize) -> Result<T>
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let value = {
             let type_bit_size = size_of::<T>() * 8;
             let usize_bit_size = size_of::<usize>() * 8;
-
-            if type_bit_size < count {
-                return Err(ReadError::TooManyBits {
-                    requested: count,
-                    max: type_bit_size,
-                });
-            }
 
             if position + count > self.bit_len {
                 if position > self.bit_len {

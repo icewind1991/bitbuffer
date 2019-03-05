@@ -2,9 +2,8 @@
 
 extern crate test;
 
-use std::fs;
-use test::Bencher;
 use bitstream_reader::{BitBuffer, LittleEndian};
+use test::Bencher;
 
 fn read_perf(buffer: &BitBuffer<LittleEndian>) -> u16 {
     let size = 5;
@@ -23,11 +22,11 @@ fn read_perf(buffer: &BitBuffer<LittleEndian>) -> u16 {
 
 #[bench]
 fn perf_non_padded(b: &mut Bencher) {
-    let file = fs::read("/bulk/tmp/test.dem").expect("Unable to read file");
-    let buffer = BitBuffer::new(file, LittleEndian);
+    let data = vec![1u8; 1024 * 1024 * 10];
+    let buffer = BitBuffer::new(data, LittleEndian);
     b.iter(|| {
         let data = read_perf(&buffer);
-        assert_eq!(data, 43943);
+        assert_eq!(data, 0);
         test::black_box(data);
     });
 }
