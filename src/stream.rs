@@ -472,12 +472,44 @@ where
     /// #     Ok(())
     /// # }
     /// ```
-    /// #[inline(always)]
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// use bitstream_reader::BitRead;
+    /// #
+    /// #[derive(BitRead, Debug, PartialEq)]
+    /// struct ComplexType {
+    ///     first: u8,
+    ///     #[size = 15]
+    ///     second: u16,
+    ///     third: bool,
+    /// }
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// # let mut stream = BitStream::new(buffer);
+    /// let data: ComplexType = stream.read()?;
+    /// assert_eq!(data, ComplexType {
+    ///     first: 0b1011_0101,
+    ///     second: 0b010_1100_0110_1010,
+    ///     third: true,
+    /// });
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn read<T: BitRead<E>>(&mut self) -> Result<T> {
         T::read(self)
     }
 
     /// Read a value based on the provided type and size
+    ///
+    /// The meaning of the size parameter differs depending on the type that is being read
     ///
     /// # Examples
     ///
@@ -497,7 +529,24 @@ where
     /// #     Ok(())
     /// # }
     /// ```
-    #[inline(always)]
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// # let mut stream = BitStream::new(buffer);
+    /// let data: Vec<u16> = stream.read_sized(3)?;
+    /// assert_eq!(data, vec![0b0110_1010_1011_0101, 0b1001_1001_1010_1100, 0b1001_1001_1001_1001]);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline]
     pub fn read_sized<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
     }

@@ -5,7 +5,7 @@
 //!
 //! Once you have a BitStream, there are 2 different approaches of reading data
 //!
-//! - read primitives, Strings and byte arrays, using [`read_bool`], [`read_int`], [`read_float`], [`read_byes`] and [`read_string`]
+//! - read primitives, Strings and byte arrays, using [`read_bool`], [`read_int`], [`read_float`], [`read_bytes`] and [`read_string`]
 //! - read any type implementing the  [`BitRead`] or [`BitReadSized`] traits using [`read`] and [`read_sized`]
 //!   - [`BitRead`] is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
 //!   - [`BitReadSized`] is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
@@ -45,16 +45,14 @@
 //! [`read_bool`]: struct.BitStream.html#method.read_bool
 //! [`read_int`]: struct.BitStream.html#method.read_int
 //! [`read_float`]: struct.BitStream.html#method.read_float
-//! [`read_byes`]: struct.BitStream.html#method.read_bytes
+//! [`read_bytes`]: struct.BitStream.html#method.read_bytes
 //! [`read_string`]: struct.BitStream.html#method.read_string
+//! [`read`]: struct.BitStream.html#method.read
+//! [`read_sized`]: struct.BitStream.html#method.read_sized
 //! [`BitRead`]: trait.BitRead.html
 //! [`BitReadSized`]: trait.BitReadSized.html
 
 #![warn(missing_docs)]
-//#![feature(test)]
-
-// for bench on nightly
-//extern crate test;
 
 use std::error::Error;
 use std::fmt;
