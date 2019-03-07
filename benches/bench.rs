@@ -62,6 +62,8 @@ fn perf_f32(b: &mut Bencher) {
     });
 }
 
+const F64_RESULT: f64 = 0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010156250477904244;
+
 #[bench]
 fn perf_f64(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
@@ -78,7 +80,57 @@ fn perf_f64(b: &mut Bencher) {
             result += num;
             pos += 64;
         }
-        assert_eq!(result, 0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010156250477904244);
+        assert_eq!(result, F64_RESULT);
         test::black_box(result);
+    });
+}
+
+fn build_string_data(size: usize, inputs: &Vec<&str>) -> Vec<u8> {
+    let mut data = Vec::with_capacity(size);
+    loop {
+        for input in inputs.iter() {
+            if data.len() + input.len() + 1 >= size {
+                return data;
+            }
+            data.extend_from_slice(input.as_bytes());
+            data.push(0);
+        }
+    }
+}
+fn verify_buffer(buffer: &BitBuffer<BigEndian>, inputs: &Vec<&str>) {
+    let mut pos = 0;
+    let len = buffer.bit_len();
+    loop {
+        for input in inputs.iter() {
+            if pos + input.len() + 1 >= len {
+                return;
+            }
+            let result = buffer.read_string(pos, None).unwrap();
+            pos += (result.len() + 1) * 8;
+            assert_eq!(*input, result.as_str());
+        }
+    }
+}
+
+#[bench]
+fn perf_string(b: &mut Bencher) {
+    let inputs = vec!["foo", "bar", "something a little bit longer for extra testing", "a", ""];
+    let data = build_string_data(10 * 1024 * 1024, &inputs);
+    let buffer = BitBuffer::new(data, BigEndian);
+
+    // test it once before bench
+    //verify_buffer(&buffer, &inputs);
+
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        loop {
+            if pos + (128 * 8) > len {
+                break;
+            }
+            let result = buffer.read_string(pos, None).unwrap();
+            pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
     });
 }
