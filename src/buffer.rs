@@ -383,7 +383,11 @@ where
     pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
         let bytes = self.read_string_bytes(position, byte_len)?;
         let raw_string = String::from_utf8(bytes)?;
-        Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
+        if byte_len.is_some() {
+            Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
+        } else {
+            Ok(raw_string)
+        }
     }
 
     fn read_string_bytes(&self, position: usize, byte_len: Option<usize>) -> Result<Vec<u8>> {
