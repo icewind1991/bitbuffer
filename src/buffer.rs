@@ -8,10 +8,10 @@ use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
+use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -35,8 +35,8 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # }
 /// ```
 pub struct BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     bytes: Rc<Vec<u8>>,
     bit_len: usize,
@@ -45,8 +45,8 @@ where
 }
 
 impl<E> BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// Create a new BitBuffer from a byte vector
     ///
@@ -73,8 +73,8 @@ where
 }
 
 impl<E> BitBuffer<E>
-where
-    E: Endianness,
+    where
+        E: Endianness,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -179,8 +179,8 @@ where
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     #[inline]
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        where
+            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
         let usize_bit_size = size_of::<usize>() * 8;
@@ -224,8 +224,8 @@ where
 
     #[inline]
     fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        where
+            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
@@ -238,8 +238,8 @@ where
     }
 
     fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        where
+            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let mut left_to_read = count;
         let mut acc = T::zero();
@@ -265,8 +265,8 @@ where
     }
 
     fn make_signed<T>(&self, value: T, count: usize) -> T
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        where
+            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
@@ -349,6 +349,12 @@ where
     ///
     /// You can either read a fixed number of bytes, or a dynamic length null-terminated string
     ///
+    /// # Features
+    ///
+    /// To disable the overhead of checking if the read bytes are valid you can enable the `unchecked_utf8`
+    /// feature of the crate to use `String::from_utf8_unchecked` instead of `String::from_utf8`
+    /// to create the string from the read bytes.
+    ///
     /// # Errors
     ///
     /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
@@ -381,42 +387,53 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
-        let bytes = self.read_string_bytes(position, byte_len)?;
-        let raw_string = String::from_utf8(bytes)?;
-        if byte_len.is_some() {
-            Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
-        } else {
-            Ok(raw_string)
+        match byte_len {
+            Some(byte_len) => {
+                let bytes = self.read_bytes(position, byte_len)?;
+                let raw_string = if cfg!(feature = "unchecked_utf8") {
+                    unsafe {
+                        String::from_utf8_unchecked(bytes)
+                    }
+                } else {
+                    String::from_utf8(bytes)?
+                };
+                Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
+            },
+            None => {
+                let bytes = self.read_string_bytes(position);
+                if cfg!(feature = "unchecked_utf8") {
+                    unsafe {
+                        Ok(String::from_utf8_unchecked(bytes))
+                    }
+                } else {
+                    String::from_utf8(bytes).map_err(ReadError::from)
+                }
+            }
         }
     }
 
-    fn read_string_bytes(&self, position: usize, byte_len: Option<usize>) -> Result<Vec<u8>> {
-        match byte_len {
-            Some(len) => return self.read_bytes(position, len),
-            None => {
-                let mut acc = Vec::with_capacity(25);
-                let mut pos = position;
-                loop {
-                    let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
-                    let raw_bytes = self.read_usize(pos, read);
-                    let bytes: [u8; USIZE_SIZE] = if E::is_le() {
-                        raw_bytes.to_le_bytes()
-                    } else {
-                        raw_bytes.to_be_bytes()
-                    };
-                    for i in 0..(USIZE_SIZE - 1) {
-                        // ony LE we use the first 7 bytes, on BE the last 7
-                        let byte = if E::is_le() { bytes[i] } else { bytes[1 + i] };
+    fn read_string_bytes(&self, position: usize) -> Vec<u8> {
+        let mut acc = Vec::with_capacity(25);
+        let mut pos = position;
+        loop {
+            let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
+            let raw_bytes = self.read_usize(pos, read);
+            let bytes: [u8; USIZE_SIZE] = if E::is_le() {
+                raw_bytes.to_le_bytes()
+            } else {
+                raw_bytes.to_be_bytes()
+            };
+            for i in 0..(USIZE_SIZE - 1) {
+                // ony LE we use the first 7 bytes, on BE the last 7
+                let byte = if E::is_le() { bytes[i] } else { bytes[1 + i] };
 
-                        if byte == 0 {
-                            return Ok(acc);
-                        }
-                        acc.push(byte);
-                    }
-                    pos += read;
+                if byte == 0 {
+                    return acc;
                 }
+                acc.push(byte);
             }
-        };
+            pos += read;
+        }
     }
 
     /// Read a sequence of bits from the buffer as float
@@ -444,8 +461,8 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-    where
-        T: Float + UncheckedPrimitiveFloat,
+        where
+            T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
         if position + type_bit_size > self.bit_len {
