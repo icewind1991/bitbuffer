@@ -325,6 +325,11 @@ impl<E> BitBuffer<E>
             }
         }
 
+        if position & 7 == 0 {
+            let byte_pos = position / 8;
+            return Ok(self.bytes[byte_pos..byte_pos + byte_count].to_vec());
+        }
+
         let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
         let max_read = size_of::<usize>() - 1;
@@ -502,32 +507,7 @@ impl<E> BitBuffer<E>
         }
     }
 
-    /// Get a clone of the buffer with a shorter length
-    ///
-    /// # Errors
-    ///
-    /// - [`ReadError::NotEnoughData`]: if the requested length is higher than the buffer length
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
-    /// #
-    /// # fn main() -> Result<()> {
-    /// # let bytes = vec![
-    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// # ];
-    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let sub = buffer.get_sub_buffer(16)?;
-    /// let result: u8 = sub.read_int(0, 6)?;
-    /// #
-    /// #     Ok(())
-    /// # }
-    /// ```
-    ///
-    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
-    pub fn get_sub_buffer(&self, bit_len: usize) -> Result<Self> {
+    pub(crate) fn get_sub_buffer(&self, bit_len: usize) -> Result<Self> {
         if bit_len > self.bit_len {
             return Err(ReadError::NotEnoughData {
                 requested: bit_len,
