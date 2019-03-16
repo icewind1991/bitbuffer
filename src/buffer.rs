@@ -400,7 +400,7 @@ impl<E> BitBuffer<E>
                     String::from_utf8(bytes)?
                 };
                 Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
-            },
+            }
             None => {
                 let bytes = self.read_string_bytes(position);
                 if cfg!(feature = "unchecked_utf8") {
@@ -415,25 +415,31 @@ impl<E> BitBuffer<E>
     }
 
     fn read_string_bytes(&self, position: usize) -> Vec<u8> {
-        let mut acc = Vec::with_capacity(25);
+        let mut acc = Vec::with_capacity(32);
         let mut pos = position;
         loop {
-            let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
+            let read = (USIZE_SIZE - 1) * 8;
             let raw_bytes = self.read_usize(pos, read);
             let bytes: [u8; USIZE_SIZE] = if E::is_le() {
                 raw_bytes.to_le_bytes()
             } else {
                 raw_bytes.to_be_bytes()
             };
-            for i in 0..(USIZE_SIZE - 1) {
-                // ony LE we use the first 7 bytes, on BE the last 7
-                let byte = if E::is_le() { bytes[i] } else { bytes[1 + i] };
 
-                if byte == 0 {
+            let (start, end) = if E::is_le() {
+                (0usize, USIZE_SIZE - 1)
+            } else {
+                (1usize, USIZE_SIZE)
+            };
+
+            for i in start..end {
+                if bytes[i] == 0 {
+                    acc.extend_from_slice(&bytes[start..i]);
                     return acc;
                 }
-                acc.push(byte);
             }
+            acc.extend_from_slice(&bytes[start..end]);
+
             pos += read;
         }
     }
