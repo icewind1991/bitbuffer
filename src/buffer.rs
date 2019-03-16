@@ -145,7 +145,9 @@ impl<E> BitBuffer<E>
             });
         }
 
-        let byte = self.bytes[byte_index];
+        let byte = unsafe {
+            self.bytes.get_unchecked(byte_index)
+        };
         let shifted = byte >> bit_offset;
         Ok(shifted & 1u8 == 1)
     }
