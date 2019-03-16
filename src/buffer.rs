@@ -421,6 +421,7 @@ impl<E> BitBuffer<E>
         }
     }
 
+    #[cfg(not(feature = "simd"))]
     fn read_string_bytes(&self, position: usize) -> Vec<u8> {
         let mut acc = Vec::with_capacity(32);
         let mut pos = position;
@@ -448,6 +449,42 @@ impl<E> BitBuffer<E>
             acc.extend_from_slice(&bytes[start..end]);
 
             pos += read;
+        }
+    }
+
+    #[cfg(feature = "simd")]
+    fn read_string_bytes(&self, position: usize) -> Vec<u8> {
+        use packed_simd::u8x16;
+        use packed_simd::u128x1;
+        use packed_simd::IntoBits;
+
+        let bit_index = position & 7;
+        const ZEROS: u8x16 = u8x16::splat(0);
+        let mut byte_index = position / 8;
+        let mut acc = Vec::with_capacity(32);
+        let bit_index_simd = u128x1::new(bit_index as u128);
+
+        loop {
+            let raw_value: u128x1 = u8x16::from_slice_unaligned(&self.bytes[byte_index..byte_index + 16]).into_bits();
+            let shifted = raw_value.rotate_right(bit_index_simd);
+            let input_bytes: u8x16 = shifted.into_bits();
+            let has_zero = ZEROS.eq(input_bytes).any();
+
+            let mut bytes = [0u8; 16];
+            input_bytes.write_to_slice_unaligned(&mut bytes);
+
+            if has_zero {
+                for byte in &bytes {
+                    if *byte == 0 {
+                        return acc;
+                    }
+                    acc.push(*byte);
+                }
+            } else {
+                acc.extend_from_slice(&bytes[0..15]);
+            }
+
+            byte_index += 15;
         }
     }
 
