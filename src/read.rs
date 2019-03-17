@@ -95,6 +95,22 @@ pub trait BitSize {
     fn bit_size() -> usize;
 }
 
+/// Trait to allow skipping a type
+///
+/// This might be faster than trying to read it
+pub trait BitSkip<E: Endianness>: BitRead<E> {
+    /// Skip the type
+    fn skip(stream: &mut BitStream<E>) -> Result<()> {
+        Self::read(stream).map(|_| ())
+    }
+}
+
+impl<T: BitRead<E> + BitSize, E: Endianness> BitSkip<E> for T {
+    fn skip(stream: &mut BitStream<E>) -> Result<()> {
+        stream.skip_bits(Self::bit_size())
+    }
+}
+
 macro_rules! impl_read_int {
     ($type:ty, $len:expr) => {
         impl<E: Endianness> BitRead<E> for $type {

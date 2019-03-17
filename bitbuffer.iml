@@ -11,7 +11,17 @@
       <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_derive/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_derive/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_derive/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_skip/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_skip/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_skip/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_skip/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_traits/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_traits/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_traits/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/bitstream_reader_traits/benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/bitstream_reader_derive/target" />
+      <excludeFolder url="file://$MODULE_DIR$/bitstream_reader_skip/target" />
+      <excludeFolder url="file://$MODULE_DIR$/bitstream_reader_traits/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
