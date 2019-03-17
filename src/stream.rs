@@ -325,7 +325,7 @@ where
     /// # ];
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
-    /// stream.skip(3)?;
+    /// stream.skip_bits(3)?;
     /// assert_eq!(stream.pos(), 3);
     /// assert_eq!(stream.read_int::<u8>(3)?, 0b110);
     /// #
@@ -334,7 +334,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
-    pub fn skip(&mut self, count: usize) -> Result<()> {
+    pub fn skip_bits(&mut self, count: usize) -> Result<()> {
         self.pos += count;
         Ok(())
     }
@@ -415,7 +415,7 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.pos(), 0);
-    /// stream.skip(5)?;
+    /// stream.skip_bits(5)?;
     /// assert_eq!(stream.pos(), 5);
     /// #
     /// #     Ok(())
@@ -440,7 +440,7 @@ where
     /// # let buffer = BitBuffer::new(bytes, LittleEndian);
     /// # let mut stream = BitStream::new(buffer);
     /// assert_eq!(stream.bits_left(), 64);
-    /// stream.skip(5)?;
+    /// stream.skip_bits(5)?;
     /// assert_eq!(stream.bits_left(), 59);
     /// #
     /// #     Ok(())
