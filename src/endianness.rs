@@ -1,5 +1,5 @@
 /// Trait for specifying endianness of bit buffer
-pub trait Endianness {
+pub trait Endianness: private::Sealed {
     /// Input is little endian
     fn is_le() -> bool;
     /// Input is big endian
@@ -32,3 +32,11 @@ macro_rules! impl_endianness {
 
 impl_endianness!(BigEndian, false);
 impl_endianness!(LittleEndian, true);
+
+mod private {
+    pub trait Sealed {}
+
+    // Implement for those same types, but no others.
+    impl Sealed for super::BigEndian {}
+    impl Sealed for super::LittleEndian {}
+}
