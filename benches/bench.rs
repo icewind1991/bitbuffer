@@ -114,7 +114,13 @@ fn verify_buffer(buffer: &BitBuffer<BigEndian>, inputs: &Vec<&str>) {
 
 #[bench]
 fn perf_string_be(b: &mut Bencher) {
-    let inputs = vec!["foo", "bar", "something a little bit longer for extra testing", "a", ""];
+    let inputs = vec![
+        "foo",
+        "bar",
+        "something a little bit longer for extra testing",
+        "a",
+        "",
+    ];
     let data = build_string_data(10 * 1024 * 1024, &inputs);
     let buffer = BitBuffer::new(data, BigEndian);
 
@@ -137,7 +143,13 @@ fn perf_string_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_string_le(b: &mut Bencher) {
-    let inputs = vec!["foo", "bar", "something a little bit longer for extra testing", "a", ""];
+    let inputs = vec![
+        "foo",
+        "bar",
+        "something a little bit longer for extra testing",
+        "a",
+        "",
+    ];
     let data = build_string_data(10 * 1024 * 1024, &inputs);
     let buffer = BitBuffer::new(data, LittleEndian);
 

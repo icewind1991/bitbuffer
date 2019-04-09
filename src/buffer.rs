@@ -8,10 +8,10 @@ use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
-use crate::{ReadError, Result};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -35,8 +35,8 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # }
 /// ```
 pub struct BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     bytes: Rc<Vec<u8>>,
     bit_len: usize,
@@ -46,8 +46,8 @@ pub struct BitBuffer<E>
 }
 
 impl<E> BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// Create a new BitBuffer from a byte vector
     ///
@@ -75,8 +75,8 @@ impl<E> BitBuffer<E>
 }
 
 impl<E> BitBuffer<E>
-    where
-        E: Endianness,
+where
+    E: Endianness,
 {
     /// The available number of bits in the buffer
     pub fn bit_len(&self) -> usize {
@@ -147,9 +147,7 @@ impl<E> BitBuffer<E>
             });
         }
 
-        let byte = unsafe {
-            self.bytes.get_unchecked(byte_index)
-        };
+        let byte = unsafe { self.bytes.get_unchecked(byte_index) };
         let shifted = byte >> bit_offset;
         Ok(shifted & 1u8 == 1)
     }
@@ -183,8 +181,8 @@ impl<E> BitBuffer<E>
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     #[inline]
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
-        where
-            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
         let usize_bit_size = size_of::<usize>() * 8;
@@ -228,8 +226,8 @@ impl<E> BitBuffer<E>
 
     #[inline]
     fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
-        where
-            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
@@ -242,8 +240,8 @@ impl<E> BitBuffer<E>
     }
 
     fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
-        where
-            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let mut left_to_read = count;
         let mut acc = T::zero();
@@ -269,8 +267,8 @@ impl<E> BitBuffer<E>
     }
 
     fn make_signed<T>(&self, value: T, count: usize) -> T
-        where
-            T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
@@ -400,9 +398,7 @@ impl<E> BitBuffer<E>
             Some(byte_len) => {
                 let bytes = self.read_bytes(position, byte_len)?;
                 let raw_string = if cfg!(feature = "unchecked_utf8") {
-                    unsafe {
-                        String::from_utf8_unchecked(bytes)
-                    }
+                    unsafe { String::from_utf8_unchecked(bytes) }
                 } else {
                     String::from_utf8(bytes)?
                 };
@@ -411,9 +407,7 @@ impl<E> BitBuffer<E>
             None => {
                 let bytes = self.read_string_bytes(position);
                 if cfg!(feature = "unchecked_utf8") {
-                    unsafe {
-                        Ok(String::from_utf8_unchecked(bytes))
-                    }
+                    unsafe { Ok(String::from_utf8_unchecked(bytes)) }
                 } else {
                     String::from_utf8(bytes).map_err(ReadError::from)
                 }
@@ -454,8 +448,8 @@ impl<E> BitBuffer<E>
 
     #[cfg(feature = "simd")]
     fn read_string_bytes(&self, position: usize) -> Vec<u8> {
-        use packed_simd::u8x16;
         use packed_simd::u128x1;
+        use packed_simd::u8x16;
         use packed_simd::IntoBits;
 
         let bit_index = position & 7;
@@ -465,7 +459,8 @@ impl<E> BitBuffer<E>
         let bit_index_simd = u128x1::new(bit_index as u128);
 
         loop {
-            let raw_value: u128x1 = u8x16::from_slice_unaligned(&self.bytes[byte_index..byte_index + 16]).into_bits();
+            let raw_value: u128x1 =
+                u8x16::from_slice_unaligned(&self.bytes[byte_index..byte_index + 16]).into_bits();
             let shifted = raw_value.rotate_right(bit_index_simd);
             let input_bytes: u8x16 = shifted.into_bits();
             let has_zero = ZEROS.eq(input_bytes).any();
@@ -513,8 +508,8 @@ impl<E> BitBuffer<E>
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_float<T>(&self, position: usize) -> Result<T>
-        where
-            T: Float + UncheckedPrimitiveFloat,
+    where
+        T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
         if position + type_bit_size > self.bit_len {

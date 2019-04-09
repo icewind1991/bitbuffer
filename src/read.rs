@@ -1,8 +1,10 @@
+use crate::endianness::{BigEndian, LittleEndian};
 use crate::{BitStream, Endianness, Result};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
+use std::mem::size_of;
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
 ///
@@ -112,33 +114,64 @@ impl<T: BitRead<E> + BitSize, E: Endianness> BitSkip<E> for T {
 }
 
 macro_rules! impl_read_int {
-    ($type:ty, $len:expr) => {
+    ($type:ty) => {
         impl<E: Endianness> BitRead<E> for $type {
             #[inline]
             fn read(stream: &mut BitStream<E>) -> Result<$type> {
-                stream.read_int::<$type>($len)
+                stream.read_int::<$type>(size_of::<$type>() * 8)
             }
         }
 
         impl BitSize for $type {
             #[inline]
             fn bit_size() -> usize {
-                $len
+                size_of::<$type>() * 8
             }
         }
     };
 }
 
-impl_read_int!(u8, 8);
-impl_read_int!(u16, 16);
-impl_read_int!(u32, 32);
-impl_read_int!(u64, 64);
-impl_read_int!(u128, 128);
-impl_read_int!(i8, 8);
-impl_read_int!(i16, 16);
-impl_read_int!(i32, 32);
-impl_read_int!(i64, 64);
-impl_read_int!(i128, 128);
+macro_rules! impl_read_int_nonzero {
+    ($type:ty) => {
+        impl BitRead<LittleEndian> for Option<$type> {
+            #[inline]
+            fn read(stream: &mut BitStream<LittleEndian>) -> Result<Self> {
+                Ok(<$type>::new(stream.read()?))
+            }
+        }
+
+        impl BitRead<BigEndian> for Option<$type> {
+            #[inline]
+            fn read(stream: &mut BitStream<BigEndian>) -> Result<Self> {
+                Ok(<$type>::new(stream.read()?))
+            }
+        }
+
+        impl BitSize for $type {
+            #[inline]
+            fn bit_size() -> usize {
+                size_of::<$type>() * 8
+            }
+        }
+    };
+}
+
+impl_read_int!(u8);
+impl_read_int!(u16);
+impl_read_int!(u32);
+impl_read_int!(u64);
+impl_read_int!(u128);
+impl_read_int!(i8);
+impl_read_int!(i16);
+impl_read_int!(i32);
+impl_read_int!(i64);
+impl_read_int!(i128);
+
+impl_read_int_nonzero!(std::num::NonZeroU8);
+impl_read_int_nonzero!(std::num::NonZeroU16);
+impl_read_int_nonzero!(std::num::NonZeroU32);
+impl_read_int_nonzero!(std::num::NonZeroU64);
+impl_read_int_nonzero!(std::num::NonZeroU128);
 
 impl<E: Endianness> BitRead<E> for f32 {
     #[inline]

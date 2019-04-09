@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::num::NonZeroU16;
 
 use maplit::hashmap;
 
@@ -255,28 +256,11 @@ fn test_read_str_be() {
 #[test]
 fn test_read_str_le() {
     let bytes = vec![
-        'h' as u8,
-        'e' as u8,
-        'l' as u8,
-        'l' as u8,
-        'o' as u8,
-        ' ' as u8,
-        'w' as u8,
-        'o' as u8,
-        'r' as u8,
-        'l' as u8,
-        'd' as u8,
-        0,
-        'f' as u8,
-        'o' as u8,
-        'o' as u8,
-        0, 0, 0, 0, 0,
+        'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ' ' as u8, 'w' as u8, 'o' as u8,
+        'r' as u8, 'l' as u8, 'd' as u8, 0, 'f' as u8, 'o' as u8, 'o' as u8, 0, 0, 0, 0, 0,
     ];
     let buffer = BitBuffer::new(bytes, LittleEndian);
-    assert_eq!(
-        buffer.read_string(0, Some(3)).unwrap(),
-        "hel".to_owned()
-    );
+    assert_eq!(buffer.read_string(0, Some(3)).unwrap(), "hel".to_owned());
     assert_eq!(
         buffer.read_string(0, Some(11)).unwrap(),
         "hello world".to_owned()
@@ -389,4 +373,13 @@ fn test_read_struct() {
         },
         stream.read().unwrap()
     );
+}
+
+#[test]
+fn test_read_nonzero() {
+    let bytes = vec![12, 0, 0, 0];
+    let buffer = BitBuffer::new(bytes, LittleEndian);
+    let mut stream = BitStream::from(buffer);
+    assert_eq!(NonZeroU16::new(12), stream.read().unwrap());
+    assert_eq!(None, stream.read::<Option<NonZeroU16>>().unwrap());
 }

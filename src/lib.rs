@@ -62,7 +62,9 @@ pub use std::string::FromUtf8Error;
 pub use bitstream_reader_derive::{BitRead, BitReadSized, BitSize, BitSizeSized};
 pub use buffer::BitBuffer;
 pub use endianness::*;
-pub use read::{BitRead, BitReadSized, BitSize, BitSizeSized, LazyBitRead, LazyBitReadSized, BitSkip};
+pub use read::{
+    BitRead, BitReadSized, BitSize, BitSizeSized, BitSkip, LazyBitRead, LazyBitReadSized,
+};
 pub use stream::BitStream;
 
 mod buffer;
