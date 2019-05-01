@@ -1,6 +1,6 @@
 [package]
 name = "bitstream_reader"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -12,7 +12,7 @@ travis-ci = { repository = "icewind1991/bitstream_reader" }
 
 [dependencies]
 num-traits = "0.2"
-bitstream_reader_derive = { version = "0.4", path = "bitstream_reader_derive" }
+bitstream_reader_derive = { version = "0.5", path = "bitstream_reader_derive" }
 
 [dev-dependencies]
 maplit = "1.0.1"
