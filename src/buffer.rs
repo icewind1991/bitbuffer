@@ -185,7 +185,6 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let type_bit_size = size_of::<T>() * 8;
-        let usize_bit_size = size_of::<usize>() * 8;
 
         if type_bit_size < count {
             return Err(ReadError::TooManyBits {
@@ -208,6 +207,51 @@ where
             }
         }
 
+        Ok(unsafe { self.read_int_unchecked(position, count) })
+    }
+
+    /// Read a sequence of bits from the buffer as integer without doing any bounds checking
+    ///
+    /// # Safety
+    ///
+    /// This method will result in undefined behaviour when trying to read outside the bounds of the buffer,
+    /// this method should only be used if performance is critical and bounds check has been done seperatelly.
+    ///
+    /// Otherwise the safe `read_int` should be used.
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
+    /// - [`ReadError::TooManyBits`]: to many bits requested for the chosen integer type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
+    /// let result = buffer.read_int::<u16>(10, 9)?;
+    /// assert_eq!(result, 0b100_0110_10);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
+    #[inline]
+    pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    {
+        let type_bit_size = size_of::<T>() * 8;
+        let usize_bit_size = size_of::<usize>() * 8;
+
         let bit_offset = position & 7;
 
         let fit_usize = count + bit_offset < usize_bit_size;
@@ -217,11 +261,11 @@ where
             self.read_no_fit_usize(position, count)
         };
 
-        Ok(if count == type_bit_size && fit_usize {
+        if count == type_bit_size && fit_usize {
             value
         } else {
             self.make_signed(value, count)
-        })
+        }
     }
 
     #[inline]
