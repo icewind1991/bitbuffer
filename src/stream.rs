@@ -6,7 +6,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::BitBuffer;
+use crate::{BitBuffer, FromUtf8Error};
 use crate::{BitRead, BitReadSized, ReadError, Result};
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
@@ -256,7 +256,16 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
-        let result = self.buffer.read_string(self.pos, byte_len)?;
+        let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
+            // still advance the stream on malformed utf8
+            if let ReadError::Utf8Error(err) = &err {
+                self.pos += match byte_len {
+                    Some(len) => len * 8,
+                    None => (err.as_bytes().len() + 1) * 8,
+                };
+            }
+            err
+        })?;
         let read = match byte_len {
             Some(len) => len * 8,
             None => (result.len() + 1) * 8,
