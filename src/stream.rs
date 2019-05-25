@@ -6,7 +6,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{BitBuffer, FromUtf8Error};
+use crate::BitBuffer;
 use crate::{BitRead, BitReadSized, ReadError, Result};
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
