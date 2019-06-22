@@ -265,6 +265,22 @@ fn test_read_rest_enum() {
     assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
 }
 
+#[derive(BitRead, PartialEq, Debug)]
+struct UnnamedSize(u8, #[size = 5] String, bool);
+
+fn test_unnamed_struct() {
+    let bytes = vec![
+        12, 'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0,
+    ];
+    let buffer = BitBuffer::new(bytes, LittleEndian);
+    let mut stream = BitStream::from(buffer);
+
+    assert_eq!(
+        UnnamedSize(12, "hello".to_string(), false),
+        stream.read().unwrap()
+    );
+}
+
 #[derive(BitRead, BitSize, PartialEq, Debug)]
 struct EmptyStruct;
 
@@ -285,9 +301,13 @@ struct SizeStruct {
     bar: bool,
 }
 
+#[derive(BitSize)]
+struct UnnamedSizeStruct(u8, #[size = 6] String, bool);
+
 #[test]
 fn test_bit_size() {
     assert_eq!(bit_size_of::<SizeStruct>(), 8 + 8 * 6 + 1);
+    assert_eq!(bit_size_of::<UnnamedSizeStruct>(), 8 + 8 * 6 + 1);
 }
 
 #[derive(BitSizeSized)]

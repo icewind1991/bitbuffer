@@ -213,52 +213,59 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream
     let span = struct_name.span();
 
     match data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => {
-            let definitions = fields.named.iter().map(|f| {
-                let name = &f.ident;
+        Data::Struct(DataStruct { fields, .. }) => {
+            let values = fields.iter().map(|f| {
                 // Get attributes `#[..]` on each field
                 let size = get_field_size(&f.attrs, f.span());
                 let field_type = &f.ty;
                 let span = f.span();
                 match size {
                     Some(size) => {
-                        quote_spanned! {span=>
-                            let #name:#field_type = {
+                        quote_spanned! { span =>
+                            {
                                 let _size: usize = #size;
-                                stream.read_sized(_size)?
-                            };
+                                stream.read_sized::<#field_type>(_size)?
+                            }
                         }
                     }
                     None => {
-                        quote_spanned! {span=>
-                            let #name:#field_type = stream.read()?;
+                        quote_spanned! { span =>
+                            stream.read::<#field_type>()?
                         }
                     }
                 }
             });
-            let struct_definition = fields.named.iter().map(|f| {
-                let name = &f.ident;
-                quote_spanned! {f.span()=>
-                    #name,
-                }
-            });
-            quote_spanned! {span=>
-                #(#definitions)*
 
-                Ok(#struct_name {
-                    #(#struct_definition)*
-                })
-            }
-        }
-        Data::Struct(DataStruct {
-            fields: Fields::Unit,
-            ..
-        }) => {
-            quote_spanned! {span=>
-                Ok(#struct_name)
+            match &fields {
+                Fields::Named(fields) => {
+                    let definitions = fields.named.iter().zip(values).map(|(f, value)| {
+                        let name = &f.ident;
+                        quote_spanned! { f.span() =>
+                            let #name = #value;
+                        }
+                    });
+                    let struct_definition = fields.named.iter().map(|f| {
+                        let name = &f.ident;
+                        quote_spanned! { f.span() =>
+                            #name,
+                        }
+                    });
+                    quote_spanned! { span =>
+                        #(#definitions)*
+
+                        Ok(#struct_name {
+                            #(#struct_definition)*
+                        })
+                    }
+                }
+                Fields::Unnamed(_) => quote_spanned! { span =>
+                    Ok(#struct_name(
+                        #(#values ,)*
+                    ))
+                },
+                Fields::Unit => quote_spanned! {span=>
+                    Ok(#struct_name)
+                },
             }
         }
         Data::Enum(data) => {
@@ -278,7 +285,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream
                         let size = get_field_size(&variant.attrs, f.span());
                         match size {
                             Some(size) => {
-                                quote_spanned! {span=>
+                                quote_spanned! { span =>
                                     #struct_name::#variant_name({
                                         let _size:usize = #size;
                                         stream.read_sized(_size)?
@@ -286,7 +293,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream
                                 }
                             }
                             None => {
-                                quote_spanned! {span=>
+                                quote_spanned! { span =>
                                     #struct_name::#variant_name(stream.read()?)
                                 }
                             }
@@ -399,13 +406,10 @@ fn derive_bitsize_trait(
 // Generate an expression to sum up the heap size of each field.
 fn bit_size_sum(data: Data) -> TokenStream {
     match data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => {
-            let recurse = fields.named.into_iter().map(|f| {
+        Data::Struct(DataStruct { fields, .. }) => {
+            let recurse = fields.iter().map(|f| {
                 let span = f.span();
-                let field_type = f.ty;
+                let field_type = &f.ty;
                 match get_field_size(&f.attrs, span) {
                     Some(size) => {
                         quote_spanned! {span =>
@@ -423,10 +427,6 @@ fn bit_size_sum(data: Data) -> TokenStream {
             0 # ( + # recurse) *
             }
         }
-        Data::Struct(DataStruct {
-            fields: Fields::Unit,
-            ..
-        }) => quote!(0),
         _ => unimplemented!(),
     }
 }
