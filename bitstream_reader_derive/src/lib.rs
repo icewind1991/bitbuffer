@@ -140,8 +140,9 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
-    Lit, LitStr, Meta, Path,
+    Lit, LitStr, Path, Variant,
 };
+use syn_util::get_attribute_value;
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
@@ -151,6 +152,7 @@ use syn::{
 pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     derive_bitread_trait(input, "BitRead".to_owned(), None)
 }
+
 //
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
@@ -171,10 +173,7 @@ fn derive_bitread_trait(
 
     let name = &input.ident;
 
-    let endianness = get_attr(&input.attrs, "endianness").map(|lit| match lit {
-        Lit::Str(str) => str.value(),
-        _ => panic!("endianness attribute is required to be a string"),
-    });
+    let endianness = get_attribute_value(&input.attrs, &["endianness"]);
     let mut trait_generics = input.generics.clone();
     // we need these separate generics to only add out Endianness param to the 'impl'
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -255,96 +254,61 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
             }
         }
         Data::Enum(ref data) => {
-            let discriminant_bits = match get_attr(attrs, "discriminant_bits") {
-                Some(bits_lit) => match bits_lit {
-                    Lit::Int(bits) => bits.value(),
-                    _ => {
-                        panic!("'discriminant_bits' attribute is required to be an integer literal")
-                    }
-                },
-                None => panic!(
-                    "'discriminant_bits' attribute is required when deriving `BinRead` for enums"
-                ),
-            };
-            let discriminant_read = quote! {
-                let discriminant:usize = stream.read_int(#discriminant_bits as usize)?;
-            };
+            let discriminant_bits: u64 = get_attribute_value(attrs, &["discriminant_bits"]).expect(
+                "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
+            );
 
             let mut last_discriminant = -1;
-            let mut discriminants = Vec::with_capacity(data.variants.len());
-            for variant in &data.variants {
-                let discriminant: Option<usize> = variant
-                    .discriminant
-                    .clone()
-                    .map(|(_, expr)| match expr {
-                        Expr::Lit(expr_lit) => expr_lit.lit,
-                        _ => panic!("discriminant is required to be an integer literal"),
-                    })
-                    .or_else(|| get_attr(&variant.attrs, "discriminant"))
-                    .map(|lit| match lit {
-                        Lit::Int(lit) => Some(lit.value() as usize),
-                        Lit::Str(lit) => match lit.value().as_str() {
-                            "_" => None,
-                            _ => {
-                                panic!("discriminant is required to be an integer literal or \"_\"")
-                            }
-                        },
-                        _ => panic!("discriminant is required to be an integer literal or \"_\""),
-                    })
-                    .unwrap_or_else(|| Some((last_discriminant + 1) as usize));
-                if let Some(disc) = discriminant {
-                    last_discriminant = disc as isize;
-                }
-                discriminants.push(discriminant)
-            }
-            let match_arms =
-                data.variants
-                    .iter()
-                    .zip(discriminants.iter())
-                    .map(|(variant, discriminant)| {
-                        let span = variant.span();
-                        let variant_name = &variant.ident;
-                        let read_fields = match &variant.fields {
-                            Fields::Unit => quote_spanned! {span=>
-                                #struct_name::#variant_name
-                            },
-                            Fields::Unnamed(f) => {
-                                let size = get_field_size(&variant.attrs, f.span());
-                                match size {
-                                    Some(size) => {
-                                        quote_spanned! {span=>
-                                            #struct_name::#variant_name({
-                                                let _size:usize = #size;
-                                                stream.read_sized(_size)?
-                                            })
-                                        }
-                                    }
-                                    None => {
-                                        quote_spanned! {span=>
-                                            #struct_name::#variant_name(stream.read()?)
-                                        }
-                                    }
+            let match_arms = data.variants.iter().map(|variant| {
+                let span = variant.span();
+                let variant_name = &variant.ident;
+                let read_fields = match &variant.fields {
+                    Fields::Unit => quote_spanned! {span=>
+                        #struct_name::#variant_name
+                    },
+                    Fields::Unnamed(f) => {
+                        let size = get_field_size(&variant.attrs, f.span());
+                        match size {
+                            Some(size) => {
+                                quote_spanned! {span=>
+                                    #struct_name::#variant_name({
+                                        let _size:usize = #size;
+                                        stream.read_sized(_size)?
+                                    })
                                 }
                             }
-                            _ => unimplemented!(),
-                        };
-
-                        if let Some(discriminant) = discriminant {
-                            quote_spanned! {span=>
-                                #discriminant => #read_fields,
-                            }
-                        } else {
-                            quote_spanned! {span=>
-                                _ => #read_fields,
+                            None => {
+                                quote_spanned! {span=>
+                                    #struct_name::#variant_name(stream.read()?)
+                                }
                             }
                         }
-                    });
+                    }
+                    _ => unimplemented!(),
+                };
+
+                let discriminant_token: TokenStream = match Discriminant::from(variant) {
+                    Discriminant::Int(discriminant) => {
+                        last_discriminant = discriminant as isize;
+                        quote_spanned! { span => #discriminant }
+                    }
+                    Discriminant::Wildcard => quote_spanned! { span => _ },
+                    Discriminant::Default => {
+                        let new_discriminant = (last_discriminant + 1) as usize;
+                        last_discriminant += 1;
+                        quote_spanned! { span => #new_discriminant }
+                    }
+                };
+                quote_spanned! {span=>
+                    #discriminant_token => #read_fields,
+                }
+            });
 
             let span = data.enum_token.span();
 
             let enum_name = Lit::Str(LitStr::new(&struct_name.to_string(), struct_name.span()));
             quote_spanned! {span=>
-                #discriminant_read
+                let discriminant:usize = stream.read_int(#discriminant_bits as usize)?;
                 Ok(match discriminant {
                     #(#match_arms)*
                     _ => {
@@ -358,7 +322,7 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
 }
 
 fn get_field_size(attrs: &Vec<Attribute>, span: Span) -> Option<TokenStream> {
-    get_attr(attrs, "size")
+    get_attribute_value(attrs, &["size"])
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
                 quote_spanned! {span=>
@@ -374,25 +338,12 @@ fn get_field_size(attrs: &Vec<Attribute>, span: Span) -> Option<TokenStream> {
             _ => panic!("Unsupported value for size attribute"),
         })
         .or_else(|| {
-            get_attr(attrs, "size_bits").map(|size_bits_lit| {
+            get_attribute_value::<Lit>(attrs, &["size_bits"]).map(|size_bits_lit| {
                 quote_spanned! {span=>
                     stream.read_int::<usize>(#size_bits_lit)?
                 }
             })
         })
-}
-
-fn get_attr(attrs: &Vec<Attribute>, name: &str) -> Option<Lit> {
-    for attr in attrs.iter() {
-        let meta = attr.parse_meta().unwrap();
-        match meta {
-            Meta::NameValue(ref name_value) if name_value.ident == name => {
-                return Some(name_value.lit.clone());
-            }
-            _ => (),
-        }
-    }
-    None
 }
 
 /// See the [crate documentation](index.html) for details
@@ -466,5 +417,39 @@ fn bit_size_sum(data: &Data) -> TokenStream {
             _ => unimplemented!(),
         },
         _ => unimplemented!(),
+    }
+}
+
+enum Discriminant {
+    Int(usize),
+    Default,
+    Wildcard,
+}
+
+impl From<Lit> for Discriminant {
+    fn from(lit: Lit) -> Self {
+        match lit {
+            Lit::Int(lit) => Discriminant::Int(lit.value() as usize),
+            Lit::Str(lit) => match lit.value().as_str() {
+                "_" => Discriminant::Wildcard,
+                _ => panic!("discriminant is required to be an integer literal or \"_\""),
+            },
+            _ => panic!("discriminant is required to be an integer literal or \"_\""),
+        }
+    }
+}
+
+impl From<&Variant> for Discriminant {
+    fn from(variant: &Variant) -> Self {
+        variant
+            .discriminant
+            .as_ref()
+            .map(|(_, expr)| match expr {
+                Expr::Lit(expr_lit) => expr_lit.lit.clone(),
+                _ => panic!("discriminant is required to be an integer literal"),
+            })
+            .or_else(|| get_attribute_value(&variant.attrs, &["discriminant"]))
+            .map(Discriminant::from)
+            .unwrap_or(Discriminant::Default)
     }
 }
