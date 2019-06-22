@@ -139,8 +139,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
-    Lit, LitStr, Path, Variant,
+    parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
+    Fields, Ident, Lit, LitStr, Path, Variant,
 };
 use syn_util::get_attribute_value;
 
@@ -321,7 +321,7 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
     }
 }
 
-fn get_field_size(attrs: &Vec<Attribute>, span: Span) -> Option<TokenStream> {
+fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
     get_attribute_value(attrs, &["size"])
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
@@ -370,7 +370,7 @@ fn derive_bitsize_trait(
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let sum = bit_size_sum(&input.data);
+    let sum = bit_size_sum(input.data);
 
     let trait_def_str = format!("::bitstream_reader::{}", trait_name);
     let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
@@ -389,33 +389,36 @@ fn derive_bitsize_trait(
 }
 
 // Generate an expression to sum up the heap size of each field.
-fn bit_size_sum(data: &Data) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => match data.fields {
-            Fields::Named(ref fields) => {
-                let recurse = fields.named.iter().map(|f| {
-                    let field_type = &f.ty;
-                    let size = get_field_size(&f.attrs, f.span());
-                    match size {
-                        Some(size) => {
-                            quote_spanned! {f.span()=>
-                                ::bitstream_reader::bit_size_of_sized::<#field_type>(#size)
-                            }
-                        }
-                        None => {
-                            quote_spanned! {f.span()=>
-                                ::bitstream_reader::bit_size_of::<#field_type>()
-                            }
+fn bit_size_sum(data: Data) -> TokenStream {
+    match data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => {
+            let recurse = fields.named.into_iter().map(|f| {
+                let span = f.span();
+                let field_type = f.ty;
+                match get_field_size(&f.attrs, span) {
+                    Some(size) => {
+                        quote_spanned! {span=>
+                            ::bitstream_reader::bit_size_of_sized::<#field_type>(#size)
                         }
                     }
-                });
-                quote! {
-                    0 #(+ #recurse)*
+                    None => {
+                        quote_spanned! {span=>
+                            ::bitstream_reader::bit_size_of::<#field_type>()
+                        }
+                    }
                 }
+            });
+            quote! {
+                0 #(+ #recurse)*
             }
-            Fields::Unit => quote!(0),
-            _ => unimplemented!(),
-        },
+        }
+        Data::Struct(DataStruct {
+            fields: Fields::Unit,
+            ..
+        }) => quote!(0),
         _ => unimplemented!(),
     }
 }
