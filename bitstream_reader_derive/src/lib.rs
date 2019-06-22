@@ -183,8 +183,9 @@ fn derive_bitread_trait(
             .push(parse_quote!(_E: ::bitstream_reader::Endianness));
     }
     let (impl_generics, _, _) = trait_generics.split_for_impl();
+    let span = input.span();
 
-    let parse = parse(&input.data, &name, &input.attrs);
+    let parse = parse(input.data, &name, &input.attrs);
 
     let endianness_placeholder = endianness.unwrap_or("_E".to_owned());
     let trait_def_str = format!(
@@ -193,7 +194,7 @@ fn derive_bitread_trait(
     );
     let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
 
-    let endianness_ident = Ident::new(&endianness_placeholder, input.span());
+    let endianness_ident = Ident::new(&endianness_placeholder, span);
 
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
@@ -208,52 +209,59 @@ fn derive_bitread_trait(
     proc_macro::TokenStream::from(expanded)
 }
 
-fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream {
-    match *data {
-        Data::Struct(ref data) => {
-            match data.fields {
-                Fields::Named(ref fields) => {
-                    let definitions = fields.named.iter().map(|f| {
-                        let name = &f.ident;
-                        // Get attributes `#[..]` on each field
-                        let size = get_field_size(&f.attrs, f.span());
-                        let field_type = &f.ty;
-                        let span = f.span();
-                        match size {
-                            Some(size) => {
-                                quote_spanned! {span=>
-                                    let #name:#field_type = {
-                                        let _size: usize = #size;
-                                        stream.read_sized(_size)?
-                                    };
-                                }
-                            }
-                            None => {
-                                quote_spanned! {span=>
-                                    let #name:#field_type = stream.read()?;
-                                }
-                            }
-                        }
-                    });
-                    let struct_definition = fields.named.iter().map(|f| {
-                        let name = &f.ident;
-                        quote_spanned! {f.span()=>
-                            #name,
-                        }
-                    });
-                    let span = data.struct_token.span();
-                    quote_spanned! {span=>
-                        #(#definitions)*
+fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream {
+    let span = struct_name.span();
 
-                        Ok(#struct_name {
-                            #(#struct_definition)*
-                        })
+    match data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => {
+            let definitions = fields.named.iter().map(|f| {
+                let name = &f.ident;
+                // Get attributes `#[..]` on each field
+                let size = get_field_size(&f.attrs, f.span());
+                let field_type = &f.ty;
+                let span = f.span();
+                match size {
+                    Some(size) => {
+                        quote_spanned! {span=>
+                            let #name:#field_type = {
+                                let _size: usize = #size;
+                                stream.read_sized(_size)?
+                            };
+                        }
+                    }
+                    None => {
+                        quote_spanned! {span=>
+                            let #name:#field_type = stream.read()?;
+                        }
                     }
                 }
-                _ => unimplemented!(),
+            });
+            let struct_definition = fields.named.iter().map(|f| {
+                let name = &f.ident;
+                quote_spanned! {f.span()=>
+                    #name,
+                }
+            });
+            quote_spanned! {span=>
+                #(#definitions)*
+
+                Ok(#struct_name {
+                    #(#struct_definition)*
+                })
             }
         }
-        Data::Enum(ref data) => {
+        Data::Struct(DataStruct {
+            fields: Fields::Unit,
+            ..
+        }) => {
+            quote_spanned! {span=>
+                Ok(#struct_name)
+            }
+        }
+        Data::Enum(data) => {
             let discriminant_bits: u64 = get_attribute_value(attrs, &["discriminant_bits"]).expect(
                 "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
             );
@@ -325,22 +333,22 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
     get_attribute_value(attrs, &["size"])
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
-                quote_spanned! {span=>
-                    #size
+                quote_spanned! {span =>
+                # size
                 }
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).unwrap();
-                quote_spanned! {span=>
-                    (#size) as usize
+                quote_spanned! {span =>
+                ( # size) as usize
                 }
             }
             _ => panic!("Unsupported value for size attribute"),
         })
         .or_else(|| {
             get_attribute_value::<Lit>(attrs, &["size_bits"]).map(|size_bits_lit| {
-                quote_spanned! {span=>
-                    stream.read_int::<usize>(#size_bits_lit)?
+                quote_spanned! {span =>
+                stream.read_int::< usize > (# size_bits_lit) ?
                 }
             })
         })
@@ -376,11 +384,11 @@ fn derive_bitsize_trait(
     let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
 
     let expanded = quote! {
-        impl #impl_generics #trait_def for #name #ty_generics #where_clause {
-            fn bit_size(#extra_param) -> usize {
-                #sum
-            }
-        }
+    impl # impl_generics # trait_def for # name # ty_generics # where_clause {
+    fn bit_size( # extra_param) -> usize {
+    # sum
+    }
+    }
     };
 
     // panic!("{}", TokenStream::to_string(&expanded));
@@ -400,19 +408,19 @@ fn bit_size_sum(data: Data) -> TokenStream {
                 let field_type = f.ty;
                 match get_field_size(&f.attrs, span) {
                     Some(size) => {
-                        quote_spanned! {span=>
-                            ::bitstream_reader::bit_size_of_sized::<#field_type>(#size)
+                        quote_spanned! {span =>
+                        ::bitstream_reader::bit_size_of_sized::< # field_type> ( # size)
                         }
                     }
                     None => {
-                        quote_spanned! {span=>
-                            ::bitstream_reader::bit_size_of::<#field_type>()
+                        quote_spanned! {span =>
+                        ::bitstream_reader::bit_size_of::< # field_type> ()
                         }
                     }
                 }
             });
             quote! {
-                0 #(+ #recurse)*
+            0 # ( + # recurse) *
             }
         }
         Data::Struct(DataStruct {

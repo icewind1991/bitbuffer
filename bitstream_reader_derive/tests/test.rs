@@ -265,6 +265,18 @@ fn test_read_rest_enum() {
     assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
 }
 
+#[derive(BitRead, BitSize, PartialEq, Debug)]
+struct EmptyStruct;
+
+fn test_empty_struct() {
+    let bytes = vec![0, 0, 0, 0];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    let mut stream = BitStream::from(buffer);
+    assert_eq!(EmptyStruct, stream.read().unwrap());
+    assert_eq!(0, stream.pos());
+    assert_eq!(0, bit_size_of::<EmptyStruct>());
+}
+
 #[derive(BitSize)]
 struct SizeStruct {
     foo: u8,
