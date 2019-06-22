@@ -140,7 +140,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DeriveInput, Expr, Fields, Ident,
-    Lit, LitStr, Meta, Pat, Path,
+    Lit, LitStr, Meta, Path,
 };
 
 /// See the [crate documentation](index.html) for details
@@ -151,7 +151,7 @@ use syn::{
 pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     derive_bitread_trait(input, "BitRead".to_owned(), None)
 }
-
+//
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitReadSized,
@@ -304,10 +304,6 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                     .map(|(variant, discriminant)| {
                         let span = variant.span();
                         let variant_name = &variant.ident;
-                        let discriminant_string = discriminant
-                            .map(|value| value.to_string())
-                            .unwrap_or("_".to_string());
-                        let discriminant = parse_str::<Pat>(discriminant_string.as_str()).unwrap();
                         let read_fields = match &variant.fields {
                             Fields::Unit => quote_spanned! {span=>
                                 #struct_name::#variant_name
@@ -332,8 +328,15 @@ fn parse(data: &Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStrea
                             }
                             _ => unimplemented!(),
                         };
-                        quote_spanned! {span=>
-                            #discriminant => #read_fields,
+
+                        if let Some(discriminant) = discriminant {
+                            quote_spanned! {span=>
+                                #discriminant => #read_fields,
+                            }
+                        } else {
+                            quote_spanned! {span=>
+                                _ => #read_fields,
+                            }
                         }
                     });
 

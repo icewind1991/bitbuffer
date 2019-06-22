@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
+
 use bitstream_reader::{
     bit_size_of, bit_size_of_sized, BigEndian, BitBuffer, BitStream, Endianness, LittleEndian,
 };
