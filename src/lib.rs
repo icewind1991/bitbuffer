@@ -132,7 +132,7 @@ impl From<FromUtf8Error> for ReadError {
 }
 
 impl Error for ReadError {
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         match self {
             ReadError::Utf8Error(err) => Some(err),
             _ => None,

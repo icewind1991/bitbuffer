@@ -254,6 +254,30 @@ fn test_read_str_be() {
 }
 
 #[test]
+fn test_read_str_no_null_termination_le() {
+    let bytes = vec![
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64,
+    ];
+    let buffer = BitBuffer::new(bytes, LittleEndian);
+    assert_eq!(
+        buffer.read_string(0, None).unwrap(),
+        "Hello world".to_owned()
+    );
+}
+
+#[test]
+fn test_read_str_no_null_termination_be() {
+    let bytes = vec![
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64,
+    ];
+    let buffer = BitBuffer::new(bytes, BigEndian);
+    assert_eq!(
+        buffer.read_string(0, None).unwrap(),
+        "Hello world".to_owned()
+    );
+}
+
+#[test]
 fn test_read_str_le() {
     let bytes = vec![
         'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ' ' as u8, 'w' as u8, 'o' as u8,

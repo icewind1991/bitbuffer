@@ -88,7 +88,15 @@ where
         self.byte_len
     }
 
+    /// Panics:
+    ///
+    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
     fn read_usize(&self, position: usize, count: usize) -> usize {
+        // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
+        // due to the magic of branch prediction and this check "always" passing, the cost for this
+        // is below the point of being measurable by `cargo bench`
+        assert!(position + count <= self.bit_len);
+
         let byte_index = position / 8;
         let bit_offset = position & 7;
         let usize_bit_size = size_of::<usize>() * 8;
@@ -207,12 +215,12 @@ where
             }
         }
 
-        Ok(unsafe { self.read_int_unchecked(position, count) })
+        Ok(self.read_int_unchecked(position, count))
     }
 
     /// Read a sequence of bits from the buffer as integer without doing any bounds checking
     ///
-    /// # Safety
+    /// # Panics
     ///
     /// This method will result in undefined behaviour when trying to read outside the bounds of the buffer,
     /// this method should only be used if performance is critical and bounds check has been done seperatelly.
@@ -242,13 +250,17 @@ where
     /// # }
     /// ```
     ///
+    ///
+    ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     #[inline]
-    pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
+    pub fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
+        debug_assert!(position + count <= self.bit_len);
+
         let type_bit_size = size_of::<T>() * 8;
         let usize_bit_size = size_of::<usize>() * 8;
 
@@ -268,11 +280,16 @@ where
         }
     }
 
+    /// Panics:
+    ///
+    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
     #[inline]
     fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
+        debug_assert!(position + count <= self.bit_len);
+
         let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
         let max_signed_value = (1 << (type_bit_size - 1)) - 1;
@@ -283,10 +300,15 @@ where
         }
     }
 
+    /// Panics:
+    ///
+    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
     fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
+        debug_assert!(position + count <= self.bit_len);
+
         let mut left_to_read = count;
         let mut acc = T::zero();
         let max_read = (size_of::<usize>() - 1) * 8;
@@ -463,7 +485,7 @@ where
         let mut acc = Vec::with_capacity(32);
         let mut pos = position;
         loop {
-            let read = (USIZE_SIZE - 1) * 8;
+            let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
             let raw_bytes = self.read_usize(pos, read);
             let bytes: [u8; USIZE_SIZE] = if E::is_le() {
                 raw_bytes.to_le_bytes()
@@ -471,10 +493,12 @@ where
                 raw_bytes.to_be_bytes()
             };
 
+            let bytes_read = read / 8;
+
             let (start, end) = if E::is_le() {
-                (0usize, USIZE_SIZE - 1)
+                (0usize, bytes_read)
             } else {
-                (1usize, USIZE_SIZE)
+                (USIZE_SIZE - bytes_read, USIZE_SIZE)
             };
 
             for i in start..end {
@@ -484,6 +508,10 @@ where
                 }
             }
             acc.extend_from_slice(&bytes[start..end]);
+
+            if bytes_read < (USIZE_SIZE - 1) {
+                return acc;
+            }
 
             pos += read;
         }
