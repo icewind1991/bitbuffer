@@ -255,7 +255,7 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
     #[inline]
-    pub fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
+    fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
@@ -463,20 +463,12 @@ where
         match byte_len {
             Some(byte_len) => {
                 let bytes = self.read_bytes(position, byte_len)?;
-                let raw_string = if cfg!(feature = "unchecked_utf8") {
-                    unsafe { String::from_utf8_unchecked(bytes) }
-                } else {
-                    String::from_utf8(bytes)?
-                };
+                let raw_string = String::from_utf8(bytes)?;
                 Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
             }
             None => {
                 let bytes = self.read_string_bytes(position);
-                if cfg!(feature = "unchecked_utf8") {
-                    unsafe { Ok(String::from_utf8_unchecked(bytes)) }
-                } else {
-                    String::from_utf8(bytes).map_err(ReadError::from)
-                }
+                String::from_utf8(bytes).map_err(ReadError::from)
             }
         }
     }

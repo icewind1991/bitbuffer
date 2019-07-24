@@ -17,7 +17,4 @@ bitstream_reader_derive = { version = "0.5", path = "bitstream_reader_derive" }
 [dev-dependencies]
 maplit = "1.0.1"
 
-[features]
-unchecked_utf8 = []
-
 [workspace]
