@@ -117,21 +117,6 @@ fn build_string_data(size: usize, inputs: &Vec<&str>) -> Vec<u8> {
     }
 }
 
-fn verify_buffer(buffer: &BitBuffer<BigEndian>, inputs: &Vec<&str>) {
-    let mut pos = 0;
-    let len = buffer.bit_len();
-    loop {
-        for input in inputs.iter() {
-            if pos + input.len() + 1 >= len {
-                return;
-            }
-            let result = buffer.read_string(pos, None).unwrap();
-            pos += (result.len() + 1) * 8;
-            assert_eq!(*input, result.as_str());
-        }
-    }
-}
-
 #[bench]
 fn perf_string_be(b: &mut Bencher) {
     let inputs = vec![
@@ -143,9 +128,6 @@ fn perf_string_be(b: &mut Bencher) {
     ];
     let data = build_string_data(10 * 1024 * 1024, &inputs);
     let buffer = BitBuffer::new(data, BigEndian);
-
-    // test it once before bench
-    //verify_buffer(&buffer, &inputs);
 
     b.iter(|| {
         let mut pos = 0;
@@ -172,9 +154,6 @@ fn perf_string_le(b: &mut Bencher) {
     ];
     let data = build_string_data(10 * 1024 * 1024, &inputs);
     let buffer = BitBuffer::new(data, LittleEndian);
-
-    // test it once before bench
-    //verify_buffer(&buffer, &inputs);
 
     b.iter(|| {
         let mut pos = 0;

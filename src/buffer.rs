@@ -40,7 +40,6 @@ where
 {
     bytes: Rc<Vec<u8>>,
     bit_len: usize,
-    byte_len: usize,
     endianness: PhantomData<E>,
 }
 
@@ -65,7 +64,6 @@ where
         let byte_len = bytes.len();
         BitBuffer {
             bytes: Rc::new(bytes),
-            byte_len,
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
@@ -83,7 +81,7 @@ where
 
     /// The available number of bytes in the buffer
     pub fn byte_len(&self) -> usize {
-        self.byte_len
+        self.bytes.len()
     }
 
     /// Panics:
@@ -93,7 +91,7 @@ where
         // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
         // due to the magic of branch prediction and this check "always" passing, the cost for this
         // is below the point of being measurable by `cargo bench`
-        assert!(position + count <= self.bit_len);
+        assert!(position + count <= self.bit_len());
 
         let byte_index = position / 8;
         let bit_offset = position & 7;
@@ -150,7 +148,7 @@ where
             .get(byte_index)
             .ok_or_else(|| ReadError::NotEnoughData {
                 requested: 1,
-                bits_left: self.bit_len - position,
+                bits_left: self.bit_len() - position,
             })
             .map(|byte| {
                 let shifted = byte >> bit_offset;
@@ -199,16 +197,16 @@ where
             });
         }
 
-        if position + count > self.bit_len {
-            if position > self.bit_len {
+        if position + count > self.bit_len() {
+            if position > self.bit_len() {
                 return Err(ReadError::IndexOutOfBounds {
                     pos: position,
-                    size: self.bit_len,
+                    size: self.bit_len(),
                 });
             } else {
                 return Err(ReadError::NotEnoughData {
                     requested: count,
-                    bits_left: self.bit_len - position,
+                    bits_left: self.bit_len() - position,
                 });
             }
         }
@@ -257,7 +255,7 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        debug_assert!(position + count <= self.bit_len);
+        debug_assert!(position + count <= self.bit_len());
 
         let type_bit_size = size_of::<T>() * 8;
         let usize_bit_size = size_of::<usize>() * 8;
@@ -286,7 +284,7 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        debug_assert!(position + count <= self.bit_len);
+        debug_assert!(position + count <= self.bit_len());
 
         let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
@@ -305,7 +303,7 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        debug_assert!(position + count <= self.bit_len);
+        debug_assert!(position + count <= self.bit_len());
 
         let mut left_to_read = count;
         let mut acc = T::zero();
@@ -313,7 +311,7 @@ where
         let mut read_pos = position;
         let mut bit_offset = 0;
         while left_to_read > 0 {
-            let bits_left = self.bit_len - read_pos;
+            let bits_left = self.bit_len() - read_pos;
             let read = min(min(left_to_read, max_read), bits_left);
             let data = T::from_unchecked(self.read_usize(read_pos, read));
             if E::is_le() {
@@ -373,16 +371,16 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
-        if position + byte_count * 8 > self.bit_len {
-            if position > self.bit_len {
+        if position + byte_count * 8 > self.bit_len() {
+            if position > self.bit_len() {
                 return Err(ReadError::IndexOutOfBounds {
                     pos: position,
-                    size: self.bit_len,
+                    size: self.bit_len(),
                 });
             } else {
                 return Err(ReadError::NotEnoughData {
                     requested: byte_count * 8,
-                    bits_left: self.bit_len - position,
+                    bits_left: self.bit_len() - position,
                 });
             }
         }
@@ -475,7 +473,7 @@ where
         let mut acc = Vec::with_capacity(32);
         let mut pos = position;
         loop {
-            let read = min((USIZE_SIZE - 1) * 8, self.bit_len - pos);
+            let read = min((USIZE_SIZE - 1) * 8, self.bit_len() - pos);
             let raw_bytes = self.read_usize(pos, read);
             let bytes: [u8; USIZE_SIZE] = if E::is_le() {
                 raw_bytes.to_le_bytes()
@@ -536,16 +534,16 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
-        if position + type_bit_size > self.bit_len {
-            if position > self.bit_len {
+        if position + type_bit_size > self.bit_len() {
+            if position > self.bit_len() {
                 return Err(ReadError::IndexOutOfBounds {
                     pos: position,
-                    size: self.bit_len,
+                    size: self.bit_len(),
                 });
             } else {
                 return Err(ReadError::NotEnoughData {
                     requested: size_of::<T>() * 8,
-                    bits_left: self.bit_len - position,
+                    bits_left: self.bit_len() - position,
                 });
             }
         }
@@ -564,16 +562,15 @@ where
     }
 
     pub(crate) fn get_sub_buffer(&self, bit_len: usize) -> Result<Self> {
-        if bit_len > self.bit_len {
+        if bit_len > self.bit_len() {
             return Err(ReadError::NotEnoughData {
                 requested: bit_len,
-                bits_left: self.bit_len,
+                bits_left: self.bit_len(),
             });
         }
 
         Ok(BitBuffer {
             bytes: Rc::clone(&self.bytes),
-            byte_len: bit_len / 8,
             bit_len,
             endianness: PhantomData,
         })
@@ -585,7 +582,6 @@ impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
         let byte_len = bytes.len();
         BitBuffer {
             bytes: Rc::new(bytes),
-            byte_len,
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
@@ -596,8 +592,7 @@ impl<E: Endianness> Clone for BitBuffer<E> {
     fn clone(&self) -> Self {
         BitBuffer {
             bytes: Rc::clone(&self.bytes),
-            byte_len: self.byte_len,
-            bit_len: self.bit_len,
+            bit_len: self.bit_len(),
             endianness: PhantomData,
         }
     }
@@ -608,7 +603,7 @@ impl<E: Endianness> Debug for BitBuffer<E> {
         write!(
             f,
             "BitBuffer {{ bit_len: {}, endianness: {} }}",
-            self.bit_len,
+            self.bit_len(),
             if E::is_le() {
                 "LittleEndian"
             } else {
