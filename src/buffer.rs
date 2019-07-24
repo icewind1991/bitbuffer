@@ -42,7 +42,6 @@ where
     bit_len: usize,
     byte_len: usize,
     endianness: PhantomData<E>,
-    ptr: *const u8,
 }
 
 impl<E> BitBuffer<E>
@@ -65,7 +64,6 @@ where
     pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
-            ptr: bytes.as_ptr(),
             bytes: Rc::new(bytes),
             byte_len,
             bit_len: byte_len * 8,
@@ -102,7 +100,7 @@ where
         let usize_bit_size = size_of::<usize>() * 8;
         let raw_container: &usize = unsafe {
             // this is safe here because we already have checks that we don't read past the slice
-            let ptr = self.ptr.add(byte_index);
+            let ptr = self.bytes.as_ptr().add(byte_index);
             transmute(ptr)
         };
         let container = if E::is_le() {
@@ -574,7 +572,6 @@ where
         }
 
         Ok(BitBuffer {
-            ptr: self.ptr,
             bytes: Rc::clone(&self.bytes),
             byte_len: bit_len / 8,
             bit_len,
@@ -587,7 +584,6 @@ impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
     fn from(bytes: Vec<u8>) -> Self {
         let byte_len = bytes.len();
         BitBuffer {
-            ptr: bytes.as_ptr(),
             bytes: Rc::new(bytes),
             byte_len,
             bit_len: byte_len * 8,
@@ -599,7 +595,6 @@ impl<E: Endianness> From<Vec<u8>> for BitBuffer<E> {
 impl<E: Endianness> Clone for BitBuffer<E> {
     fn clone(&self) -> Self {
         BitBuffer {
-            ptr: self.ptr,
             bytes: Rc::clone(&self.bytes),
             byte_len: self.byte_len,
             bit_len: self.bit_len,
