@@ -19,6 +19,7 @@ fn read_perf<E: Endianness>(buffer: &BitBuffer<E>) -> u16 {
         pos += size;
     }
 }
+
 #[bench]
 fn perf_le(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
@@ -85,6 +86,24 @@ fn perf_f64(b: &mut Bencher) {
     });
 }
 
+#[bench]
+fn perf_bool(b: &mut Bencher) {
+    let data = vec![1u8; 1024 * 1024 * 1];
+    let buffer = BitBuffer::new(data, BigEndian);
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        loop {
+            if pos >= len {
+                break;
+            }
+            let num = buffer.read_bool(pos).unwrap();
+            test::black_box(num);
+            pos += 1;
+        }
+    });
+}
+
 fn build_string_data(size: usize, inputs: &Vec<&str>) -> Vec<u8> {
     let mut data = Vec::with_capacity(size);
     loop {
@@ -97,6 +116,7 @@ fn build_string_data(size: usize, inputs: &Vec<&str>) -> Vec<u8> {
         }
     }
 }
+
 fn verify_buffer(buffer: &BitBuffer<BigEndian>, inputs: &Vec<&str>) {
     let mut pos = 0;
     let len = buffer.bit_len();

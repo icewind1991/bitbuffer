@@ -148,16 +148,16 @@ where
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
-        if position >= self.bit_len {
-            return Err(ReadError::NotEnoughData {
+        self.bytes
+            .get(byte_index)
+            .ok_or_else(|| ReadError::NotEnoughData {
                 requested: 1,
                 bits_left: self.bit_len - position,
-            });
-        }
-
-        let byte = unsafe { self.bytes.get_unchecked(byte_index) };
-        let shifted = byte >> bit_offset;
-        Ok(shifted & 1u8 == 1)
+            })
+            .map(|byte| {
+                let shifted = byte >> bit_offset;
+                shifted & 1u8 == 1
+            })
     }
 
     /// Read a sequence of bits from the buffer as integer
