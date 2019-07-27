@@ -1,5 +1,14 @@
 /// Trait for specifying endianness of bit buffer
 pub trait Endianness: private::Sealed {
+    /// Get the endianness as string, either LittleEndian or BigEndian
+    fn as_string() -> &'static str {
+        if Self::is_le() {
+            "LittleEndian"
+        } else {
+            "BigEndian"
+        }
+    }
+
     /// Input is little endian
     fn is_le() -> bool;
     /// Input is big endian
@@ -38,5 +47,6 @@ mod private {
 
     // Implement for those same types, but no others.
     impl Sealed for super::BigEndian {}
+
     impl Sealed for super::LittleEndian {}
 }

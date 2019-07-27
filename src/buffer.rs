@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::mem::{size_of, transmute};
+use std::mem::size_of;
 use std::ops::BitOrAssign;
 use std::rc::Rc;
 
@@ -12,6 +12,7 @@ use crate::endianness::Endianness;
 use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{ReadError, Result};
+use std::convert::TryInto;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 
@@ -84,27 +85,30 @@ where
         self.bytes.len()
     }
 
-    /// Panics:
-    ///
-    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
-    fn read_usize(&self, position: usize, count: usize) -> usize {
-        // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
-        // due to the magic of branch prediction and this check "always" passing, the cost for this
-        // is below the point of being measurable by `cargo bench`
-        assert!(position + count <= self.bit_len());
+    fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
+        if byte_index + USIZE_SIZE <= self.bytes.len() {
+            self.bytes[byte_index..byte_index + USIZE_SIZE]
+                .try_into()
+                .unwrap()
+        } else {
+            let mut bytes = [0; USIZE_SIZE];
+            let copy_bytes = self.bytes.len() - byte_index;
+            bytes[0..copy_bytes].copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
+            bytes
+        }
+    }
 
+    fn read_usize(&self, position: usize, count: usize) -> usize {
         let byte_index = position / 8;
         let bit_offset = position & 7;
         let usize_bit_size = size_of::<usize>() * 8;
-        let raw_container: &usize = unsafe {
-            // this is safe here because we already have checks that we don't read past the slice
-            let ptr = self.bytes.as_ptr().add(byte_index);
-            transmute(ptr)
-        };
+
+        let bytes = self.read_usize_bytes(byte_index);
+
         let container = if E::is_le() {
-            usize::from_le(*raw_container)
+            usize::from_le_bytes(bytes)
         } else {
-            usize::from_be(*raw_container)
+            usize::from_be_bytes(bytes)
         };
         let shifted = if E::is_le() {
             container >> bit_offset
@@ -211,52 +215,6 @@ where
             }
         }
 
-        Ok(self.read_int_unchecked(position, count))
-    }
-
-    /// Read a sequence of bits from the buffer as integer without doing any bounds checking
-    ///
-    /// # Panics
-    ///
-    /// This method will result in undefined behaviour when trying to read outside the bounds of the buffer,
-    /// this method should only be used if performance is critical and bounds check has been done seperatelly.
-    ///
-    /// Otherwise the safe `read_int` should be used.
-    ///
-    /// # Errors
-    ///
-    /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
-    /// - [`ReadError::TooManyBits`]: to many bits requested for the chosen integer type
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
-    /// #
-    /// # fn main() -> Result<()> {
-    /// # let bytes = vec![
-    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-    /// # ];
-    /// # let buffer = BitBuffer::new(bytes, LittleEndian);
-    /// let result = buffer.read_int::<u16>(10, 9)?;
-    /// assert_eq!(result, 0b100_0110_10);
-    /// #
-    /// #     Ok(())
-    /// # }
-    /// ```
-    ///
-    ///
-    ///
-    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
-    /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
-    #[inline]
-    fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
-    where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
-    {
-        debug_assert!(position + count <= self.bit_len());
-
         let type_bit_size = size_of::<T>() * 8;
         let usize_bit_size = size_of::<usize>() * 8;
 
@@ -270,9 +228,9 @@ where
         };
 
         if count == type_bit_size && fit_usize {
-            value
+            Ok(value)
         } else {
-            self.make_signed(value, count)
+            Ok(self.make_signed(value, count))
         }
     }
 
@@ -284,8 +242,6 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        debug_assert!(position + count <= self.bit_len());
-
         let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
         let max_signed_value = (1 << (type_bit_size - 1)) - 1;
@@ -303,8 +259,6 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        debug_assert!(position + count <= self.bit_len());
-
         let mut left_to_read = count;
         let mut acc = T::zero();
         let max_read = (size_of::<usize>() - 1) * 8;
@@ -463,13 +417,13 @@ where
                 Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
             }
             None => {
-                let bytes = self.read_string_bytes(position);
+                let bytes = self.read_string_bytes(position)?;
                 String::from_utf8(bytes).map_err(ReadError::from)
             }
         }
     }
 
-    fn read_string_bytes(&self, position: usize) -> Vec<u8> {
+    fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
         let mut acc = Vec::with_capacity(32);
         let mut pos = position;
         loop {
@@ -492,13 +446,13 @@ where
             for i in start..end {
                 if bytes[i] == 0 {
                     acc.extend_from_slice(&bytes[start..i]);
-                    return acc;
+                    return Ok(acc);
                 }
             }
             acc.extend_from_slice(&bytes[start..end]);
 
             if bytes_read < (USIZE_SIZE - 1) {
-                return acc;
+                return Ok(acc);
             }
 
             pos += read;
@@ -604,11 +558,7 @@ impl<E: Endianness> Debug for BitBuffer<E> {
             f,
             "BitBuffer {{ bit_len: {}, endianness: {} }}",
             self.bit_len(),
-            if E::is_le() {
-                "LittleEndian"
-            } else {
-                "BigEndian"
-            }
+            E::as_string()
         )
     }
 }
