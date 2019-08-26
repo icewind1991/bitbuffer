@@ -124,7 +124,7 @@ fn read_i8_le() {
     let buffer = BitBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<i8>(0, 3).unwrap(), -0b01);
-    assert_eq!(buffer.read_int::<i8>(0, 8).unwrap(), -0b011_0101);
+    assert_eq!(buffer.read_int::<i8>(0, 8).unwrap(), -0b100_1011);
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn read_i8_be() {
 
     assert_eq!(buffer.read_int::<i8>(1, 2).unwrap(), 0b1);
     assert_eq!(buffer.read_int::<i8>(0, 3).unwrap(), -0b01);
-    assert_eq!(buffer.read_int::<i8>(0, 8).unwrap(), -0b011_0101);
+    assert_eq!(buffer.read_int::<i8>(0, 8).unwrap(), -0b100_1011);
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn read_trait() {
     let b: i8 = stream.read().unwrap();
     assert_eq!(0b110_1010, b);
     let c: i16 = stream.read().unwrap();
-    assert_eq!(-0b0010_1100_1001_1001, c);
+    assert_eq!(-0b101_0011_0110_0111, c);
     let d: bool = stream.read().unwrap();
     assert_eq!(true, d);
     let e: Option<u8> = stream.read().unwrap();
@@ -406,4 +406,17 @@ fn test_read_nonzero() {
     let mut stream = BitStream::from(buffer);
     assert_eq!(NonZeroU16::new(12), stream.read().unwrap());
     assert_eq!(None, stream.read::<Option<NonZeroU16>>().unwrap());
+}
+
+#[test]
+fn read_read_signed() {
+    let buffer = BitBuffer::new(vec![255, 255, 255, 255, 255, 255, 255, 255], LittleEndian);
+
+    assert_eq!(buffer.read_int::<i32>(0, 32).unwrap(), -1);
+
+    let bytes = (-10i32).to_le_bytes();
+    let mut byte_vec = Vec::with_capacity(4);
+    byte_vec.extend_from_slice(&bytes);
+    let buffer = BitBuffer::new(byte_vec, LittleEndian);
+    assert_eq!(buffer.read_int::<i32>(0, 32).unwrap(), -10);
 }

@@ -242,14 +242,8 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        let type_bit_size = size_of::<T>() * 8;
         let raw = self.read_usize(position, count);
-        let max_signed_value = (1 << (type_bit_size - 1)) - 1;
-        if T::is_signed() && raw > max_signed_value {
-            T::zero() - T::from_unchecked(raw & max_signed_value)
-        } else {
-            T::from_unchecked(raw)
-        }
+        T::from_unchecked(raw)
     }
 
     /// Panics:
