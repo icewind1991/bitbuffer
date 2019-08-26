@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// Trait for types that can be read from a stream without requiring the size to be configured
 ///
@@ -219,6 +221,20 @@ impl<E: Endianness> BitRead<E> for String {
     #[inline]
     fn read(stream: &mut BitStream<E>) -> Result<String> {
         stream.read_string(None)
+    }
+}
+
+impl<E: Endianness, T: BitRead<E>> BitRead<E> for Rc<T> {
+    #[inline]
+    fn read(stream: &mut BitStream<E>) -> Result<Self> {
+        Ok(Rc::new(T::read(stream)?))
+    }
+}
+
+impl<E: Endianness, T: BitRead<E>> BitRead<E> for Arc<T> {
+    #[inline]
+    fn read(stream: &mut BitStream<E>) -> Result<Self> {
+        Ok(Arc::new(T::read(stream)?))
     }
 }
 
