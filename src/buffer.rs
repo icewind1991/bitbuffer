@@ -3,7 +3,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::BitOrAssign;
+use std::ops::{BitOrAssign, BitXor};
 use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
@@ -190,7 +190,7 @@ where
     #[inline]
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
         let type_bit_size = size_of::<T>() * 8;
 
@@ -227,7 +227,7 @@ where
             self.read_no_fit_usize(position, count)
         };
 
-        if count == type_bit_size && fit_usize {
+        if count == type_bit_size {
             Ok(value)
         } else {
             Ok(self.make_signed(value, count))
@@ -278,13 +278,15 @@ where
 
     fn make_signed<T>(&self, value: T, count: usize) -> T
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
         if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
-            let absolute_value = value & !(T::max_value() << (count - 1));
-            let sign = T::one() - sign_bit - sign_bit;
-            absolute_value * sign
+            if sign_bit == T::one() {
+                value | (T::zero() - T::one()) ^ ((T::one() << count) - T::one())
+            } else {
+                value
+            }
         } else {
             value
         }
