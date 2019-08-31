@@ -18,3 +18,6 @@ bitstream_reader_derive = { version = "0.6", path = "bitstream_reader_derive" }
 maplit = "1.0.1"
 
 [workspace]
+
+[features]
+unsafe = []

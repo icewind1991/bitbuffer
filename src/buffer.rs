@@ -103,13 +103,34 @@ where
         let bit_offset = position & 7;
         let usize_bit_size = size_of::<usize>() * 8;
 
-        let bytes = self.read_usize_bytes(byte_index);
+        let container = if cfg!(feature = "unsafe") {
+            use std::mem::transmute;
+            // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
+            // due to the magic of branch prediction and this check "always" passing, the cost for this
+            // is below the point of being measurable by `cargo bench`
+            assert!(position + count <= self.bit_len());
 
-        let container = if E::is_le() {
-            usize::from_le_bytes(bytes)
+            let raw_container: &usize = unsafe {
+                // this is safe here because we already have checks that we don't read past the slice
+                let ptr = self.bytes.as_ptr().add(byte_index);
+                transmute(ptr)
+            };
+
+            if E::is_le() {
+                usize::from_le(*raw_container)
+            } else {
+                usize::from_be(*raw_container)
+            }
         } else {
-            usize::from_be_bytes(bytes)
+            let bytes = self.read_usize_bytes(byte_index);
+
+            if E::is_le() {
+                usize::from_le_bytes(bytes)
+            } else {
+                usize::from_be_bytes(bytes)
+            }
         };
+
         let shifted = if E::is_le() {
             container >> bit_offset
         } else {

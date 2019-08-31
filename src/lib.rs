@@ -53,7 +53,6 @@
 //! [`BitReadSized`]: trait.BitReadSized.html
 
 #![warn(missing_docs)]
-#![forbid(unsafe_code)]
 
 use std::error::Error;
 use std::fmt;
