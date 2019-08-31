@@ -115,7 +115,7 @@ where
         } else {
             container >> (usize_bit_size - bit_offset - count)
         };
-        let mask = !(usize::max_value() << count);
+        let mask = !(std::usize::MAX << count);
         shifted & mask
     }
 
@@ -193,6 +193,7 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
         let type_bit_size = size_of::<T>() * 8;
+        let usize_bit_size = size_of::<usize>() * 8;
 
         if type_bit_size < count {
             return Err(ReadError::TooManyBits {
@@ -214,9 +215,6 @@ where
                 });
             }
         }
-
-        let type_bit_size = size_of::<T>() * 8;
-        let usize_bit_size = size_of::<usize>() * 8;
 
         let bit_offset = position & 7;
 
