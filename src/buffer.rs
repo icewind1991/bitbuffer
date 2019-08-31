@@ -165,6 +165,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_bool(&self, position: usize) -> Result<bool> {
         let byte_index = position / 8;
         let bit_offset = position & 7;
@@ -339,6 +340,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         if position + byte_count * 8 > self.bit_len() {
             if position > self.bit_len() {
@@ -424,6 +426,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
+    #[inline]
     pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
         match byte_len {
             Some(byte_len) => {
@@ -498,6 +501,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_float<T>(&self, position: usize) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,

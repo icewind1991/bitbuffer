@@ -92,6 +92,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_bool(&mut self) -> Result<bool> {
         let result = self.buffer.read_bool(self.pos);
         if result.is_ok() {
@@ -129,6 +130,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::TooManyBits`]: enum.ReadError.html#variant.TooManyBits
+    #[inline]
     pub fn read_int<T>(&mut self, count: usize) -> Result<T>
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
@@ -166,6 +168,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_float<T>(&mut self) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,
@@ -204,6 +207,7 @@ where
     /// ```
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    #[inline]
     pub fn read_bytes(&mut self, byte_count: usize) -> Result<Vec<u8>> {
         let count = byte_count * 8;
         let result = self.buffer.read_bytes(self.pos, byte_count);
@@ -255,6 +259,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
+    #[inline]
     pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
         let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
             // still advance the stream on malformed utf8
