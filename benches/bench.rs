@@ -117,8 +117,7 @@ fn build_string_data(size: usize, inputs: &Vec<&str>) -> Vec<u8> {
     }
 }
 
-#[bench]
-fn perf_string_be(b: &mut Bencher) {
+fn get_string_buffer() -> Vec<u8> {
     let inputs = vec![
         "foo",
         "bar",
@@ -126,8 +125,12 @@ fn perf_string_be(b: &mut Bencher) {
         "a",
         "",
     ];
-    let data = build_string_data(10 * 1024 * 1024, &inputs);
-    let buffer = BitBuffer::new(data, BigEndian);
+    build_string_data(10 * 1024 * 1024, &inputs)
+}
+
+#[bench]
+fn perf_string_be(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -145,15 +148,7 @@ fn perf_string_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_string_le(b: &mut Bencher) {
-    let inputs = vec![
-        "foo",
-        "bar",
-        "something a little bit longer for extra testing",
-        "a",
-        "",
-    ];
-    let data = build_string_data(10 * 1024 * 1024, &inputs);
-    let buffer = BitBuffer::new(data, LittleEndian);
+    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -163,6 +158,78 @@ fn perf_string_le(b: &mut Bencher) {
                 break;
             }
             let result = buffer.read_string(pos, None).unwrap();
+            pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
+    });
+}
+
+#[bench]
+fn perf_bytes_be(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        loop {
+            if pos + (128 * 8) > len {
+                break;
+            }
+            let result = buffer.read_bytes(pos, 128).unwrap();
+            pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
+    });
+}
+
+#[bench]
+fn perf_bytes_le(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        loop {
+            if pos + (128 * 8) > len {
+                break;
+            }
+            let result = buffer.read_bytes(pos, 128).unwrap();
+            pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
+    });
+}
+
+#[bench]
+fn perf_bytes_be_unaligned(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        loop {
+            if pos + (128 * 8) > len {
+                break;
+            }
+            let result = buffer.read_bytes(pos, 128).unwrap();
+            pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
+    });
+}
+
+#[bench]
+fn perf_bytes_le_unaligned(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+
+    b.iter(|| {
+        let mut pos = 3;
+        let len = buffer.bit_len();
+        loop {
+            if pos + (128 * 8) > len {
+                break;
+            }
+            let result = buffer.read_bytes(pos, 128).unwrap();
             pos += (result.len() + 1) * 8;
             test::black_box(result);
         }

@@ -389,12 +389,6 @@ where
     ///
     /// You can either read a fixed number of bytes, or a dynamic length null-terminated string
     ///
-    /// # Features
-    ///
-    /// To disable the overhead of checking if the read bytes are valid you can enable the `unchecked_utf8`
-    /// feature of the crate to use `String::from_utf8_unchecked` instead of `String::from_utf8`
-    /// to create the string from the read bytes.
-    ///
     /// # Errors
     ///
     /// - [`ReadError::NotEnoughData`]: not enough bits available in the buffer
