@@ -435,39 +435,56 @@ where
         }
     }
 
+    #[inline]
+    fn find_null_byte(&self, byte_index: usize) -> usize {
+        self.bytes
+            .iter()
+            .enumerate()
+            .skip(byte_index)
+            .find(|(_, byte)| **byte == 0)
+            .map(|(i, _)| i)
+            .unwrap_or(self.byte_len())
+    }
+
+    #[inline]
     fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
-        let mut acc = Vec::with_capacity(32);
-        let mut pos = position;
-        loop {
-            let read = min((USIZE_SIZE - 1) * 8, self.bit_len() - pos);
-            let raw_bytes = self.read_usize(pos, read);
-            let bytes: [u8; USIZE_SIZE] = if E::is_le() {
-                raw_bytes.to_le_bytes()
-            } else {
-                raw_bytes.to_be_bytes()
-            };
+        if false && position & 7 == 0 {
+            let byte_index = position / 8;
+            Ok(self.bytes[byte_index..self.find_null_byte(byte_index)].to_vec())
+        } else {
+            let mut acc = Vec::with_capacity(32);
+            let mut pos = position;
+            loop {
+                let read = min((USIZE_SIZE - 1) * 8, self.bit_len() - pos);
+                let raw_bytes = self.read_usize(pos, read);
+                let bytes: [u8; USIZE_SIZE] = if E::is_le() {
+                    raw_bytes.to_le_bytes()
+                } else {
+                    raw_bytes.to_be_bytes()
+                };
 
-            let bytes_read = read / 8;
+                let bytes_read = read / 8;
 
-            let (start, end) = if E::is_le() {
-                (0usize, bytes_read)
-            } else {
-                (USIZE_SIZE - bytes_read, USIZE_SIZE)
-            };
+                let (start, end) = if E::is_le() {
+                    (0usize, bytes_read)
+                } else {
+                    (USIZE_SIZE - bytes_read, USIZE_SIZE)
+                };
 
-            for i in start..end {
-                if bytes[i] == 0 {
-                    acc.extend_from_slice(&bytes[start..i]);
+                for i in start..end {
+                    if bytes[i] == 0 {
+                        acc.extend_from_slice(&bytes[start..i]);
+                        return Ok(acc);
+                    }
+                }
+                acc.extend_from_slice(&bytes[start..end]);
+
+                if bytes_read < (USIZE_SIZE - 1) {
                     return Ok(acc);
                 }
-            }
-            acc.extend_from_slice(&bytes[start..end]);
 
-            if bytes_read < (USIZE_SIZE - 1) {
-                return Ok(acc);
+                pos += read;
             }
-
-            pos += read;
         }
     }
 

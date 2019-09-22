@@ -184,7 +184,7 @@ fn perf_bytes_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -205,7 +205,7 @@ fn perf_bytes_be_unaligned(b: &mut Bencher) {
     let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
 
     b.iter(|| {
-        let mut pos = 0;
+        let mut pos = 3;
         let len = buffer.bit_len();
         loop {
             if pos + (128 * 8) > len {
@@ -220,7 +220,7 @@ fn perf_bytes_be_unaligned(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le_unaligned(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 3;
