@@ -238,6 +238,13 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Arc<T> {
     }
 }
 
+impl<E: Endianness, T: BitRead<E>> BitRead<E> for Box<T> {
+    #[inline]
+    fn read(stream: &mut BitStream<E>) -> Result<Self> {
+        Ok(Box::new(T::read(stream)?))
+    }
+}
+
 /// Trait for types that can be read from a stream, requiring the size to be configured
 ///
 /// The meaning of the set sized depends on the type being read (e.g, number of bits for integers,
