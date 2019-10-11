@@ -1,6 +1,6 @@
 [package]
 name = "bitstream_reader"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
