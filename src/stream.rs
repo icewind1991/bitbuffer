@@ -33,7 +33,6 @@ where
     buffer: BitBuffer<E>,
     start_pos: usize,
     pos: usize,
-    bit_len: usize,
 }
 
 impl<E> BitStream<E>
@@ -60,7 +59,6 @@ where
         BitStream {
             start_pos: 0,
             pos: 0,
-            bit_len: buffer.bit_len(),
             buffer,
         }
     }
@@ -315,7 +313,6 @@ where
             buffer: self.buffer.get_sub_buffer(self.pos + count)?,
             start_pos: self.pos,
             pos: self.pos,
-            bit_len: count,
         };
         self.pos += count;
         Ok(result)
@@ -381,10 +378,10 @@ where
     ///
     /// [`ReadError::IndexOutOfBounds`]: enum.ReadError.html#variant.IndexOutOfBounds
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
-        if pos > self.bit_len {
+        if pos > self.bit_len() {
             return Err(ReadError::IndexOutOfBounds {
                 pos,
-                size: self.bit_len,
+                size: self.bit_len(),
             });
         }
         self.pos = pos + self.start_pos;
@@ -411,7 +408,7 @@ where
     /// # }
     /// ```
     pub fn bit_len(&self) -> usize {
-        self.bit_len
+        self.buffer.bit_len() - self.start_pos
     }
 
     /// Get the current position in the stream
@@ -461,7 +458,7 @@ where
     /// # }
     /// ```
     pub fn bits_left(&self) -> usize {
-        self.bit_len - self.pos()
+        self.bit_len() - self.pos()
     }
 
     /// Read a value based on the provided type
@@ -572,7 +569,6 @@ impl<E: Endianness> Clone for BitStream<E> {
             buffer: self.buffer.clone(),
             start_pos: self.pos,
             pos: self.pos,
-            bit_len: self.bit_len,
         }
     }
 }
