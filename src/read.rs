@@ -245,6 +245,27 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Box<T> {
     }
 }
 
+impl<T: BitSize> BitSize for Rc<T> {
+    #[inline]
+    fn bit_size() -> usize {
+        T::bit_size()
+    }
+}
+
+impl<T: BitSize> BitSize for Arc<T> {
+    #[inline]
+    fn bit_size() -> usize {
+        T::bit_size()
+    }
+}
+
+impl<T: BitSize> BitSize for Box<T> {
+    #[inline]
+    fn bit_size() -> usize {
+        T::bit_size()
+    }
+}
+
 /// Trait for types that can be read from a stream, requiring the size to be configured
 ///
 /// The meaning of the set sized depends on the type being read (e.g, number of bits for integers,
@@ -321,7 +342,7 @@ pub trait BitSizeSized {
 }
 
 macro_rules! impl_read_int_sized {
-    ($type:ty) => {
+    ( $ type: ty) => {
         impl<E: Endianness> BitReadSized<E> for $type {
             #[inline]
             fn read(stream: &mut BitStream<E>, size: usize) -> Result<$type> {
@@ -465,7 +486,7 @@ impl<K: BitSize, T: BitSize> BitSizeSized for HashMap<K, T> {
 ///
 /// [`BitSize`]: trait.BitSize.html
 pub struct LazyBitRead<T: BitRead<E> + BitSize, E: Endianness> {
-    source: RefCell<BitStream<E>>,
+    source: BitStream<E>,
     inner_type: PhantomData<T>,
 }
 
@@ -473,7 +494,7 @@ impl<T: BitRead<E> + BitSize, E: Endianness> LazyBitRead<T, E> {
     #[inline]
     /// Get the contents of the lazy struct
     pub fn read(self) -> Result<T> {
-        self.source.borrow_mut().read::<T>()
+        self.source.clone().read::<T>()
     }
 }
 
@@ -482,7 +503,7 @@ impl<T: BitRead<E> + BitSize, E: Endianness> BitRead<E> for LazyBitRead<T, E> {
     fn read(stream: &mut BitStream<E>) -> Result<Self> {
         let bit_size = T::bit_size();
         Ok(LazyBitRead {
-            source: RefCell::new(stream.read_bits(bit_size)?),
+            source: stream.read_bits(bit_size)?,
             inner_type: PhantomData,
         })
     }
