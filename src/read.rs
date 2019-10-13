@@ -266,54 +266,27 @@ impl<T: BitSize> BitSize for Box<T> {
     }
 }
 
-impl<E: Endianness, T1: BitRead<E>, T2: BitRead<E>> BitRead<E> for (T1, T2) {
-    #[inline]
-    fn read(stream: &mut BitStream<E>) -> Result<Self> {
-        Ok((T1::read(stream)?, T2::read(stream)?))
-    }
+macro_rules! impl_read_tuple {
+    ($($type:ident),*) => {
+        impl<E: Endianness, $($type: BitRead<E>),*> BitRead<E> for ($($type),*) {
+            #[inline]
+            fn read(stream: &mut BitStream<E>) -> Result<Self> {
+                Ok(($(<$type>::read(stream)?),*))
+            }
+        }
+
+        impl<$($type: BitSize),*> BitSize for ($($type),*) {
+            #[inline]
+            fn bit_size() -> usize {
+                $(<$type>::bit_size() + )* 0
+            }
+        }
+    };
 }
 
-impl<E: Endianness, T1: BitRead<E>, T2: BitRead<E>, T3: BitRead<E>> BitRead<E> for (T1, T2, T3) {
-    #[inline]
-    fn read(stream: &mut BitStream<E>) -> Result<Self> {
-        Ok((T1::read(stream)?, T2::read(stream)?, T3::read(stream)?))
-    }
-}
-
-impl<E: Endianness, T1: BitRead<E>, T2: BitRead<E>, T3: BitRead<E>, T4: BitRead<E>> BitRead<E>
-    for (T1, T2, T3, T4)
-{
-    #[inline]
-    fn read(stream: &mut BitStream<E>) -> Result<Self> {
-        Ok((
-            T1::read(stream)?,
-            T2::read(stream)?,
-            T3::read(stream)?,
-            T4::read(stream)?,
-        ))
-    }
-}
-
-impl<T1: BitSize, T2: BitSize> BitSize for (T1, T2) {
-    #[inline]
-    fn bit_size() -> usize {
-        T1::bit_size() + T2::bit_size()
-    }
-}
-
-impl<T1: BitSize, T2: BitSize, T3: BitSize> BitSize for (T1, T2, T3) {
-    #[inline]
-    fn bit_size() -> usize {
-        T1::bit_size() + T2::bit_size() + T3::bit_size()
-    }
-}
-
-impl<T1: BitSize, T2: BitSize, T3: BitSize, T4: BitSize> BitSize for (T1, T2, T3, T4) {
-    #[inline]
-    fn bit_size() -> usize {
-        T1::bit_size() + T2::bit_size() + T3::bit_size() + T4::bit_size()
-    }
-}
+impl_read_tuple!(T1, T2);
+impl_read_tuple!(T1, T2, T3);
+impl_read_tuple!(T1, T2, T3, T4);
 
 /// Trait for types that can be read from a stream, requiring the size to be configured
 ///
