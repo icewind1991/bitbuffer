@@ -515,8 +515,8 @@ pub struct LazyBitRead<T: BitRead<E> + BitSize, E: Endianness> {
 impl<T: BitRead<E> + BitSize, E: Endianness> LazyBitRead<T, E> {
     #[inline]
     /// Get the contents of the lazy struct
-    pub fn read(self) -> Result<T> {
-        self.source.clone().read::<T>()
+    pub fn read(mut self) -> Result<T> {
+        self.source.read::<T>()
     }
 }
 
