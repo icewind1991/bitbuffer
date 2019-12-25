@@ -442,42 +442,39 @@ where
 
     #[inline]
     fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
-        if false && position & 7 == 0 {
+        let shift = position & 7;
+        if shift == 0 {
             let byte_index = position / 8;
             Ok(self.bytes[byte_index..self.find_null_byte(byte_index)].to_vec())
         } else {
             let mut acc = Vec::with_capacity(32);
             let mut pos = position;
             loop {
-                let read = min((USIZE_SIZE - 1) * 8, self.bit_len() - pos);
-                let raw_bytes = self.read_usize(pos, read);
-                let bytes: [u8; USIZE_SIZE] = if E::is_le() {
-                    raw_bytes.to_le_bytes()
-                } else {
-                    raw_bytes.to_be_bytes()
-                };
+                // note: if less then a usize worth of data is left in the buffer, read_usize_bytes
+                // will automatically pad with null bytes, triggering the loop termination
+                // thus no separate logic for dealing with the end of the bytes is required
 
-                let bytes_read = read / 8;
+                let byte_index = pos / 8;
+                let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
+                let raw_usize: usize = usize::from_le_bytes(raw_bytes);
+                let shifted = raw_usize >> shift;
 
-                let (start, end) = if E::is_le() {
-                    (0usize, bytes_read)
-                } else {
-                    (USIZE_SIZE - bytes_read, USIZE_SIZE)
-                };
+                let has_null = contains_zero_byte_non_top(shifted);
+                let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
+                let usable_bytes = &bytes[0..USIZE_SIZE - 1];
 
-                for i in start..end {
-                    if bytes[i] == 0 {
-                        acc.extend_from_slice(&bytes[start..i]);
-                        return Ok(acc);
+                if has_null {
+                    for i in 0..USIZE_SIZE - 1 {
+                        if usable_bytes[i] == 0 {
+                            acc.extend_from_slice(&usable_bytes[0..i]);
+                            return Ok(acc);
+                        }
                     }
                 }
-                acc.extend_from_slice(&bytes[start..end]);
 
-                if bytes_read < (USIZE_SIZE - 1) {
-                    return Ok(acc);
-                }
+                acc.extend_from_slice(&usable_bytes[0..USIZE_SIZE - 1]);
 
-                pos += read;
+                pos += (USIZE_SIZE - 1) * 8;
             }
         }
     }
@@ -585,4 +582,26 @@ impl<E: Endianness> Debug for BitBuffer<E> {
             E::as_string()
         )
     }
+}
+
+/// Return `true` if `x` contains any zero byte.
+///
+/// From *Matters Computational*, J. Arndt
+///
+/// "The idea is to subtract one from each of the bytes and then look for
+/// bytes where the borrow propagated all the way to the most significant
+/// bit."
+#[inline(always)]
+fn contains_zero_byte_non_top(x: usize) -> bool {
+    #[cfg(target_pointer_width = "64")]
+    const LO_USIZE: usize = 0x0001010101010101;
+    #[cfg(target_pointer_width = "64")]
+    const HI_USIZE: usize = 0x0080808080808080;
+
+    #[cfg(target_pointer_width = "32")]
+    const LO_USIZE: usize = 0x00010101;
+    #[cfg(target_pointer_width = "32")]
+    const HI_USIZE: usize = 0x00808080;
+
+    x.wrapping_sub(LO_USIZE) & !x & HI_USIZE != 0
 }
