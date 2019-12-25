@@ -14,6 +14,7 @@ travis-ci = { repository = "icewind1991/bitstream_reader" }
 num-traits = "0.2"
 bitstream_reader_derive = { version = "0.6", path = "bitstream_reader_derive" }
 bytecount = "0.5"
+memchr = "2.2"
 
 [dev-dependencies]
 maplit = "1.0.1"

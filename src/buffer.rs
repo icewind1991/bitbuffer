@@ -431,12 +431,8 @@ where
 
     #[inline]
     fn find_null_byte(&self, byte_index: usize) -> usize {
-        self.bytes
-            .iter()
-            .enumerate()
-            .skip(byte_index)
-            .find(|(_, byte)| **byte == 0)
-            .map(|(i, _)| i)
+        memchr::memchr(0, &self.bytes[byte_index..])
+            .map(|index| index + byte_index)
             .unwrap_or(self.byte_len())
     }
 
