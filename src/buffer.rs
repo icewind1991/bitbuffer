@@ -174,7 +174,7 @@ where
             .get(byte_index)
             .ok_or_else(|| ReadError::NotEnoughData {
                 requested: 1,
-                bits_left: self.bit_len() - position,
+                bits_left: self.bit_len().saturating_sub(position),
             })
             .map(|byte| {
                 let shifted = byte >> bit_offset;
