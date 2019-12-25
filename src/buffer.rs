@@ -86,16 +86,35 @@ where
     }
 
     fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        if byte_index + USIZE_SIZE <= self.bytes.len() {
-            self.bytes[byte_index..byte_index + USIZE_SIZE]
-                .try_into()
-                .unwrap()
+        if cfg!(feature = "unsafe") {
+            use std::mem::transmute;
+            // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
+            // due to the magic of branch prediction and this check "always" passing, the cost for this
+            // is below the point of being measurable by `cargo bench`
+            unsafe {
+                let ptr = self.bytes.as_ptr().add(byte_index);
+                *transmute::<_, &[u8; USIZE_SIZE]>(ptr)
+            }
         } else {
-            let mut bytes = [0; USIZE_SIZE];
-            let copy_bytes = self.bytes.len() - byte_index;
-            bytes[0..copy_bytes].copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
-            bytes
+            if byte_index + USIZE_SIZE <= self.bytes.len() {
+                self.bytes[byte_index..byte_index + USIZE_SIZE]
+                    .try_into()
+                    .unwrap()
+            } else {
+                let mut bytes = [0; USIZE_SIZE];
+                let copy_bytes = self.bytes.len() - byte_index;
+                bytes[0..copy_bytes]
+                    .copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
+                bytes
+            }
         }
+    }
+
+    /// note that only the bottom USIZE - 1 bytes are usable
+    fn read_shifted_usize(&self, byte_index: usize, shift: usize) -> usize {
+        let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
+        let raw_usize: usize = usize::from_le_bytes(raw_bytes);
+        raw_usize >> shift
     }
 
     fn read_usize(&self, position: usize, count: usize) -> usize {
@@ -103,21 +122,7 @@ where
         let bit_offset = position & 7;
         let usize_bit_size = size_of::<usize>() * 8;
 
-        let bytes: [u8; USIZE_SIZE] = if cfg!(feature = "unsafe") {
-            use std::mem::transmute;
-            // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
-            // due to the magic of branch prediction and this check "always" passing, the cost for this
-            // is below the point of being measurable by `cargo bench`
-            assert!(position + count <= self.bit_len());
-
-            unsafe {
-                // this is safe here because we already have checks that we don't read past the slice
-                let ptr = self.bytes.as_ptr().add(byte_index);
-                *transmute::<_, &[u8; USIZE_SIZE]>(ptr)
-            }
-        } else {
-            self.read_usize_bytes(byte_index)
-        };
+        let bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
 
         let container = if E::is_le() {
             usize::from_le_bytes(bytes)
@@ -359,21 +364,21 @@ where
 
         let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
-        let max_read = size_of::<usize>() - 1;
         let mut read_pos = position / 8;
-        while byte_left > 0 {
-            let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(read_pos);
-            let raw_usize: usize = usize::from_le_bytes(raw_bytes);
-            let shifted = raw_usize >> shift;
-
-            let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
-            let read_bytes = min(byte_left, USIZE_SIZE - 1);
+        while byte_left > USIZE_SIZE - 1 {
+            let bytes = self.read_shifted_usize(read_pos, shift).to_le_bytes();
+            let read_bytes = USIZE_SIZE - 1;
             let usable_bytes = &bytes[0..read_bytes];
             data.extend_from_slice(usable_bytes);
 
             read_pos += read_bytes;
             byte_left -= read_bytes;
         }
+
+        let bytes = self.read_shifted_usize(read_pos, shift).to_le_bytes();
+        let usable_bytes = &bytes[0..byte_left];
+        data.extend_from_slice(usable_bytes);
+
         Ok(data)
     }
 
@@ -437,21 +442,17 @@ where
     #[inline]
     fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
         let shift = position & 7;
-        if shift == 0 {
+        if false && shift == 0 {
             let byte_index = position / 8;
             Ok(self.bytes[byte_index..self.find_null_byte(byte_index)].to_vec())
         } else {
             let mut acc = Vec::with_capacity(32);
-            let mut pos = position;
+            let mut byte_index = position / 8;
             loop {
                 // note: if less then a usize worth of data is left in the buffer, read_usize_bytes
                 // will automatically pad with null bytes, triggering the loop termination
                 // thus no separate logic for dealing with the end of the bytes is required
-
-                let byte_index = pos / 8;
-                let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
-                let raw_usize: usize = usize::from_le_bytes(raw_bytes);
-                let shifted = raw_usize >> shift;
+                let shifted = self.read_shifted_usize(byte_index, shift);
 
                 let has_null = contains_zero_byte_non_top(shifted);
                 let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
@@ -468,7 +469,7 @@ where
 
                 acc.extend_from_slice(&usable_bytes[0..USIZE_SIZE - 1]);
 
-                pos += (USIZE_SIZE - 1) * 8;
+                byte_index += USIZE_SIZE - 1;
             }
         }
     }

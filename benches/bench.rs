@@ -43,9 +43,30 @@ fn perf_be(b: &mut Bencher) {
 }
 
 #[bench]
-fn perf_f32(b: &mut Bencher) {
+fn perf_f32_be(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
     let buffer = BitBuffer::new(data, BigEndian);
+    b.iter(|| {
+        let mut pos = 0;
+        let len = buffer.bit_len();
+        let mut result: f32 = 0.0;
+        loop {
+            if pos + 32 > len {
+                break;
+            }
+            let num = buffer.read_float::<f32>(pos).unwrap();
+            result += num;
+            pos += 32;
+        }
+        assert_eq!(result, 0.00000000000000000000000000000006170106);
+        test::black_box(result);
+    });
+}
+
+#[bench]
+fn perf_f32_le(b: &mut Bencher) {
+    let data = vec![1u8; 1024 * 1024 * 10];
+    let buffer = BitBuffer::new(data, LittleEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
