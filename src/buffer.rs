@@ -86,27 +86,15 @@ where
     }
 
     fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        if cfg!(feature = "unsafe") {
-            use std::mem::transmute;
-            // panic instead of accessing out of bounds data when the caller didn't do it's job bounds checking
-            // due to the magic of branch prediction and this check "always" passing, the cost for this
-            // is below the point of being measurable by `cargo bench`
-            unsafe {
-                let ptr = self.bytes.as_ptr().add(byte_index);
-                *transmute::<_, &[u8; USIZE_SIZE]>(ptr)
-            }
+        if byte_index + USIZE_SIZE <= self.bytes.len() {
+            self.bytes[byte_index..byte_index + USIZE_SIZE]
+                .try_into()
+                .unwrap()
         } else {
-            if byte_index + USIZE_SIZE <= self.bytes.len() {
-                self.bytes[byte_index..byte_index + USIZE_SIZE]
-                    .try_into()
-                    .unwrap()
-            } else {
-                let mut bytes = [0; USIZE_SIZE];
-                let copy_bytes = self.bytes.len() - byte_index;
-                bytes[0..copy_bytes]
-                    .copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
-                bytes
-            }
+            let mut bytes = [0; USIZE_SIZE];
+            let copy_bytes = self.bytes.len() - byte_index;
+            bytes[0..copy_bytes].copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
+            bytes
         }
     }
 

@@ -20,6 +20,3 @@ memchr = "2.2"
 maplit = "1.0.1"
 
 [workspace]
-
-[features]
-unsafe = []

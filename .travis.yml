@@ -9,4 +9,3 @@ matrix:
   fast_finish: true
 script:
   - cargo test --all
-  - cargo test --all --all-features
