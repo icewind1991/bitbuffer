@@ -350,7 +350,9 @@ where
             }
         }
 
-        if position & 7 == 0 {
+        let shift = position & 7;
+
+        if shift == 0 {
             let byte_pos = position / 8;
             return Ok(self.bytes[byte_pos..byte_pos + byte_count].to_vec());
         }
@@ -358,23 +360,19 @@ where
         let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
         let max_read = size_of::<usize>() - 1;
-        let mut read_pos = position;
+        let mut read_pos = position / 8;
         while byte_left > 0 {
-            let read = min(byte_left, max_read);
-            let raw_bytes = self.read_usize(read_pos, read * 8);
-            let bytes: [u8; USIZE_SIZE] = if E::is_le() {
-                raw_bytes.to_le_bytes()
-            } else {
-                raw_bytes.to_be_bytes()
-            };
-            let usable_bytes = if E::is_le() {
-                &bytes[0..read]
-            } else {
-                &bytes[USIZE_SIZE - read..USIZE_SIZE]
-            };
+            let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(read_pos);
+            let raw_usize: usize = usize::from_le_bytes(raw_bytes);
+            let shifted = raw_usize >> shift;
+
+            let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
+            let read_bytes = min(byte_left, USIZE_SIZE - 1);
+            let usable_bytes = &bytes[0..read_bytes];
             data.extend_from_slice(usable_bytes);
-            byte_left -= read;
-            read_pos += read * 8;
+
+            read_pos += read_bytes;
+            byte_left -= read_bytes;
         }
         Ok(data)
     }
