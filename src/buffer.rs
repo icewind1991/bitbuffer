@@ -427,7 +427,7 @@ where
     #[inline]
     fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
         let shift = position & 7;
-        if false && shift == 0 {
+        if shift == 0 {
             let byte_index = position / 8;
             Ok(self.bytes[byte_index..self.find_null_byte(byte_index)].to_vec())
         } else {
@@ -564,7 +564,7 @@ impl<E: Endianness> Debug for BitBuffer<E> {
     }
 }
 
-/// Return `true` if `x` contains any zero byte.
+/// Return `true` if `x` contains any zero byte except for the topmost byte.
 ///
 /// From *Matters Computational*, J. Arndt
 ///
