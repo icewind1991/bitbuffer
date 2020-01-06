@@ -61,8 +61,11 @@ where
     /// ];
     /// let buffer = BitBuffer::new(bytes, LittleEndian);
     /// ```
-    pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
+    pub fn new(mut bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
+
+        // pad with usize worth of bytes to ensure we can always read a full usize
+        bytes.extend_from_slice(&0usize.to_le_bytes());
         BitBuffer {
             bytes: Rc::new(bytes),
             bit_len: byte_len * 8,
@@ -86,16 +89,9 @@ where
     }
 
     fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        if byte_index + USIZE_SIZE <= self.bytes.len() {
-            self.bytes[byte_index..byte_index + USIZE_SIZE]
-                .try_into()
-                .unwrap()
-        } else {
-            let mut bytes = [0; USIZE_SIZE];
-            let copy_bytes = self.bytes.len() - byte_index;
-            bytes[0..copy_bytes].copy_from_slice(&self.bytes[byte_index..byte_index + copy_bytes]);
-            bytes
-        }
+        self.bytes[byte_index..byte_index + USIZE_SIZE]
+            .try_into()
+            .unwrap()
     }
 
     /// note that only the bottom USIZE - 1 bytes are usable
@@ -424,7 +420,7 @@ where
     fn find_null_byte(&self, byte_index: usize) -> usize {
         memchr::memchr(0, &self.bytes[byte_index..])
             .map(|index| index + byte_index)
-            .unwrap_or(self.byte_len())
+            .unwrap() // due to padding we always have 0 bytes at the end
     }
 
     #[inline]
