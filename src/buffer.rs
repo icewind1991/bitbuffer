@@ -89,9 +89,16 @@ where
     }
 
     fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        self.bytes[byte_index..byte_index + USIZE_SIZE]
-            .try_into()
-            .unwrap()
+        debug_assert!(byte_index + USIZE_SIZE < self.bytes.len());
+        // this is safe because all calling paths check that byte_index is less than the unpadded
+        // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
+        // always within bounds
+        unsafe {
+            self.bytes
+                .get_unchecked(byte_index..byte_index + USIZE_SIZE)
+                .try_into()
+                .unwrap()
+        }
     }
 
     /// note that only the bottom USIZE - 1 bytes are usable
@@ -237,9 +244,6 @@ where
         }
     }
 
-    /// Panics:
-    ///
-    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
     #[inline]
     fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
@@ -249,9 +253,6 @@ where
         T::from_unchecked(raw)
     }
 
-    /// Panics:
-    ///
-    /// requires position + count to not go out of bounds of the buffer: ((position + count) / 8) <= self.bytes.len()
     fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
