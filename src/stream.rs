@@ -133,11 +133,19 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        let result = self.buffer.read_int(self.pos, count);
-        if result.is_ok() {
-            self.pos += count;
-        }
-        result
+        self.pos += count;
+
+        self.buffer.read_int(self.pos, count)
+    }
+
+    #[inline]
+    pub unsafe fn read_int_unchecked<T>(&mut self, count: usize) -> T
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+    {
+        self.pos += count;
+
+        self.buffer.read_int_unchecked(self.pos, count)
     }
 
     /// Read a sequence of bits from the stream as float
@@ -179,6 +187,16 @@ where
         result
     }
 
+    pub unsafe fn read_float_unchecked<T>(&mut self) -> T
+    where
+        T: Float + UncheckedPrimitiveFloat,
+    {
+        let count = size_of::<T>() * 8;
+        self.pos += count;
+
+        self.buffer.read_float_unchecked(self.pos)
+    }
+
     /// Read a series of bytes from the stream
     ///
     /// # Errors
@@ -213,6 +231,12 @@ where
             self.pos += count;
         }
         result
+    }
+
+    pub unsafe fn read_bytes_unchecked(&mut self, byte_count: usize) -> Vec<u8> {
+        let count = byte_count * 8;
+        self.pos += count;
+        self.buffer.read_bytes_unchecked(self.pos, byte_count)
     }
 
     /// Read a series of bytes from the stream as utf8 string

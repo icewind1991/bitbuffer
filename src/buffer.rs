@@ -172,6 +172,15 @@ where
             })
     }
 
+    pub unsafe fn read_bool_unchecked(&self, position: usize) -> bool {
+        let byte_index = position / 8;
+        let bit_offset = position & 7;
+
+        let byte = self.bytes.get_unchecked(byte_index);
+        let shifted = byte >> bit_offset;
+        shifted & 1u8 == 1
+    }
+
     /// Read a sequence of bits from the buffer as integer
     ///
     /// # Errors
@@ -205,7 +214,6 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
         let type_bit_size = size_of::<T>() * 8;
-        let usize_bit_size = size_of::<usize>() * 8;
 
         if type_bit_size < count {
             return Err(ReadError::TooManyBits {
@@ -215,18 +223,29 @@ where
         }
 
         if position + count > self.bit_len() {
-            if position > self.bit_len() {
-                return Err(ReadError::IndexOutOfBounds {
+            return if position > self.bit_len() {
+                Err(ReadError::IndexOutOfBounds {
                     pos: position,
                     size: self.bit_len(),
-                });
+                })
             } else {
-                return Err(ReadError::NotEnoughData {
+                Err(ReadError::NotEnoughData {
                     requested: count,
                     bits_left: self.bit_len() - position,
-                });
-            }
+                })
+            };
         }
+
+        Ok(unsafe { self.read_int_unchecked(position, count) })
+    }
+
+    #[inline]
+    pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
+    where
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
+    {
+        let type_bit_size = size_of::<T>() * 8;
+        let usize_bit_size = size_of::<usize>() * 8;
 
         let bit_offset = position & 7;
 
@@ -238,9 +257,9 @@ where
         };
 
         if count == type_bit_size {
-            Ok(value)
+            value
         } else {
-            Ok(self.make_signed(value, count))
+            self.make_signed(value, count)
         }
     }
 
@@ -340,11 +359,16 @@ where
             }
         }
 
+        Ok(unsafe { self.read_bytes_unchecked(position, byte_count) })
+    }
+
+    #[inline]
+    pub unsafe fn read_bytes_unchecked(&self, position: usize, byte_count: usize) -> Vec<u8> {
         let shift = position & 7;
 
         if shift == 0 {
             let byte_pos = position / 8;
-            return Ok(self.bytes[byte_pos..byte_pos + byte_count].to_vec());
+            return self.bytes[byte_pos..byte_pos + byte_count].to_vec();
         }
 
         let mut data = Vec::with_capacity(byte_count);
@@ -364,7 +388,7 @@ where
         let usable_bytes = &bytes[0..byte_left];
         data.extend_from_slice(usable_bytes);
 
-        Ok(data)
+        data
     }
 
     /// Read a series of bytes from the buffer as string
@@ -503,16 +527,23 @@ where
             }
         }
 
+        Ok(unsafe { self.read_float_unchecked(position) })
+    }
+
+    pub unsafe fn read_float_unchecked<T>(&self, position: usize) -> T
+    where
+        T: Float + UncheckedPrimitiveFloat,
+    {
         if size_of::<T>() == 4 {
             let int = if size_of::<T>() < USIZE_SIZE {
                 self.read_fit_usize::<u32>(position, 32)
             } else {
                 self.read_no_fit_usize::<u32>(position, 32)
             };
-            Ok(T::from_f32_unchecked(f32::from_bits(int)))
+            T::from_f32_unchecked(f32::from_bits(int))
         } else {
             let int = self.read_no_fit_usize::<u64>(position, 64);
-            Ok(T::from_f64_unchecked(f64::from_bits(int)))
+            T::from_f64_unchecked(f64::from_bits(int))
         }
     }
 
