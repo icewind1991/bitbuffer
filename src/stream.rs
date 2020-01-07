@@ -99,6 +99,14 @@ where
         result
     }
 
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn read_bool_unchecked(&mut self) -> bool {
+        let result = self.buffer.read_bool_unchecked(self.pos);
+        self.pos += 1;
+        result
+    }
+
     /// Read a sequence of bits from the stream as integer
     ///
     /// # Errors
@@ -195,9 +203,9 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let count = size_of::<T>() * 8;
+        let result = self.buffer.read_float_unchecked(self.pos);
         self.pos += count;
-
-        self.buffer.read_float_unchecked(self.pos)
+        result
     }
 
     /// Read a series of bytes from the stream
@@ -240,8 +248,9 @@ where
     #[inline]
     pub unsafe fn read_bytes_unchecked(&mut self, byte_count: usize) -> Vec<u8> {
         let count = byte_count * 8;
+        let result = self.buffer.read_bytes_unchecked(self.pos, byte_count);
         self.pos += count;
-        self.buffer.read_bytes_unchecked(self.pos, byte_count)
+        result
     }
 
     /// Read a series of bytes from the stream as utf8 string
@@ -547,6 +556,12 @@ where
         T::read(self)
     }
 
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn read_unchecked<T: BitRead<E>>(&mut self) -> Result<T> {
+        T::read_unchecked(self)
+    }
+
     /// Read a value based on the provided type and size
     ///
     /// The meaning of the size parameter differs depending on the type that is being read
@@ -589,6 +604,12 @@ where
     #[inline]
     pub fn read_sized<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn read_sized_unchecked<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
+        T::read_unchecked(self, size)
     }
 
     /// Check if we can read a number of bits from the stream
