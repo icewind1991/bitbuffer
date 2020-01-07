@@ -92,6 +92,9 @@ pub trait BitRead<E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitStream<E>) -> Result<Self>;
 
+    /// Note: only the bounds are unchecked
+    ///
+    /// any other validations (e.g. checking for valid utf8) still needs to be done
     #[doc(hidden)]
     unsafe fn read_unchecked(stream: &mut BitStream<E>) -> Result<Self> {
         Self::read(stream)

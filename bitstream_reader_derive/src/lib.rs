@@ -191,7 +191,8 @@ fn derive_bitread_trait(
         &input.attrs,
         extra_param.is_some(),
     );
-    let parse = parse(input.data, &name, &input.attrs);
+    let parsed = parse(input.data.clone(), &name, &input.attrs, false);
+    let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
 
     let endianness_placeholder = endianness.unwrap_or("_E".to_owned());
     let trait_def_str = format!(
@@ -216,11 +217,15 @@ fn derive_bitread_trait(
         },
         Span::call_site(),
     );
-
+    //
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
             fn read(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
-                #parse
+                #parsed
+            }
+
+            unsafe fn read_unchecked(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
+                #parsed_unchecked
             }
 
             fn #size_method_name(#size_extra_param) -> Option<usize> {
@@ -234,7 +239,7 @@ fn derive_bitread_trait(
     proc_macro::TokenStream::from(expanded)
 }
 
-fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream {
+fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>, unchecked: bool) -> TokenStream {
     let span = struct_name.span();
 
     match data {
@@ -244,18 +249,36 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream
                 let size = get_field_size(&f.attrs, f.span());
                 let field_type = &f.ty;
                 let span = f.span();
-                match size {
-                    Some(size) => {
-                        quote_spanned! { span =>
-                            {
-                                let _size: usize = #size;
-                                stream.read_sized::<#field_type>(_size)?
+                if unchecked {
+                    match size {
+                        Some(size) => {
+                            quote_spanned! { span =>
+                                {
+                                    let _size: usize = #size;
+                                    stream.read_sized_unchecked::<#field_type>(_size)?
+                                }
+                            }
+                        }
+                        None => {
+                            quote_spanned! { span =>
+                                stream.read_unchecked::<#field_type>()?
                             }
                         }
                     }
-                    None => {
-                        quote_spanned! { span =>
-                            stream.read::<#field_type>()?
+                } else {
+                    match size {
+                        Some(size) => {
+                            quote_spanned! { span =>
+                                {
+                                    let _size: usize = #size;
+                                    stream.read_sized::<#field_type>(_size)?
+                                }
+                            }
+                        }
+                        None => {
+                            quote_spanned! { span =>
+                                stream.read::<#field_type>()?
+                            }
                         }
                     }
                 }
