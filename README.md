@@ -16,7 +16,7 @@ Once you have a BitStream, there are 2 different approaches of reading data
 
 - read primitives, Strings and byte arrays, using `read_bool`, `read_int`, `read_float`, `read_byes` and `read_string`
 - read any type implementing the  `BitRead` or `BitReadSized` traits using `read` and `read_sized`
-  - `BitRead` is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+  - `BitRead` is for types that can be read without requiring any size info (e.g. null-terminated strings, floats, whole integers, etc)
   - `BitReadSized` is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
 
 The `BitRead` and `BitReadSized` traits can be used with `#[derive]` if all fields implement `BitRead` or `BitReadSized`.
@@ -34,14 +34,16 @@ struct ComplexType {
     third: bool,
 }
 
-let bytes = vec![
-    0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
-    0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
-];
-let buffer = BitBuffer::new(bytes, LittleEndian);
-let mut stream = BitStream::new(buffer);
-let value: u8 = stream.read_int(7)?;
-let complex: ComplexType = stream.read()?;
+fn main() {
+    let bytes = vec![
+        0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+        0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    ];
+    let buffer = BitBuffer::new(bytes, LittleEndian);
+    let mut stream = BitStream::new(buffer);
+    let value: u8 = stream.read_int(7)?;
+    let complex: ComplexType = stream.read()?;
+}
 ```
 
 ## License
