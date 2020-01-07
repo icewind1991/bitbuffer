@@ -133,9 +133,9 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
+        let result = self.buffer.read_int(self.pos, count);
         self.pos += count;
-
-        self.buffer.read_int(self.pos, count)
+        result
     }
 
     #[inline]
@@ -143,9 +143,9 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
+        let result = self.buffer.read_int_unchecked(self.pos, count);
         self.pos += count;
-
-        self.buffer.read_int_unchecked(self.pos, count)
+        result
     }
 
     /// Read a sequence of bits from the stream as float

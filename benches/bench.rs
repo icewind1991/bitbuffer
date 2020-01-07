@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use bitstream_reader::{BigEndian, BitBuffer, Endianness, LittleEndian};
+use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, Endianness, LittleEndian};
 use test::Bencher;
 
 fn read_perf<E: Endianness>(buffer: &BitBuffer<E>) -> u16 {
@@ -252,6 +252,28 @@ fn perf_bytes_le_unaligned(b: &mut Bencher) {
             }
             let result = buffer.read_bytes(pos, 128).unwrap();
             pos += (result.len() + 1) * 8;
+            test::black_box(result);
+        }
+    });
+}
+
+#[allow(dead_code)]
+#[derive(BitRead)]
+struct BasicStruct {
+    a: f32,
+    b: bool,
+    #[size = 7]
+    c: u32,
+}
+
+#[bench]
+fn perf_struct(b: &mut Bencher) {
+    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
+
+    b.iter(|| {
+        let mut stream: BitStream<LittleEndian> = buffer.clone().into();
+        while stream.bits_left() > 40 {
+            let result = stream.read::<BasicStruct>().unwrap();
             test::black_box(result);
         }
     });
