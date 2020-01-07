@@ -100,24 +100,21 @@ pub trait BitRead<E: Endianness>: Sized {
         Self::read(stream)
     }
 
-    /// The number of bits that will be read or None if the number of bits will change depending
-    /// on the bit stream
-    #[inline(always)]
-    fn bit_size() -> Option<usize> {
-        return None;
-    }
-}
-
-/// Trait to allow skipping a type
-///
-/// This might be faster than trying to read it
-pub trait BitSkip<E: Endianness>: BitRead<E> {
     /// Skip the type
+    ///
+    /// This might be faster than reading it if the size is known beforehand
     fn skip(stream: &mut BitStream<E>) -> Result<()> {
         match Self::bit_size() {
             Some(size) => stream.skip_bits(size),
             None => Self::read(stream).map(|_| ()),
         }
+    }
+
+    /// The number of bits that will be read or None if the number of bits will change depending
+    /// on the bit stream
+    #[inline(always)]
+    fn bit_size() -> Option<usize> {
+        return None;
     }
 }
 
@@ -401,6 +398,16 @@ pub trait BitReadSized<E: Endianness>: Sized {
     #[doc(hidden)]
     unsafe fn read_unchecked(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
         Self::read(stream, size)
+    }
+
+    /// Skip the type
+    ///
+    /// This might be faster than reading it if the size is known beforehand
+    fn skip(stream: &mut BitStream<E>, size: usize) -> Result<()> {
+        match Self::bit_size_sized(size) {
+            Some(size) => stream.skip_bits(size),
+            None => Self::read(stream, size).map(|_| ()),
+        }
     }
 
     /// The number of bits that will be read or None if the number of bits will change depending
