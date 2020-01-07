@@ -138,6 +138,7 @@ where
         result
     }
 
+    #[doc(hidden)]
     #[inline]
     pub unsafe fn read_int_unchecked<T>(&mut self, count: usize) -> T
     where
@@ -187,6 +188,8 @@ where
         result
     }
 
+    #[doc(hidden)]
+    #[inline]
     pub unsafe fn read_float_unchecked<T>(&mut self) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
@@ -233,6 +236,8 @@ where
         result
     }
 
+    #[doc(hidden)]
+    #[inline]
     pub unsafe fn read_bytes_unchecked(&mut self, byte_count: usize) -> Vec<u8> {
         let count = byte_count * 8;
         self.pos += count;
@@ -584,6 +589,18 @@ where
     #[inline]
     pub fn read_sized<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
+    }
+
+    /// Check if we can read a number of bits from the stream
+    pub fn check_read(&self, count: usize) -> Result<()> {
+        if self.bits_left() < count {
+            Err(ReadError::NotEnoughData {
+                requested: count,
+                bits_left: self.bits_left(),
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 

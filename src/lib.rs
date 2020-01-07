@@ -59,12 +59,10 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
-pub use bitstream_reader_derive::{BitRead, BitReadSized, BitSize, BitSizeSized};
+pub use bitstream_reader_derive::{BitRead, BitReadSized};
 pub use buffer::BitBuffer;
 pub use endianness::*;
-pub use read::{
-    BitRead, BitReadSized, BitSize, BitSizeSized, BitSkip, LazyBitRead, LazyBitReadSized,
-};
+pub use read::{BitRead, BitReadSized, BitSkip, LazyBitRead, LazyBitReadSized};
 pub use stream::BitStream;
 
 mod buffer;
@@ -145,12 +143,12 @@ pub type Result<T> = std::result::Result<T, ReadError>;
 
 /// Get the number of bits required to read a type from stream
 #[inline(always)]
-pub fn bit_size_of<T: BitSize>() -> usize {
+pub fn bit_size_of<T: BitRead<LittleEndian>>() -> Option<usize> {
     T::bit_size()
 }
 
 /// Get the number of bits required to read a type from stream
 #[inline(always)]
-pub fn bit_size_of_sized<T: BitSizeSized>(size: usize) -> usize {
-    T::bit_size(size)
+pub fn bit_size_of_sized<T: BitReadSized<LittleEndian>>(size: usize) -> Option<usize> {
+    T::bit_size_sized(size)
 }

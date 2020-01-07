@@ -172,6 +172,8 @@ where
             })
     }
 
+    #[doc(hidden)]
+    #[inline]
     pub unsafe fn read_bool_unchecked(&self, position: usize) -> bool {
         let byte_index = position / 8;
         let bit_offset = position & 7;
@@ -239,6 +241,7 @@ where
         Ok(unsafe { self.read_int_unchecked(position, count) })
     }
 
+    #[doc(hidden)]
     #[inline]
     pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
     where
@@ -362,6 +365,7 @@ where
         Ok(unsafe { self.read_bytes_unchecked(position, byte_count) })
     }
 
+    #[doc(hidden)]
     #[inline]
     pub unsafe fn read_bytes_unchecked(&self, position: usize, byte_count: usize) -> Vec<u8> {
         let shift = position & 7;
@@ -530,6 +534,8 @@ where
         Ok(unsafe { self.read_float_unchecked(position) })
     }
 
+    #[doc(hidden)]
+    #[inline]
     pub unsafe fn read_float_unchecked<T>(&self, position: usize) -> T
     where
         T: Float + UncheckedPrimitiveFloat,

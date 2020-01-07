@@ -185,6 +185,12 @@ fn derive_bitread_trait(
     let (impl_generics, _, _) = trait_generics.split_for_impl();
     let span = input.span();
 
+    let size = size(
+        input.data.clone(),
+        &name,
+        &input.attrs,
+        extra_param.is_some(),
+    );
     let parse = parse(input.data, &name, &input.attrs);
 
     let endianness_placeholder = endianness.unwrap_or("_E".to_owned());
@@ -196,10 +202,29 @@ fn derive_bitread_trait(
 
     let endianness_ident = Ident::new(&endianness_placeholder, span);
 
+    let size_extra_param = if extra_param.is_some() {
+        Some(quote!(input_size: usize))
+    } else {
+        None
+    };
+
+    let size_method_name = Ident::new(
+        if extra_param.is_some() {
+            "bit_size_sized"
+        } else {
+            "bit_size"
+        },
+        Span::call_site(),
+    );
+
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
             fn read(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
                 #parse
+            }
+
+            fn #size_method_name(#size_extra_param) -> Option<usize> {
+                #size
             }
         }
     };
@@ -336,18 +361,103 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>) -> TokenStream
     }
 }
 
+fn size(
+    data: Data,
+    struct_name: &Ident,
+    attrs: &Vec<Attribute>,
+    has_input_size: bool,
+) -> TokenStream {
+    let span = struct_name.span();
+
+    match data {
+        Data::Struct(DataStruct { fields, .. }) => {
+            let sizes = fields.iter().map(|f| {
+                // Get attributes `#[..]` on each field
+                if is_const_size(&f.attrs, has_input_size) {
+                    let size = get_field_size(&f.attrs, f.span());
+                    let field_type = &f.ty;
+                    let span = f.span();
+                    match size {
+                        Some(size) => {
+                            quote_spanned! { span =>
+                                <#field_type as ::bitstream_reader::BitReadSized<::bitstream_reader::LittleEndian>>::bit_size_sized(#size)
+                            }
+                        }
+                        None => {
+                            quote_spanned! { span =>
+                                <#field_type as ::bitstream_reader::BitRead<::bitstream_reader::LittleEndian>>::bit_size()
+                            }
+                        }
+                    }
+                } else {
+                    quote_spanned! { span =>
+                        None
+                    }
+                }
+            });
+
+            match &fields {
+                Fields::Named(_) => quote_spanned! { span =>
+                    Some(0usize)#(.and_then(|sum: usize| #sizes.map(|size: usize| sum + size)))*
+                },
+                Fields::Unnamed(_) => quote_spanned! { span =>
+                    Some(0usize)#(.and_then(|sum: usize| #sizes.map(|size: usize| sum + size)))*
+                },
+                Fields::Unit => quote_spanned! {span=>
+                    Some(0usize)
+                },
+            }
+        }
+        Data::Enum(data) => {
+            let discriminant_bits = get_attribute_value::<u64>(attrs, &["discriminant_bits"])
+                .expect(
+                    "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
+                ) as usize;
+
+            let is_unit = data.variants.iter().all(|variant| match &variant.fields {
+                Fields::Unit => true,
+                _ => false,
+            });
+
+            if is_unit {
+                quote_spanned! {span=>
+                    Some(#discriminant_bits)
+                }
+            } else {
+                quote_spanned! {span=>
+                    None
+                }
+            }
+        }
+        _ => unimplemented!(),
+    }
+}
+
+fn is_const_size(attrs: &[Attribute], has_input_size: bool) -> bool {
+    if get_attribute_value::<Lit>(attrs, &["size_bits"]).is_some() {
+        return false;
+    }
+    get_attribute_value(attrs, &["size"])
+        .map(|size_lit| match size_lit {
+            Lit::Int(_) => true,
+            Lit::Str(size_field) => &size_field.value() == "input_size" && has_input_size,
+            _ => panic!("Unsupported value for size attribute"),
+        })
+        .unwrap_or(true)
+}
+
 fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
     get_attribute_value(attrs, &["size"])
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
                 quote_spanned! {span =>
-                # size
+                    #size
                 }
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).unwrap();
                 quote_spanned! {span =>
-                ( # size) as usize
+                    (#size) as usize
                 }
             }
             _ => panic!("Unsupported value for size attribute"),
@@ -355,80 +465,10 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
         .or_else(|| {
             get_attribute_value::<Lit>(attrs, &["size_bits"]).map(|size_bits_lit| {
                 quote_spanned! {span =>
-                stream.read_int::< usize > (# size_bits_lit) ?
+                    stream.read_int::<usize> (#size_bits_lit) ?
                 }
             })
         })
-}
-
-/// See the [crate documentation](index.html) for details
-#[proc_macro_derive(BitSize, attributes(size))]
-pub fn derive_bitsize(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    derive_bitsize_trait(input, "BitSize".to_owned(), None)
-}
-
-/// See the [crate documentation](index.html) for details
-#[proc_macro_derive(BitSizeSized, attributes(size))]
-pub fn derive_bitsize_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let extra_param = parse_str::<TokenStream>("input_size: usize").unwrap();
-    derive_bitsize_trait(input, "BitSizeSized".to_owned(), Some(extra_param))
-}
-
-fn derive_bitsize_trait(
-    input: proc_macro::TokenStream,
-    trait_name: String,
-    extra_param: Option<TokenStream>,
-) -> proc_macro::TokenStream {
-    let input: DeriveInput = parse_macro_input!(input as DeriveInput);
-
-    let name = &input.ident;
-
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let sum = bit_size_sum(input.data);
-
-    let trait_def_str = format!("::bitstream_reader::{}", trait_name);
-    let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
-
-    let expanded = quote! {
-    impl # impl_generics # trait_def for # name # ty_generics # where_clause {
-    fn bit_size( # extra_param) -> usize {
-    # sum
-    }
-    }
-    };
-
-    // panic!("{}", TokenStream::to_string(&expanded));
-
-    proc_macro::TokenStream::from(expanded)
-}
-
-// Generate an expression to sum up the heap size of each field.
-fn bit_size_sum(data: Data) -> TokenStream {
-    match data {
-        Data::Struct(DataStruct { fields, .. }) => {
-            let recurse = fields.iter().map(|f| {
-                let span = f.span();
-                let field_type = &f.ty;
-                match get_field_size(&f.attrs, span) {
-                    Some(size) => {
-                        quote_spanned! {span =>
-                        ::bitstream_reader::bit_size_of_sized::< # field_type> ( # size)
-                        }
-                    }
-                    None => {
-                        quote_spanned! {span =>
-                        ::bitstream_reader::bit_size_of::< # field_type> ()
-                        }
-                    }
-                }
-            });
-            quote! {
-            0 # ( + # recurse) *
-            }
-        }
-        _ => unimplemented!(),
-    }
 }
 
 enum Discriminant {
