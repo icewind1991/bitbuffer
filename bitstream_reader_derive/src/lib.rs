@@ -209,6 +209,12 @@ fn derive_bitread_trait(
         None
     };
 
+    let extra_param_call = if extra_param.is_some() {
+        Some(quote!(input_size))
+    } else {
+        None
+    };
+
     let size_method_name = Ident::new(
         if extra_param.is_some() {
             "bit_size_sized"
@@ -221,7 +227,18 @@ fn derive_bitread_trait(
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
             fn read(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
-                #parsed
+                // if the read has a predicable size, we can do the bounds check in one go
+                match <Self as #trait_def>::#size_method_name(#extra_param_call) {
+                    Some(size) => {
+                        stream.check_read(size)?;
+                        unsafe {
+                            <Self as #trait_def>::read_unchecked(stream, #extra_param_call)
+                        }
+                    },
+                    None => {
+                        #parsed
+                    }
+                }
             }
 
             unsafe fn read_unchecked(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
