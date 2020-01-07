@@ -611,14 +611,14 @@ impl<E: Endianness> Debug for BitBuffer<E> {
 #[inline(always)]
 fn contains_zero_byte_non_top(x: usize) -> bool {
     #[cfg(target_pointer_width = "64")]
-    const LO_USIZE: usize = 0x0001010101010101;
+    const LO_USIZE: usize = 0x0001_0101_0101_0101;
     #[cfg(target_pointer_width = "64")]
-    const HI_USIZE: usize = 0x0080808080808080;
+    const HI_USIZE: usize = 0x0080_8080_8080_8080;
 
     #[cfg(target_pointer_width = "32")]
-    const LO_USIZE: usize = 0x00010101;
+    const LO_USIZE: usize = 0x000_10101;
     #[cfg(target_pointer_width = "32")]
-    const HI_USIZE: usize = 0x00808080;
+    const HI_USIZE: usize = 0x0080_8080;
 
     x.wrapping_sub(LO_USIZE) & !x & HI_USIZE != 0
 }

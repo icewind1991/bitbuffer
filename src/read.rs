@@ -114,7 +114,7 @@ pub trait BitRead<E: Endianness>: Sized {
     /// on the bit stream
     #[inline(always)]
     fn bit_size() -> Option<usize> {
-        return None;
+        None
     }
 }
 
@@ -414,7 +414,7 @@ pub trait BitReadSized<E: Endianness>: Sized {
     /// on the bit stream
     #[inline(always)]
     fn bit_size_sized(_size: usize) -> Option<usize> {
-        return None;
+        None
     }
 }
 

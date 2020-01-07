@@ -194,7 +194,7 @@ fn derive_bitread_trait(
     let parsed = parse(input.data.clone(), &name, &input.attrs, false);
     let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
 
-    let endianness_placeholder = endianness.unwrap_or("_E".to_owned());
+    let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
     let trait_def_str = format!(
         "::bitstream_reader::{}<{}>",
         trait_name, &endianness_placeholder
@@ -256,7 +256,7 @@ fn derive_bitread_trait(
     proc_macro::TokenStream::from(expanded)
 }
 
-fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>, unchecked: bool) -> TokenStream {
+fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) -> TokenStream {
     let span = struct_name.span();
 
     match data {
@@ -401,12 +401,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &Vec<Attribute>, unchecked: boo
     }
 }
 
-fn size(
-    data: Data,
-    struct_name: &Ident,
-    attrs: &Vec<Attribute>,
-    has_input_size: bool,
-) -> TokenStream {
+fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bool) -> TokenStream {
     let span = struct_name.span();
 
     match data {
