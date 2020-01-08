@@ -515,7 +515,7 @@ enum Discriminant {
 impl From<Lit> for Discriminant {
     fn from(lit: Lit) -> Self {
         match lit {
-            Lit::Int(lit) => Discriminant::Int(lit.value() as usize),
+            Lit::Int(lit) => Discriminant::Int(lit.base10_parse::<usize>().unwrap()),
             Lit::Str(lit) => match lit.value().as_str() {
                 "_" => Discriminant::Wildcard,
                 _ => panic!("discriminant is required to be an integer literal or \"_\""),
