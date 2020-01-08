@@ -96,6 +96,7 @@ pub trait BitRead<E: Endianness>: Sized {
     ///
     /// any other validations (e.g. checking for valid utf8) still needs to be done
     #[doc(hidden)]
+    #[inline]
     unsafe fn read_unchecked(stream: &mut BitStream<E>) -> Result<Self> {
         Self::read(stream)
     }
@@ -103,6 +104,7 @@ pub trait BitRead<E: Endianness>: Sized {
     /// Skip the type
     ///
     /// This might be faster than reading it if the size is known beforehand
+    #[inline]
     fn skip(stream: &mut BitStream<E>) -> Result<()> {
         match Self::bit_size() {
             Some(size) => stream.skip_bits(size),
@@ -112,7 +114,7 @@ pub trait BitRead<E: Endianness>: Sized {
 
     /// The number of bits that will be read or None if the number of bits will change depending
     /// on the bit stream
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         None
     }
@@ -131,7 +133,7 @@ macro_rules! impl_read_int {
                 Ok(stream.read_int_unchecked::<$type>(size_of::<$type>() * 8))
             }
 
-            #[inline(always)]
+            #[inline]
             fn bit_size() -> Option<usize> {
                 Some(size_of::<$type>() * 8)
             }
@@ -154,7 +156,7 @@ macro_rules! impl_read_int_nonzero {
                 ))
             }
 
-            #[inline(always)]
+            #[inline]
             fn bit_size() -> Option<usize> {
                 Some(size_of::<$type>() * 8)
             }
@@ -173,7 +175,7 @@ macro_rules! impl_read_int_nonzero {
                 ))
             }
 
-            #[inline(always)]
+            #[inline]
             fn bit_size() -> Option<usize> {
                 Some(size_of::<$type>() * 8)
             }
@@ -209,7 +211,7 @@ impl<E: Endianness> BitRead<E> for f32 {
         Ok(stream.read_float_unchecked::<f32>())
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         Some(32)
     }
@@ -226,7 +228,7 @@ impl<E: Endianness> BitRead<E> for f64 {
         Ok(stream.read_float_unchecked::<f64>())
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         Some(64)
     }
@@ -243,7 +245,7 @@ impl<E: Endianness> BitRead<E> for bool {
         Ok(stream.read_bool_unchecked())
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         Some(1)
     }
@@ -267,7 +269,7 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Rc<T> {
         Ok(Rc::new(T::read_unchecked(stream)?))
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         T::bit_size()
     }
@@ -284,7 +286,7 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Arc<T> {
         Ok(Arc::new(T::read_unchecked(stream)?))
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         T::bit_size()
     }
@@ -301,9 +303,9 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Box<T> {
         Ok(Box::new(T::read_unchecked(stream)?))
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
-        T::bit_size().and_then(|sum| T::bit_size().map(|size| sum + size))
+        T::bit_size()
     }
 }
 
@@ -315,7 +317,12 @@ macro_rules! impl_read_tuple {
                 Ok(($(<$type>::read(stream)?),*))
             }
 
-            #[inline(always)]
+            #[inline]
+            unsafe fn read_unchecked(stream: &mut BitStream<E>) -> Result<Self> {
+                Ok(($(<$type>::read_unchecked(stream)?),*))
+            }
+
+            #[inline]
             fn bit_size() -> Option<usize> {
                 Some(0)$(.and_then(|sum| <$type>::bit_size().map(|size| sum + size)))*
             }
@@ -396,6 +403,7 @@ pub trait BitReadSized<E: Endianness>: Sized {
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self>;
 
     #[doc(hidden)]
+    #[inline]
     unsafe fn read_unchecked(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
         Self::read(stream, size)
     }
@@ -403,6 +411,7 @@ pub trait BitReadSized<E: Endianness>: Sized {
     /// Skip the type
     ///
     /// This might be faster than reading it if the size is known beforehand
+    #[inline]
     fn skip(stream: &mut BitStream<E>, size: usize) -> Result<()> {
         match Self::bit_size_sized(size) {
             Some(size) => stream.skip_bits(size),
@@ -412,7 +421,7 @@ pub trait BitReadSized<E: Endianness>: Sized {
 
     /// The number of bits that will be read or None if the number of bits will change depending
     /// on the bit stream
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(_size: usize) -> Option<usize> {
         None
     }
@@ -426,11 +435,12 @@ macro_rules! impl_read_int_sized {
                 stream.read_int::<$type>(size)
             }
 
+            #[inline]
             unsafe fn read_unchecked(stream: &mut BitStream<E>, size: usize) -> Result<$type> {
                 Ok(stream.read_int_unchecked::<$type>(size))
             }
 
-            #[inline(always)]
+            #[inline]
             fn bit_size_sized(size: usize) -> Option<usize> {
                 Some(size)
             }
@@ -455,7 +465,7 @@ impl<E: Endianness> BitReadSized<E> for String {
         stream.read_string(Some(size))
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         Some(8 * size)
     }
@@ -488,7 +498,7 @@ impl<E: Endianness> BitReadSized<E> for BitStream<E> {
         stream.read_bits(size)
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         Some(size)
     }
@@ -513,7 +523,7 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
         Ok(vec)
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         T::bit_size().map(|element_size| size * element_size)
     }
@@ -550,7 +560,7 @@ impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> fo
         Ok(map)
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         if let (Some(key_size), Some(value_size)) = (K::bit_size(), T::bit_size()) {
             Some(size * (key_size + value_size))
@@ -562,10 +572,6 @@ impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> fo
 
 #[derive(Clone, Debug)]
 /// Struct that lazily reads it's contents from the stream
-///
-/// Requires [`BitSize`] to be implemented for it's contents so it can grab the correct number of bytes
-///
-/// [`BitSize`]: trait.BitSize.html
 pub struct LazyBitRead<T: BitRead<E>, E: Endianness> {
     source: BitStream<E>,
     inner_type: PhantomData<T>,
@@ -591,7 +597,7 @@ impl<T: BitRead<E>, E: Endianness> BitRead<E> for LazyBitRead<T, E> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size() -> Option<usize> {
         T::bit_size()
     }
@@ -599,8 +605,6 @@ impl<T: BitRead<E>, E: Endianness> BitRead<E> for LazyBitRead<T, E> {
 
 #[derive(Clone, Debug)]
 /// Struct that lazily reads it's contents from the stream
-///
-/// [`BitReadSized`]: trait.BitReadSized.html
 pub struct LazyBitReadSized<T: BitReadSized<E>, E: Endianness> {
     source: RefCell<BitStream<E>>,
     size: usize,
@@ -628,7 +632,7 @@ impl<T: BitReadSized<E>, E: Endianness> BitReadSized<E> for LazyBitReadSized<T, 
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         T::bit_size_sized(size)
     }
