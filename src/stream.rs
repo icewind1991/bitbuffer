@@ -300,12 +300,14 @@ where
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     #[inline]
     pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
+        let max_length = self.bits_left() / 8;
+
         let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
             // still advance the stream on malformed utf8
             if let ReadError::Utf8Error(err) = &err {
                 self.pos += match byte_len {
                     Some(len) => len * 8,
-                    None => min((err.as_bytes().len() + 1) * 8, self.bits_left() / 8),
+                    None => min((err.as_bytes().len() + 1) * 8, max_length),
                 };
             }
             err
@@ -319,9 +321,16 @@ where
         // (but not the top level buffer)
         // thus we trim the resulting string to make sure it fits in the source stream
         if read > self.bits_left() {
-            let new_length = self.bits_left() / 8;
-            self.pos += new_length * 8;
-            return Ok(result[0..new_length].to_string());
+            // find the maximum well-formed utf8 string that fits in max_len
+            let mut acc = String::new();
+            for c in result.chars() {
+                if acc.len() + c.len_utf8() > max_length {
+                    break;
+                }
+                acc.push(c);
+            }
+            self.pos += acc.len() * 8;
+            return Ok(acc);
         }
         self.pos += read;
         Ok(result)
