@@ -142,7 +142,9 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
         let result = self.buffer.read_int(self.pos, count);
-        self.pos += count;
+        if result.is_ok() {
+            self.pos += count;
+        }
         result
     }
 
@@ -384,8 +386,15 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn skip_bits(&mut self, count: usize) -> Result<()> {
-        self.pos += count;
-        Ok(())
+        if count < self.bits_left() {
+            self.pos += count;
+            Ok(())
+        } else {
+            Err(ReadError::NotEnoughData {
+                requested: count,
+                bits_left: self.bits_left(),
+            })
+        }
     }
 
     /// Set the position of the stream

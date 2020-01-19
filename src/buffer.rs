@@ -88,27 +88,25 @@ where
         self.bytes.len()
     }
 
-    fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
+    unsafe fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
         debug_assert!(byte_index + USIZE_SIZE < self.bytes.len());
         // this is safe because all calling paths check that byte_index is less than the unpadded
         // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
         // always within bounds
-        unsafe {
-            self.bytes
-                .get_unchecked(byte_index..byte_index + USIZE_SIZE)
-                .try_into()
-                .unwrap()
-        }
+        self.bytes
+            .get_unchecked(byte_index..byte_index + USIZE_SIZE)
+            .try_into()
+            .unwrap()
     }
 
     /// note that only the bottom USIZE - 1 bytes are usable
-    fn read_shifted_usize(&self, byte_index: usize, shift: usize) -> usize {
+    unsafe fn read_shifted_usize(&self, byte_index: usize, shift: usize) -> usize {
         let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
         let raw_usize: usize = usize::from_le_bytes(raw_bytes);
         raw_usize >> shift
     }
 
-    fn read_usize(&self, position: usize, count: usize) -> usize {
+    unsafe fn read_usize(&self, position: usize, count: usize) -> usize {
         let byte_index = position / 8;
         let bit_offset = position & 7;
         let usize_bit_size = size_of::<usize>() * 8;
@@ -267,7 +265,7 @@ where
     }
 
     #[inline]
-    fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
+    unsafe fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
@@ -275,7 +273,7 @@ where
         T::from_unchecked(raw)
     }
 
-    fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
+    unsafe fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
@@ -465,7 +463,9 @@ where
                 // note: if less then a usize worth of data is left in the buffer, read_usize_bytes
                 // will automatically pad with null bytes, triggering the loop termination
                 // thus no separate logic for dealing with the end of the bytes is required
-                let shifted = self.read_shifted_usize(byte_index, shift);
+                //
+                // This is safe because
+                let shifted = unsafe { self.read_shifted_usize(byte_index, shift) };
 
                 let has_null = contains_zero_byte_non_top(shifted);
                 let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
