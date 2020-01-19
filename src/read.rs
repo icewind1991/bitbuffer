@@ -1,6 +1,7 @@
 use crate::endianness::{BigEndian, LittleEndian};
 use crate::{BitStream, Endianness, Result};
 use std::cell::RefCell;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -507,7 +508,7 @@ impl<E: Endianness> BitReadSized<E> for BitStream<E> {
 /// Read `T` `size` times and return as `Vec<T>`
 impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
-        let mut vec = Vec::with_capacity(size);
+        let mut vec = Vec::with_capacity(min(size, 128));
         for _ in 0..size {
             vec.push(stream.read()?)
         }
@@ -516,7 +517,7 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
 
     #[inline]
     unsafe fn read_unchecked(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
-        let mut vec = Vec::with_capacity(size);
+        let mut vec = Vec::with_capacity(min(size, 128));
         for _ in 0..size {
             vec.push(stream.read_unchecked()?)
         }
@@ -540,7 +541,7 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
 /// Read `K` and `T` `size` times and return as `HashMap<K, T>`
 impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> for HashMap<K, T> {
     fn read(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
-        let mut map = HashMap::with_capacity(size);
+        let mut map = HashMap::with_capacity(min(size, 128));
         for _ in 0..size {
             let key = stream.read()?;
             let value = stream.read()?;
@@ -551,7 +552,7 @@ impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> fo
 
     #[inline]
     unsafe fn read_unchecked(stream: &mut BitStream<E>, size: usize) -> Result<Self> {
-        let mut map = HashMap::with_capacity(size);
+        let mut map = HashMap::with_capacity(min(size, 128));
         for _ in 0..size {
             let key = stream.read_unchecked()?;
             let value = stream.read_unchecked()?;
