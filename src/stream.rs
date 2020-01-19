@@ -8,6 +8,7 @@ use crate::is_signed::IsSigned;
 use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::BitBuffer;
 use crate::{BitRead, BitReadSized, ReadError, Result};
+use std::cmp::min;
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
 ///
@@ -304,7 +305,7 @@ where
             if let ReadError::Utf8Error(err) = &err {
                 self.pos += match byte_len {
                     Some(len) => len * 8,
-                    None => (err.as_bytes().len() + 1) * 8,
+                    None => min((err.as_bytes().len() + 1) * 8, self.bits_left() / 8),
                 };
             }
             err
@@ -313,6 +314,15 @@ where
             Some(len) => len * 8,
             None => (result.len() + 1) * 8,
         };
+
+        // due to how sub buffer/streams work, the result string can be longer than the current stream
+        // (but not the top level buffer)
+        // thus we trim the resulting string to make sure it fits in the source stream
+        if read > self.bits_left() {
+            let new_length = self.bits_left() / 8;
+            self.pos += new_length * 8;
+            return Ok(result[0..new_length].to_string());
+        }
         self.pos += read;
         Ok(result)
     }
