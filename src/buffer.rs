@@ -89,7 +89,7 @@ where
     }
 
     unsafe fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        debug_assert!(byte_index + USIZE_SIZE < self.bytes.len());
+        debug_assert!(byte_index + USIZE_SIZE <= self.bytes.len());
         // this is safe because all calling paths check that byte_index is less than the unpadded
         // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
         // always within bounds
@@ -464,7 +464,8 @@ where
                 // will automatically pad with null bytes, triggering the loop termination
                 // thus no separate logic for dealing with the end of the bytes is required
                 //
-                // This is safe because
+                // This is safe because the final usize is filled with 0's, thus triggering the exit clause
+                // before reading any out of bounds
                 let shifted = unsafe { self.read_shifted_usize(byte_index, shift) };
 
                 let has_null = contains_zero_byte_non_top(shifted);
