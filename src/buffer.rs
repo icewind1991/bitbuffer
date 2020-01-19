@@ -158,16 +158,16 @@ where
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
-        self.bytes
-            .get(byte_index)
-            .ok_or_else(|| ReadError::NotEnoughData {
+        if position < self.bit_len() {
+            let byte = self.bytes[byte_index];
+            let shifted = byte >> bit_offset;
+            Ok(shifted & 1u8 == 1)
+        } else {
+            Err(ReadError::NotEnoughData {
                 requested: 1,
                 bits_left: self.bit_len().saturating_sub(position),
             })
-            .map(|byte| {
-                let shifted = byte >> bit_offset;
-                shifted & 1u8 == 1
-            })
+        }
     }
 
     #[doc(hidden)]
