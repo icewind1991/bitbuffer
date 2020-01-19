@@ -405,7 +405,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     pub fn skip_bits(&mut self, count: usize) -> Result<()> {
-        if count < self.bits_left() {
+        if count <= self.bits_left() {
             self.pos += count;
             Ok(())
         } else {
