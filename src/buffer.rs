@@ -304,7 +304,9 @@ where
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
-        if T::is_signed() {
+        if count == 0 {
+            T::zero()
+        } else if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
             if sign_bit == T::one() {
                 value | (T::zero() - T::one()) ^ ((T::one() << count) - T::one())
