@@ -2,10 +2,10 @@
 
 extern crate test;
 
-use bitbuffer::{BigEndian, BitBuffer, BitRead, BitStream, Endianness, LittleEndian};
+use bitbuffer::{BigEndian, BitRead, BitReadBuffer, BitReadStream, Endianness, LittleEndian};
 use test::Bencher;
 
-fn read_perf<E: Endianness>(buffer: &BitBuffer<E>) -> u16 {
+fn read_perf<E: Endianness>(buffer: &BitReadBuffer<E>) -> u16 {
     let size = 5;
     let mut pos = 0;
     let len = buffer.bit_len();
@@ -23,7 +23,7 @@ fn read_perf<E: Endianness>(buffer: &BitBuffer<E>) -> u16 {
 #[bench]
 fn perf_le(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitBuffer::new(data, LittleEndian);
+    let buffer = BitReadBuffer::new(data, LittleEndian);
     b.iter(|| {
         let data = read_perf(&buffer);
         assert_eq!(data, 0);
@@ -34,7 +34,7 @@ fn perf_le(b: &mut Bencher) {
 #[bench]
 fn perf_be(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(data, BigEndian);
     b.iter(|| {
         let data = read_perf(&buffer);
         assert_eq!(data, 0);
@@ -45,7 +45,7 @@ fn perf_be(b: &mut Bencher) {
 #[bench]
 fn perf_f32_be(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -66,7 +66,7 @@ fn perf_f32_be(b: &mut Bencher) {
 #[bench]
 fn perf_f32_le(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitBuffer::new(data, LittleEndian);
+    let buffer = BitReadBuffer::new(data, LittleEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -89,7 +89,7 @@ const F64_RESULT: f64 = 0.000000000000000000000000000000000000000000000000000000
 #[bench]
 fn perf_f64(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -110,7 +110,7 @@ fn perf_f64(b: &mut Bencher) {
 #[bench]
 fn perf_bool(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 1];
-    let buffer = BitBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -151,7 +151,7 @@ fn get_string_buffer() -> Vec<u8> {
 
 #[bench]
 fn perf_string_be(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -169,7 +169,7 @@ fn perf_string_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_string_le(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -187,7 +187,7 @@ fn perf_string_le(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_be(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -205,7 +205,7 @@ fn perf_bytes_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -223,7 +223,7 @@ fn perf_bytes_le(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_be_unaligned(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), BigEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
 
     b.iter(|| {
         let mut pos = 3;
@@ -241,7 +241,7 @@ fn perf_bytes_be_unaligned(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le_unaligned(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
         let mut pos = 3;
@@ -268,10 +268,10 @@ struct BasicStruct {
 
 #[bench]
 fn perf_struct(b: &mut Bencher) {
-    let buffer = BitBuffer::new(get_string_buffer(), LittleEndian);
+    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
 
     b.iter(|| {
-        let mut stream: BitStream<LittleEndian> = buffer.clone().into();
+        let mut stream: BitReadStream<LittleEndian> = buffer.clone().into();
         while stream.bits_left() > 40 {
             let result = stream.read::<BasicStruct>().unwrap();
             test::black_box(result);

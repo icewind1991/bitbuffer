@@ -2,7 +2,8 @@
 #![allow(unreachable_patterns)]
 
 use bitbuffer::{
-    bit_size_of, bit_size_of_sized, BigEndian, BitBuffer, BitStream, Endianness, LittleEndian,
+    bit_size_of, bit_size_of_sized, BigEndian, BitReadBuffer, BitReadStream, Endianness,
+    LittleEndian,
 };
 use bitbuffer_derive::{BitRead, BitReadSized};
 
@@ -44,8 +45,8 @@ fn test_read_struct() {
         0b0101_0101,
         0b1010_1010,
     ];
-    let buffer = BitBuffer::new(bytes, LittleEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestStruct {
             foo: 12,
@@ -82,8 +83,8 @@ fn test_read_bare_enum() {
         0b1000_0100,
         0b1000_0100,
     ];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(TestBareEnum::Asd, stream.read().unwrap());
     assert_eq!(TestBareEnum::Foo, stream.read().unwrap());
     assert_eq!(TestBareEnum::Bar, stream.read().unwrap());
@@ -113,8 +114,8 @@ fn test_read_unnamed_field_enum() {
         0b1000_0100,
         0b1000_0100,
     ];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestUnnamedFieldEnum::Asd(0b_00_0110_10),
         stream.read().unwrap()
@@ -143,8 +144,8 @@ fn test_read_struct_sized() {
     let bytes = vec![
         12, 'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0,
     ];
-    let buffer = BitBuffer::new(bytes, LittleEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestStructSized {
             foo: 12,
@@ -179,8 +180,8 @@ fn test_read_unnamed_field_enum_sized() {
         0b1000_0100,
         0b1000_0100,
     ];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestUnnamedFieldEnumSized::Asd(0b_00_0110),
         stream.read_sized(6).unwrap()
@@ -212,8 +213,8 @@ fn test_read_struct2() {
         'l' as u8,
         'e' as u8,
     ];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestStruct2 {
             size: 5,
@@ -229,14 +230,14 @@ fn test_read_struct2() {
 struct TestStruct3<E: Endianness> {
     size: u8,
     #[size = "size"]
-    stream: BitStream<E>,
+    stream: BitReadStream<E>,
 }
 
 #[test]
 fn test_read_struct3() {
     let bytes = vec![0b0000_0101, 0, 0, 0, 0, 0, 0, 0];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     let result: TestStruct3<BigEndian> = stream.read().unwrap();
     assert_eq!(5, result.size);
     assert_eq!(5, result.stream.bit_len());
@@ -264,8 +265,8 @@ fn test_read_rest_enum() {
         0b1000_0100,
         0b1000_0100,
     ];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(TestEnumRest::Asd, stream.read().unwrap());
     assert_eq!(TestEnumRest::Foo, stream.read().unwrap());
     assert_eq!(TestEnumRest::Bar, stream.read().unwrap());
@@ -280,8 +281,8 @@ fn test_unnamed_struct() {
     let bytes = vec![
         12, 'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0,
     ];
-    let buffer = BitBuffer::new(bytes, LittleEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    let mut stream = BitReadStream::from(buffer);
 
     assert_eq!(
         UnnamedSize(12, "hello".to_string(), false),
@@ -294,8 +295,8 @@ struct EmptyStruct;
 
 fn test_empty_struct() {
     let bytes = vec![0, 0, 0, 0];
-    let buffer = BitBuffer::new(bytes, BigEndian);
-    let mut stream = BitStream::from(buffer);
+    let buffer = BitReadBuffer::new(bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
     assert_eq!(EmptyStruct, stream.read().unwrap());
     assert_eq!(0, stream.pos());
     assert_eq!(Some(0), bit_size_of::<EmptyStruct>());

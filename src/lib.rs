@@ -16,7 +16,7 @@
 //!
 //! ```
 //! # use bitbuffer::Result;
-//! use bitbuffer::{BitBuffer, LittleEndian, BitStream, BitRead};
+//! use bitbuffer::{BitReadBuffer, LittleEndian, BitReadStream, BitRead};
 //!
 //! #[derive(BitRead)]
 //! struct ComplexType {
@@ -31,8 +31,8 @@
 //!     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 //!     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 //! ];
-//! let buffer = BitBuffer::new(bytes, LittleEndian);
-//! let mut stream = BitStream::new(buffer);
+//! let buffer = BitReadBuffer::new(bytes, LittleEndian);
+//! let mut stream = BitReadStream::new(buffer);
 //! let value: u8 = stream.read_int(7)?;
 //! let complex: ComplexType = stream.read()?;
 //! #
@@ -60,16 +60,16 @@ use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
 pub use bitbuffer_derive::{BitRead, BitReadSized};
-pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};
-pub use stream::BitStream;
+pub use readbuffer::BitReadBuffer;
+pub use readstream::BitReadStream;
 
-mod buffer;
 mod endianness;
 mod is_signed;
 mod read;
-mod stream;
+mod readbuffer;
+mod readstream;
 mod unchecked_primitive;
 
 /// Errors that can be returned when trying to read from a buffer

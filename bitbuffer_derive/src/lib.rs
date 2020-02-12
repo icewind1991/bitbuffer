@@ -108,27 +108,27 @@
 //! If the struct that `BitRead` or `BitReadSized` is derived for requires a Endianness type parameter, you need to tell the derive macro the name of the type parameter used
 //!
 //! ```
-//! # use bitbuffer::{BitRead, Endianness, BitStream};
+//! # use bitbuffer::{BitRead, Endianness, BitReadStream};
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "E"]
 //! struct EndiannessStruct<E: Endianness> {
 //!     size: u8,
 //!     #[size = "size"]
-//!     stream: BitStream<E>,
+//!     stream: BitReadStream<E>,
 //! }
 //! ```
 //!
 //! This is also required if you specify which endianness the struct has
 //! ```
-//! # use bitbuffer::{BitRead, BigEndian, BitStream};
+//! # use bitbuffer::{BitRead, BigEndian, BitReadStream};
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "BigEndian"]
 //! struct EndiannessStruct {
 //!     size: u8,
 //!     #[size = "size"]
-//!     stream: BitStream<BigEndian>,
+//!     stream: BitReadStream<BigEndian>,
 //! }
 //! ```
 extern crate proc_macro;
@@ -221,7 +221,7 @@ fn derive_bitread_trait(
     //
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
-            fn read(stream: &mut ::bitbuffer::BitStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
+            fn read(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
                     Some(size) => {
@@ -236,7 +236,7 @@ fn derive_bitread_trait(
                 }
             }
 
-            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
+            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
 
