@@ -1,7 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/bitbuffer.svg)](https://crates.io/crates/bitbuffer)
 [![Documentation](https://docs.rs/bitbuffer/badge.svg)](https://docs.rs/bitbuffer/)
 [![Dependency status](https://deps.rs/repo/github/icewind1991/bitbuffer/status.svg)](https://deps.rs/repo/github/icewind1991/bitbuffer)
-[![Build Status](https://travis-ci.org/icewind1991/bitbuffer.svg?branch=master)](https://travis-ci.org/icewind1991/bitbuffer)
 
 # bitbuffer
 

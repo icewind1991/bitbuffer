@@ -7,9 +7,6 @@ description = "Reading bit sequences from a byte slice"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/icewind1991/bitbuffer"
 
-[badges]
-travis-ci = { repository = "icewind1991/bitbuffer" }
-
 [dependencies]
 num-traits = "0.2"
 bitbuffer_derive = { version = "0.7", path = "bitbuffer_derive" }

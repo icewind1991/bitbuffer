@@ -539,6 +539,7 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
 //}
 
 /// Read `K` and `T` `size` times and return as `HashMap<K, T>`
+#[allow(clippy::implicit_hasher)]
 impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> for HashMap<K, T> {
     fn read(stream: &mut BitReadStream<E>, size: usize) -> Result<Self> {
         let mut map = HashMap::with_capacity(min(size, 128));
