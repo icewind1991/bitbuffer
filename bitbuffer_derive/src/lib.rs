@@ -17,7 +17,7 @@
 //! ## Examples
 //!
 //! ```
-//! use bitstream_reader_derive::BitRead;
+//! use bitbuffer::BitRead;
 //!
 //! #[derive(BitRead)]
 //! struct TestStruct {
@@ -37,7 +37,7 @@
 //! ```
 //!
 //! ```
-//! use bitstream_reader_derive::BitReadSized;
+//! use bitbuffer::BitReadSized;
 //!
 //! #[derive(BitReadSized, PartialEq, Debug)]
 //! struct TestStructSized {
@@ -63,7 +63,7 @@
 //! ## Examples
 //!
 //! ```
-//! # use bitstream_reader_derive::BitRead;
+//! # use bitbuffer::BitRead;
 //! #
 //! #[derive(BitRead)]
 //! #[discriminant_bits = 2]
@@ -75,7 +75,7 @@
 //! ```
 //!
 //! ```
-//! # use bitstream_reader_derive::BitRead;
+//! # use bitbuffer::BitRead;
 //! #
 //! #[derive(BitRead)]
 //! #[discriminant_bits = 2]
@@ -89,7 +89,7 @@
 //! ```
 //!
 //! ```
-//! # use bitstream_reader_derive::BitReadSized;
+//! # use bitbuffer::BitReadSized;
 //! #
 //! #[derive(BitReadSized, PartialEq, Debug)]
 //! #[discriminant_bits = 2]
@@ -108,8 +108,7 @@
 //! If the struct that `BitRead` or `BitReadSized` is derived for requires a Endianness type parameter, you need to tell the derive macro the name of the type parameter used
 //!
 //! ```
-//! # use bitstream_reader_derive::BitRead;
-//! # use bitstream_reader::{Endianness, BitStream};
+//! # use bitbuffer::{BitRead, Endianness, BitStream};
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "E"]
@@ -122,8 +121,7 @@
 //!
 //! This is also required if you specify which endianness the struct has
 //! ```
-//! # use bitstream_reader_derive::BitRead;
-//! # use bitstream_reader::{BigEndian, BitStream};
+//! # use bitbuffer::{BitRead, BigEndian, BitStream};
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "BigEndian"]
@@ -180,7 +178,7 @@ fn derive_bitread_trait(
     if endianness.is_none() {
         trait_generics
             .params
-            .push(parse_quote!(_E: ::bitstream_reader::Endianness));
+            .push(parse_quote!(_E: ::bitbuffer::Endianness));
     }
     let (impl_generics, _, _) = trait_generics.split_for_impl();
     let span = input.span();
@@ -195,10 +193,7 @@ fn derive_bitread_trait(
     let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
 
     let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
-    let trait_def_str = format!(
-        "::bitstream_reader::{}<{}>",
-        trait_name, &endianness_placeholder
-    );
+    let trait_def_str = format!("::bitbuffer::{}<{}>", trait_name, &endianness_placeholder);
     let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
 
     let endianness_ident = Ident::new(&endianness_placeholder, span);
@@ -226,7 +221,7 @@ fn derive_bitread_trait(
     //
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
-            fn read(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
+            fn read(stream: &mut ::bitbuffer::BitStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
                     Some(size) => {
@@ -241,7 +236,7 @@ fn derive_bitread_trait(
                 }
             }
 
-            unsafe fn read_unchecked(stream: &mut ::bitstream_reader::BitStream<#endianness_ident>#extra_param) -> ::bitstream_reader::Result<Self> {
+            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
 
@@ -392,7 +387,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                 Ok(match discriminant {
                     #(#match_arms)*
                     _ => {
-                        return Err(::bitstream_reader::ReadError::UnmatchedDiscriminant{discriminant, enum_name: #enum_name.to_string()})
+                        return Err(::bitbuffer::ReadError::UnmatchedDiscriminant{discriminant, enum_name: #enum_name.to_string()})
                     }
                 })
             }
@@ -415,12 +410,12 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
                     match size {
                         Some(size) => {
                             quote_spanned! { span =>
-                                <#field_type as ::bitstream_reader::BitReadSized<::bitstream_reader::LittleEndian>>::bit_size_sized(#size)
+                                <#field_type as ::bitbuffer::BitReadSized<::bitbuffer::LittleEndian>>::bit_size_sized(#size)
                             }
                         }
                         None => {
                             quote_spanned! { span =>
-                                <#field_type as ::bitstream_reader::BitRead<::bitstream_reader::LittleEndian>>::bit_size()
+                                <#field_type as ::bitbuffer::BitRead<::bitbuffer::LittleEndian>>::bit_size()
                             }
                         }
                     }

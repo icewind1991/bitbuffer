@@ -28,7 +28,7 @@ use std::sync::Arc;
 /// ## Examples
 ///
 /// ```
-/// # use bitstream_reader_derive::BitRead;
+/// # use bitbuffer::BitRead;
 /// #
 /// #[derive(BitRead)]
 /// struct TestStruct {
@@ -61,7 +61,7 @@ use std::sync::Arc;
 /// ## Examples
 ///
 /// ```
-/// # use bitstream_reader_derive::BitRead;
+/// # use bitbuffer::BitRead;
 /// #
 /// #[derive(BitRead)]
 /// #[discriminant_bits = 2]
@@ -73,7 +73,7 @@ use std::sync::Arc;
 /// ```
 ///
 /// ```
-/// # use bitstream_reader_derive::BitRead;
+/// # use bitbuffer::BitRead;
 /// #
 /// #[derive(BitRead)]
 /// #[discriminant_bits = 2]
@@ -356,7 +356,7 @@ impl_read_tuple!(T1, T2, T3, T4);
 /// ## Examples
 ///
 /// ```
-/// # use bitstream_reader_derive::BitReadSized;
+/// # use bitbuffer::BitReadSized;
 /// #
 /// #[derive(BitReadSized, PartialEq, Debug)]
 /// struct TestStructSized {
@@ -382,7 +382,7 @@ impl_read_tuple!(T1, T2, T3, T4);
 /// ## Examples
 ///
 /// ```
-/// # use bitstream_reader_derive::BitReadSized;
+/// # use bitbuffer::BitReadSized;
 /// #
 /// #[derive(BitReadSized)]
 /// #[discriminant_bits = 2]

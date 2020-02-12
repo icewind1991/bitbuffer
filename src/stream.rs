@@ -15,7 +15,7 @@ use std::cmp::min;
 /// # Examples
 ///
 /// ```
-/// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+/// use bitbuffer::{BitBuffer, BitStream, LittleEndian};
 ///
 /// let bytes = vec![
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -45,7 +45,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, BitStream, LittleEndian};
+    /// use bitbuffer::{BitBuffer, BitStream, LittleEndian};
     ///
     /// let bytes = vec![
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -73,7 +73,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -118,7 +118,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -169,7 +169,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -220,7 +220,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -268,7 +268,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -345,7 +345,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -386,7 +386,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -425,7 +425,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -459,7 +459,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -482,7 +482,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -507,7 +507,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -532,7 +532,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -551,8 +551,8 @@ where
     /// ```
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
-    /// use bitstream_reader::BitRead;
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
+    /// use bitbuffer::BitRead;
     /// #
     /// #[derive(BitRead, Debug, PartialEq)]
     /// struct ComplexType {
@@ -597,7 +597,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -614,7 +614,7 @@ where
     /// ```
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![

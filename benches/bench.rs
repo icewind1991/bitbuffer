@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, Endianness, LittleEndian};
+use bitbuffer::{BigEndian, BitBuffer, BitRead, BitStream, Endianness, LittleEndian};
 use test::Bencher;
 
 fn read_perf<E: Endianness>(buffer: &BitBuffer<E>) -> u16 {

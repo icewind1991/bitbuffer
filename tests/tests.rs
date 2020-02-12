@@ -3,7 +3,7 @@ use std::num::NonZeroU16;
 
 use maplit::hashmap;
 
-use bitstream_reader::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
+use bitbuffer::{BigEndian, BitBuffer, BitRead, BitStream, LittleEndian};
 
 const BYTES: &'static [u8] = &[
     0b1011_0101,

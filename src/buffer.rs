@@ -21,7 +21,7 @@ const USIZE_SIZE: usize = size_of::<usize>();
 /// # Examples
 ///
 /// ```
-/// use bitstream_reader::{BitBuffer, LittleEndian, Result};
+/// use bitbuffer::{BitBuffer, LittleEndian, Result};
 ///
 /// # fn main() -> Result<()> {
 /// let bytes = vec![
@@ -53,7 +53,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use bitstream_reader::{BitBuffer, LittleEndian};
+    /// use bitbuffer::{BitBuffer, LittleEndian};
     ///
     /// let bytes = vec![
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -137,7 +137,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -191,7 +191,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -327,7 +327,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -407,7 +407,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, BitStream, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, BitStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![
@@ -499,7 +499,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitstream_reader::{BitBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitBuffer, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
     /// # let bytes = vec![

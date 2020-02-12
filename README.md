@@ -1,9 +1,9 @@
-[![Crates.io](https://img.shields.io/crates/v/bitstream_reader.svg)](https://crates.io/crates/bitstream_reader)
-[![Documentation](https://docs.rs/bitstream_reader/badge.svg)](https://docs.rs/bitstream_reader/)
-[![Dependency status](https://deps.rs/repo/github/icewind1991/bitstream_reader/status.svg)](https://deps.rs/repo/github/icewind1991/bitstream_reader)
-[![Build Status](https://travis-ci.org/icewind1991/bitstream_reader.svg?branch=master)](https://travis-ci.org/icewind1991/bitstream_reader)
+[![Crates.io](https://img.shields.io/crates/v/bitbuffer.svg)](https://crates.io/crates/bitbuffer)
+[![Documentation](https://docs.rs/bitbuffer/badge.svg)](https://docs.rs/bitbuffer/)
+[![Dependency status](https://deps.rs/repo/github/icewind1991/bitbuffer/status.svg)](https://deps.rs/repo/github/icewind1991/bitbuffer)
+[![Build Status](https://travis-ci.org/icewind1991/bitbuffer.svg?branch=master)](https://travis-ci.org/icewind1991/bitbuffer)
 
-# bitstream_reader
+# bitbuffer
 
 Tools for reading data types of arbitrary bit length and might not be byte-aligned in the source data
 
@@ -24,7 +24,7 @@ The `BitRead` and `BitReadSized` traits can be used with `#[derive]` if all fiel
 ## Examples
 
 ```rust
-use bitstream_reader::{BitBuffer, LittleEndian, BitStream, BitRead};
+use bitbuffer::{BitBuffer, LittleEndian, BitStream, BitRead};
 
 #[derive(BitRead)]
 struct ComplexType {

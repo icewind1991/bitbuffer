@@ -15,8 +15,8 @@
 //! # Examples
 //!
 //! ```
-//! # use bitstream_reader::Result;
-//! use bitstream_reader::{BitBuffer, LittleEndian, BitStream, BitRead};
+//! # use bitbuffer::Result;
+//! use bitbuffer::{BitBuffer, LittleEndian, BitStream, BitRead};
 //!
 //! #[derive(BitRead)]
 //! struct ComplexType {
@@ -59,7 +59,7 @@ use std::fmt;
 use std::fmt::Display;
 pub use std::string::FromUtf8Error;
 
-pub use bitstream_reader_derive::{BitRead, BitReadSized};
+pub use bitbuffer_derive::{BitRead, BitReadSized};
 pub use buffer::BitBuffer;
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};

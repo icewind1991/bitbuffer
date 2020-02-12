@@ -1,18 +1,18 @@
 [package]
-name = "bitstream_reader"
+name = "bitbuffer"
 version = "0.7.1"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/icewind1991/bitstream_reader"
+repository = "https://github.com/icewind1991/bitbuffer"
 
 [badges]
-travis-ci = { repository = "icewind1991/bitstream_reader" }
+travis-ci = { repository = "icewind1991/bitbuffer" }
 
 [dependencies]
 num-traits = "0.2"
-bitstream_reader_derive = { version = "0.7", path = "bitstream_reader_derive" }
+bitbuffer_derive = { version = "0.7", path = "bitbuffer_derive" }
 memchr = "2.2"
 
 [dev-dependencies]

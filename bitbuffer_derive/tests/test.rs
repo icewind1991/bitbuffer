@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 
-use bitstream_reader::{
+use bitbuffer::{
     bit_size_of, bit_size_of_sized, BigEndian, BitBuffer, BitStream, Endianness, LittleEndian,
 };
-use bitstream_reader_derive::{BitRead, BitReadSized};
+use bitbuffer_derive::{BitRead, BitReadSized};
 
 #[derive(BitRead, PartialEq, Debug)]
 struct TestStruct {
