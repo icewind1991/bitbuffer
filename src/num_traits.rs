@@ -1,3 +1,5 @@
+/// some extra number traits
+
 /// Allow casting floats unchecked
 pub trait UncheckedPrimitiveFloat: Sized {
     fn from_f32_unchecked(n: f32) -> Self;
@@ -177,3 +179,59 @@ impl_unchecked_int!(u128, into_u128_unchecked);
 impl_unchecked_int!(i128, into_i128_unchecked);
 impl_unchecked_int!(usize, into_usize_unchecked);
 impl_unchecked_int!(isize, into_isize_unchecked);
+
+pub trait IsSigned {
+    fn is_signed() -> bool;
+}
+
+macro_rules! impl_is_signed {
+    ($type:ty, $signed:expr) => {
+        impl IsSigned for $type {
+            #[inline(always)]
+            fn is_signed() -> bool {
+                $signed
+            }
+        }
+    };
+}
+
+pub trait IntoBytes: Sized {
+    fn into_bytes(self) -> Vec<u8>;
+}
+
+macro_rules! impl_into_bytes {
+    ($type:ty) => {
+        impl IntoBytes for $type {
+            #[inline(always)]
+            fn into_bytes(self) -> Vec<u8> {
+                self.to_le_bytes().to_vec()
+            }
+        }
+    };
+}
+
+impl_is_signed!(u8, false);
+impl_is_signed!(u16, false);
+impl_is_signed!(u32, false);
+impl_is_signed!(u64, false);
+impl_is_signed!(u128, false);
+impl_is_signed!(usize, false);
+impl_is_signed!(i8, true);
+impl_is_signed!(i16, true);
+impl_is_signed!(i32, true);
+impl_is_signed!(i64, true);
+impl_is_signed!(i128, true);
+impl_is_signed!(isize, true);
+
+impl_into_bytes!(u8);
+impl_into_bytes!(u16);
+impl_into_bytes!(u32);
+impl_into_bytes!(u64);
+impl_into_bytes!(u128);
+impl_into_bytes!(usize);
+impl_into_bytes!(i8);
+impl_into_bytes!(i16);
+impl_into_bytes!(i32);
+impl_into_bytes!(i64);
+impl_into_bytes!(i128);
+impl_into_bytes!(isize);

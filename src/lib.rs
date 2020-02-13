@@ -64,13 +64,14 @@ pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};
 pub use readbuffer::BitReadBuffer;
 pub use readstream::BitReadStream;
+pub use writestream::BitWriteStream;
 
 mod endianness;
-mod is_signed;
+mod num_traits;
 mod read;
 mod readbuffer;
 mod readstream;
-mod unchecked_primitive;
+mod writestream;
 
 /// Errors that can be returned when trying to read from a buffer
 #[derive(Debug)]

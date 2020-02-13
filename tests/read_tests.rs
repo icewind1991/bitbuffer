@@ -25,7 +25,9 @@ fn read_u8_le() {
     let buffer = BitReadBuffer::new(BYTES.to_vec(), LittleEndian);
 
     assert_eq!(buffer.read_int::<u8>(0, 1).unwrap(), 0b1);
+    assert_eq!(buffer.read_bool(0).unwrap(), true);
     assert_eq!(buffer.read_int::<u8>(1, 1).unwrap(), 0b0);
+    assert_eq!(buffer.read_bool(1).unwrap(), false);
     assert_eq!(buffer.read_int::<u8>(2, 2).unwrap(), 0b01);
     assert_eq!(buffer.read_int::<u8>(0, 3).unwrap(), 0b101);
     assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1010_1);
@@ -43,6 +45,9 @@ fn read_u8_be() {
     assert_eq!(buffer.read_int::<u8>(0, 3).unwrap(), 0b101);
     assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1011_0);
     assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b01_011);
+
+    assert_eq!(buffer.read_bool(0).unwrap(), true);
+    assert_eq!(buffer.read_bool(8).unwrap(), false);
 }
 
 #[test]

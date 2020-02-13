@@ -9,8 +9,7 @@ use std::rc::Rc;
 use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
-use crate::is_signed::IsSigned;
-use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{ReadError, Result};
 use std::convert::TryInto;
 
@@ -74,6 +73,22 @@ where
     }
 }
 
+pub(crate) fn get_bits_from_usize<E: Endianness>(
+    val: usize,
+    bit_offset: usize,
+    count: usize,
+) -> usize {
+    let usize_bit_size = size_of::<usize>() * 8;
+
+    let shifted = if E::is_le() {
+        val >> bit_offset
+    } else {
+        val >> (usize_bit_size - bit_offset - count)
+    };
+    let mask = !(std::usize::MAX << count);
+    shifted & mask
+}
+
 impl<E> BitReadBuffer<E>
 where
     E: Endianness,
@@ -109,7 +124,6 @@ where
     unsafe fn read_usize(&self, position: usize, count: usize) -> usize {
         let byte_index = position / 8;
         let bit_offset = position & 7;
-        let usize_bit_size = size_of::<usize>() * 8;
 
         let bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
 
@@ -119,13 +133,7 @@ where
             usize::from_be_bytes(bytes)
         };
 
-        let shifted = if E::is_le() {
-            container >> bit_offset
-        } else {
-            container >> (usize_bit_size - bit_offset - count)
-        };
-        let mask = !(std::usize::MAX << count);
-        shifted & mask
+        get_bits_from_usize::<E>(container, bit_offset, count)
     }
 
     /// Read a single bit from the buffer as boolean
@@ -160,8 +168,13 @@ where
 
         if position < self.bit_len() {
             let byte = self.bytes[byte_index];
-            let shifted = byte >> bit_offset;
-            Ok(shifted & 1u8 == 1)
+            if E::is_le() {
+                let shifted = byte >> bit_offset as u8;
+                Ok(shifted & 1u8 == 1)
+            } else {
+                let shifted = byte << bit_offset as u8;
+                Ok(shifted & 0b1000_0000u8 == 0b1000_0000u8)
+            }
         } else {
             Err(ReadError::NotEnoughData {
                 requested: 1,

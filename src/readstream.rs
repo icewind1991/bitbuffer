@@ -4,8 +4,7 @@ use std::ops::BitOrAssign;
 use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
-use crate::is_signed::IsSigned;
-use crate::unchecked_primitive::{UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::BitReadBuffer;
 use crate::{BitRead, BitReadSized, ReadError, Result};
 use std::cmp::min;
@@ -40,7 +39,7 @@ impl<E> BitReadStream<E>
 where
     E: Endianness,
 {
-    /// Create a new stream for a [`BitBuffer`]
+    /// Create a new stream from a [`BitBuffer`]
     ///
     /// # Examples
     ///
