@@ -1,7 +1,7 @@
 //! Tools for reading data types of arbitrary bit length and might not be byte-aligned in the source data
 //!
-//! The main way of handling with the binary data is to first create a [`BitBuffer`]
-//! ,wrap it into a [`BitStream`] and then read from the stream.
+//! The main way of handling with the binary data is to first create a [`BitReadBuffer`]
+//! ,wrap it into a [`BitReadStream`] and then read from the stream.
 //!
 //! Once you have a BitStream, there are 2 different approaches of reading data
 //!
@@ -40,8 +40,8 @@
 //! # }
 //! ```
 //!
-//! [`BitBuffer`]: struct.BitBuffer.html
-//! [`BitStream`]: struct.BitStream.html
+//! [`BitReadBuffer`]: struct.BitReadBuffer.html
+//! [`BitReadStream`]: struct.BitReadStream.html
 //! [`read_bool`]: struct.BitStream.html#method.read_bool
 //! [`read_int`]: struct.BitStream.html#method.read_int
 //! [`read_float`]: struct.BitStream.html#method.read_float
