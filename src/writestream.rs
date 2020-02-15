@@ -1,15 +1,12 @@
-use std::cmp::min;
+use num_traits::{Float, PrimInt};
+use std::iter::{once, repeat};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
 
-use num_traits::{Float, PrimInt};
-
 use crate::endianness::Endianness;
 use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::readbuffer::get_bits_from_usize;
-use crate::{LittleEndian, ReadError, Result};
-use std::iter::{once, repeat};
+use crate::{ReadError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BITS: usize = USIZE_SIZE * 8;
@@ -77,20 +74,20 @@ where
         self.bytes.len()
     }
 
-    fn push_non_fit_bits(&mut self, bits: &[u8], count: usize) {
+    fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
+    where
+        I: ExactSizeIterator,
+        I: DoubleEndedIterator<Item = u8>,
+    {
         debug_assert!(bits.len() == count / 8);
         let counts = repeat(8)
             .take(bits.len() - 1)
             .chain(once(count - (bits.len() - 1) * 8));
         if E::is_le() {
-            bits.iter()
-                .copied()
-                .zip(counts)
+            bits.zip(counts)
                 .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
         } else {
-            bits.iter()
-                .rev()
-                .copied()
+            bits.rev()
                 .zip(counts)
                 .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
         }
@@ -176,7 +173,7 @@ where
                 self.push_bits(value.into_usize_unchecked(), count);
             }
         } else {
-            self.push_non_fit_bits(&value.into_bytes(), count)
+            self.push_non_fit_bits(value.into_bytes(), count)
         }
 
         Ok(())
@@ -207,10 +204,10 @@ where
             if size_of::<T>() < USIZE_SIZE {
                 self.push_bits(value.to_f32().unwrap().to_bits() as usize, 32);
             } else {
-                self.push_non_fit_bits(&value.to_f32().unwrap().to_le_bytes(), 32)
+                self.push_non_fit_bits(value.to_f32().unwrap().to_bits().into_bytes(), 32)
             };
         } else {
-            self.push_non_fit_bits(&value.to_f64().unwrap().to_le_bytes(), 64)
+            self.push_non_fit_bits(value.to_f64().unwrap().to_bits().into_bytes(), 64)
         }
 
         Ok(())
