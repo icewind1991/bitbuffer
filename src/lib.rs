@@ -54,9 +54,7 @@
 
 #![warn(missing_docs)]
 
-use std::error::Error;
-use std::fmt;
-use std::fmt::Display;
+use err_derive::Error;
 pub use std::string::FromUtf8Error;
 
 pub use bitbuffer_derive::{BitRead, BitReadSized};
@@ -74,9 +72,14 @@ mod readstream;
 mod writestream;
 
 /// Errors that can be returned when trying to read from a buffer
-#[derive(Debug)]
-pub enum ReadError {
+#[derive(Debug, Error)]
+pub enum BitError {
     /// Too many bits requested to fit in the requested data type
+    #[error(
+        display = "Too many bits requested to fit in the requested data type, requested to read {} bits while only {} fit in the datatype",
+        requested,
+        max
+    )]
     TooManyBits {
         /// The number of bits requested to read
         requested: usize,
@@ -84,6 +87,11 @@ pub enum ReadError {
         max: usize,
     },
     /// Not enough data in the buffer to read all requested bits
+    #[error(
+        display = "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left",
+        requested,
+        bits_left
+    )]
     NotEnoughData {
         /// The number of bits requested to read
         requested: usize,
@@ -91,6 +99,11 @@ pub enum ReadError {
         bits_left: usize,
     },
     /// The requested position is outside the bounds of the stream or buffer
+    #[error(
+        display = "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long",
+        pos,
+        size
+    )]
     IndexOutOfBounds {
         /// The requested position
         pos: usize,
@@ -98,6 +111,11 @@ pub enum ReadError {
         size: usize,
     },
     /// Unmatched discriminant found while trying to read an enum
+    #[error(
+        display = "Unmatched discriminant '{}' found while trying to read enum '{}'",
+        discriminant,
+        enum_name
+    )]
     UnmatchedDiscriminant {
         /// The read discriminant
         discriminant: usize,
@@ -105,42 +123,24 @@ pub enum ReadError {
         enum_name: String,
     },
     /// The read slice of bytes are not valid utf8
-    Utf8Error(FromUtf8Error),
-}
-
-impl Display for ReadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ReadError::TooManyBits { requested, max } =>
-                write!(f, "Too many bits requested to fit in the requested data type, requested to read {} bits while only {} fit in the datatype", requested, max),
-            ReadError::NotEnoughData { requested, bits_left } =>
-                write!(f, "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left", requested, bits_left),
-            ReadError::IndexOutOfBounds { pos, size } =>
-                write!(f, "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long", pos, size),
-            ReadError::UnmatchedDiscriminant { discriminant, enum_name } =>
-                write!(f, "Unmatched discriminant '{}' found while trying to read enum '{}'", discriminant, enum_name),
-            ReadError::Utf8Error(err) => err.fmt(f)
-        }
-    }
-}
-
-impl From<FromUtf8Error> for ReadError {
-    fn from(err: FromUtf8Error) -> ReadError {
-        ReadError::Utf8Error(err)
-    }
-}
-
-impl Error for ReadError {
-    fn cause(&self) -> Option<&dyn Error> {
-        match self {
-            ReadError::Utf8Error(err) => Some(err),
-            _ => None,
-        }
-    }
+    #[error(display = "The read slice of bytes are not valid utf8: {}", _0)]
+    Utf8Error(#[error(source)] FromUtf8Error),
+    /// The string that was requested to be written does not fit in the specified fixed length
+    #[error(
+        display = "The string that was requested to be written does not fit in the specified fixed length, string is {} bytes long, while a size of {} has been specified",
+        string_length,
+        requested_length
+    )]
+    StringToLong {
+        /// Length of the string that was requested to be written
+        string_length: usize,
+        /// The requested fixed size to encode the string into
+        requested_length: usize,
+    },
 }
 
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
-pub type Result<T> = std::result::Result<T, ReadError>;
+pub type Result<T> = std::result::Result<T, BitError>;
 
 /// Get the number of bits required to read a type from stream
 #[inline(always)]

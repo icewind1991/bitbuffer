@@ -387,7 +387,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                 Ok(match discriminant {
                     #(#match_arms)*
                     _ => {
-                        return Err(::bitbuffer::ReadError::UnmatchedDiscriminant{discriminant, enum_name: #enum_name.to_string()})
+                        return Err(::bitbuffer::BitError::UnmatchedDiscriminant{discriminant, enum_name: #enum_name.to_string()})
                     }
                 })
             }

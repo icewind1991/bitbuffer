@@ -9,6 +9,7 @@ repository = "https://github.com/icewind1991/bitbuffer"
 
 [dependencies]
 num-traits = "0.2"
+err-derive = "0.2.2"
 bitbuffer_derive = { version = "0.7", path = "bitbuffer_derive" }
 memchr = "2.2"
 

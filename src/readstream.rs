@@ -6,7 +6,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::BitReadBuffer;
-use crate::{BitRead, BitReadSized, ReadError, Result};
+use crate::{BitError, BitRead, BitReadSized, Result};
 use std::cmp::min;
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
@@ -303,7 +303,7 @@ where
 
         let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
             // still advance the stream on malformed utf8
-            if let ReadError::Utf8Error(err) = &err {
+            if let BitError::Utf8Error(err) = &err {
                 self.pos += match byte_len {
                     Some(len) => len * 8,
                     None => min((err.as_bytes().len() + 1) * 8, max_length),
@@ -408,7 +408,7 @@ where
             self.pos += count;
             Ok(())
         } else {
-            Err(ReadError::NotEnoughData {
+            Err(BitError::NotEnoughData {
                 requested: count,
                 bits_left: self.bits_left(),
             })
@@ -444,7 +444,7 @@ where
     /// [`ReadError::IndexOutOfBounds`]: enum.ReadError.html#variant.IndexOutOfBounds
     pub fn set_pos(&mut self, pos: usize) -> Result<()> {
         if pos > self.bit_len() {
-            return Err(ReadError::IndexOutOfBounds {
+            return Err(BitError::IndexOutOfBounds {
                 pos,
                 size: self.bit_len(),
             });
@@ -642,7 +642,7 @@ where
     /// Check if we can read a number of bits from the stream
     pub fn check_read(&self, count: usize) -> Result<()> {
         if self.bits_left() < count {
-            Err(ReadError::NotEnoughData {
+            Err(BitError::NotEnoughData {
                 requested: count,
                 bits_left: self.bits_left(),
             })

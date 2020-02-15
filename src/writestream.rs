@@ -6,7 +6,7 @@ use std::ops::{BitOrAssign, BitXor};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{ReadError, Result};
+use crate::{BitError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BITS: usize = USIZE_SIZE * 8;
@@ -79,7 +79,6 @@ where
         I: ExactSizeIterator,
         I: DoubleEndedIterator<Item = u8>,
     {
-        debug_assert!(bits.len() == count / 8);
         let counts = repeat(8)
             .take(bits.len() - 1)
             .chain(once(count - (bits.len() - 1) * 8));
@@ -160,7 +159,7 @@ where
         let type_bit_size = size_of::<T>() * 8;
 
         if type_bit_size < count {
-            return Err(ReadError::TooManyBits {
+            return Err(BitError::TooManyBits {
                 requested: count,
                 max: type_bit_size,
             });
@@ -210,6 +209,74 @@ where
             self.push_non_fit_bits(value.to_f64().unwrap().to_bits().into_bytes(), 64)
         }
 
+        Ok(())
+    }
+
+    /// Write a number of bytes into the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # use bitbuffer::{BitWriteStream, LittleEndian};
+    ///
+    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// stream.write_bytes(&[0, 1, 2 ,3])?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
+        self.push_non_fit_bits(bytes.iter().copied(), bytes.len() * 8);
+        Ok(())
+    }
+
+    /// Add a number of padding bytes
+    fn zero_pad(&mut self, count: usize) {
+        // since partly written bytes are already 0 padded, we don't need to go trough all the hoop
+        // of merging the padding bits into the partly written bytes
+        // (also because x | 0 == x)
+        self.bytes.resize(self.bytes.len() + count, 0);
+        self.bit_len += count * 8;
+    }
+
+    /// Write a string into the buffer
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # use bitbuffer::{BitWriteStream, LittleEndian};
+    ///
+    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// stream.write_string("zero terminated string", None)?;
+    /// stream.write_string("fixed size string, zero padded", Some(64))?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn write_string(&mut self, string: &str, length: Option<usize>) -> Result<()> {
+        match length {
+            Some(length) => {
+                if length < string.len() {
+                    return Err(BitError::StringToLong {
+                        string_length: string.len(),
+                        requested_length: length,
+                    });
+                }
+                self.write_bytes(&string.as_bytes())?;
+                self.zero_pad(length - string.len());
+            }
+            None => {
+                self.write_bytes(&string.as_bytes())?;
+                self.zero_pad(1);
+            }
+        }
         Ok(())
     }
 

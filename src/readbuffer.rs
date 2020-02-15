@@ -10,7 +10,7 @@ use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{ReadError, Result};
+use crate::{BitError, Result};
 use std::convert::TryInto;
 
 const USIZE_SIZE: usize = size_of::<usize>();
@@ -176,7 +176,7 @@ where
                 Ok(shifted & 0b1000_0000u8 == 0b1000_0000u8)
             }
         } else {
-            Err(ReadError::NotEnoughData {
+            Err(BitError::NotEnoughData {
                 requested: 1,
                 bits_left: self.bit_len().saturating_sub(position),
             })
@@ -229,7 +229,7 @@ where
         let type_bit_size = size_of::<T>() * 8;
 
         if type_bit_size < count {
-            return Err(ReadError::TooManyBits {
+            return Err(BitError::TooManyBits {
                 requested: count,
                 max: type_bit_size,
             });
@@ -237,12 +237,12 @@ where
 
         if position + count > self.bit_len() {
             return if position > self.bit_len() {
-                Err(ReadError::IndexOutOfBounds {
+                Err(BitError::IndexOutOfBounds {
                     pos: position,
                     size: self.bit_len(),
                 })
             } else {
-                Err(ReadError::NotEnoughData {
+                Err(BitError::NotEnoughData {
                     requested: count,
                     bits_left: self.bit_len() - position,
                 })
@@ -363,12 +363,12 @@ where
     pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
         if position + byte_count * 8 > self.bit_len() {
             if position > self.bit_len() {
-                return Err(ReadError::IndexOutOfBounds {
+                return Err(BitError::IndexOutOfBounds {
                     pos: position,
                     size: self.bit_len(),
                 });
             } else {
-                return Err(ReadError::NotEnoughData {
+                return Err(BitError::NotEnoughData {
                     requested: byte_count * 8,
                     bits_left: self.bit_len() - position,
                 });
@@ -453,7 +453,7 @@ where
             }
             None => {
                 let bytes = self.read_string_bytes(position)?;
-                String::from_utf8(bytes).map_err(ReadError::from)
+                String::from_utf8(bytes).map_err(BitError::from)
             }
         }
     }
@@ -535,12 +535,12 @@ where
         let type_bit_size = size_of::<T>() * 8;
         if position + type_bit_size > self.bit_len() {
             if position > self.bit_len() {
-                return Err(ReadError::IndexOutOfBounds {
+                return Err(BitError::IndexOutOfBounds {
                     pos: position,
                     size: self.bit_len(),
                 });
             } else {
-                return Err(ReadError::NotEnoughData {
+                return Err(BitError::NotEnoughData {
                     requested: size_of::<T>() * 8,
                     bits_left: self.bit_len() - position,
                 });
@@ -571,7 +571,7 @@ where
 
     pub(crate) fn get_sub_buffer(&self, bit_len: usize) -> Result<Self> {
         if bit_len > self.bit_len() {
-            return Err(ReadError::NotEnoughData {
+            return Err(BitError::NotEnoughData {
                 requested: bit_len,
                 bits_left: self.bit_len(),
             });

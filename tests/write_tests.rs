@@ -113,3 +113,24 @@ fn test_write_float_be() {
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
 }
+
+#[test]
+fn test_write_string_le() {
+    let mut stream = BitWriteStream::new(LittleEndian);
+
+    stream.write_bool(true).unwrap();
+    stream.write_string("null terminated", None).unwrap();
+    stream.write_string("fixed length1", Some(16)).unwrap();
+    stream.write_string("fixed length2", Some(16)).unwrap();
+
+    let data = stream.finish();
+    let mut read = BitReadStream::from(BitReadBuffer::new(data, LittleEndian));
+
+    assert_eq!(true, read.read_bool().unwrap());
+    assert_eq!("null terminated", read.read_string(None).unwrap());
+    assert_eq!("fixed length1", read.read_string(Some(16)).unwrap());
+    assert_eq!("fixed length2", read.read_string(Some(16)).unwrap());
+
+    // 0 padded
+    assert_eq!(false, read.read_bool().unwrap());
+}
