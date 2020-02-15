@@ -98,58 +98,23 @@ where
 
     /// Push up to an usize worth of bits
     fn push_bits(&mut self, bits: usize, count: usize) {
+        debug_assert!(count < USIZE_BITS - 8);
+
         let bit_offset = self.bit_len & 7;
-        let byte_count = (count + 7) / 8;
+        let last_written_byte = self.bytes.pop().unwrap_or(0);
+        let merged_byte_count = (count + bit_offset + 7) / 8;
 
-        if bit_offset == 0 {
-            if E::is_le() {
-                self.bytes
-                    .extend_from_slice(&bits.to_le_bytes()[0..byte_count])
-            } else {
-                let bytes = (bits << (USIZE_BITS - bit_offset - count)).to_be_bytes();
-                self.bytes.extend_from_slice(&bytes[0..byte_count])
-            }
-            self.bit_len += count;
+        if E::is_le() {
+            let merged = last_written_byte as usize | bits << bit_offset;
+            self.bytes
+                .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
-            if E::is_le() {
-                let first_part_length = min(USIZE_SIZE - bit_offset, count);
-                let first_part = get_bits_from_usize::<E>(bits, 0, first_part_length) as u8;
-
-                let last_written_byte = self.bytes.pop().unwrap_or(0);
-                let merged_byte = last_written_byte | (first_part << bit_offset as u8);
-                self.bytes.push(merged_byte);
-                self.bit_len += first_part_length;
-
-                if first_part_length < count {
-                    let second_part = get_bits_from_usize::<E>(
-                        bits,
-                        first_part_length,
-                        count - first_part_length,
-                    );
-
-                    self.push_bits(second_part, count - first_part_length);
-                }
-            } else {
-                let first_part_length = min(USIZE_SIZE - bit_offset, count);
-                let first_part = get_bits_from_usize::<LittleEndian>(
-                    bits,
-                    count - first_part_length,
-                    first_part_length,
-                ) as u8;
-
-                let last_written_byte = self.bytes.pop().unwrap_or(0);
-                let merged_byte =
-                    last_written_byte | first_part << (8 - bit_offset - first_part_length) as u8;
-                self.bytes.push(merged_byte);
-                self.bit_len += first_part_length;
-
-                if first_part_length < count {
-                    let second_part =
-                        get_bits_from_usize::<LittleEndian>(bits, 0, count - first_part_length);
-                    self.push_bits(second_part, count - first_part_length);
-                }
-            }
+            let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
+                | bits << (USIZE_BITS - bit_offset - count);
+            self.bytes
+                .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
         }
+        self.bit_len += count;
     }
 
     /// Write a boolean into the buffer
