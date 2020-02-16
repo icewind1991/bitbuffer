@@ -138,7 +138,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, Ident, Lit, LitStr, Path, Variant,
+    Field, Fields, Ident, Lit, LitStr, Path, Variant,
 };
 use syn_util::get_attribute_value;
 
@@ -160,6 +160,15 @@ pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
     derive_bitread_trait(input, "BitReadSized".to_owned(), Some(extra_param))
+}
+
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(
+    BitWrite,
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+)]
+pub fn derive_bitwrite(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    derive_bitwrite_trait(input, "BitWrite".to_owned(), None)
 }
 
 fn derive_bitread_trait(
@@ -258,7 +267,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
         Data::Struct(DataStruct { fields, .. }) => {
             let values = fields.iter().map(|f| {
                 // Get attributes `#[..]` on each field
-                let size = get_field_size(&f.attrs, f.span());
+                let size = get_field_size(&f.attrs, f.span(), true);
                 let field_type = &f.ty;
                 let span = f.span();
                 if unchecked {
@@ -342,7 +351,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         #struct_name::#variant_name
                     },
                     Fields::Unnamed(f) => {
-                        let size = get_field_size(&variant.attrs, f.span());
+                        let size = get_field_size(&variant.attrs, f.span(), true);
                         match size {
                             Some(size) => {
                                 quote_spanned! { span =>
@@ -362,18 +371,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                     _ => unimplemented!(),
                 };
 
-                let discriminant_token: TokenStream = match Discriminant::from(variant) {
-                    Discriminant::Int(discriminant) => {
-                        last_discriminant = discriminant as isize;
-                        quote_spanned! { span => #discriminant }
-                    }
-                    Discriminant::Wildcard => quote_spanned! { span => _ },
-                    Discriminant::Default => {
-                        let new_discriminant = (last_discriminant + 1) as usize;
-                        last_discriminant += 1;
-                        quote_spanned! { span => #new_discriminant }
-                    }
-                };
+                let discriminant_token = get_discriminant_token(variant, &mut last_discriminant);
                 quote_spanned! {span=>
                     #discriminant_token => #read_fields,
                 }
@@ -404,7 +402,7 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
             let sizes = fields.iter().map(|f| {
                 // Get attributes `#[..]` on each field
                 if is_const_size(&f.attrs, has_input_size) {
-                    let size = get_field_size(&f.attrs, f.span());
+                    let size = get_field_size(&f.attrs, f.span(), true);
                     let field_type = &f.ty;
                     let span = f.span();
                     match size {
@@ -463,6 +461,187 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
     }
 }
 
+fn get_discriminant_token(variant: &Variant, last_discriminant: &mut isize) -> TokenStream {
+    let span = variant.span();
+    match Discriminant::from(variant) {
+        Discriminant::Int(discriminant) => {
+            *last_discriminant = discriminant as isize;
+            quote_spanned! { span => #discriminant }
+        }
+        Discriminant::Wildcard => quote_spanned! { span => _ },
+        Discriminant::Default => {
+            let new_discriminant = (*last_discriminant + 1) as usize;
+            *last_discriminant += 1;
+            quote_spanned! { span => #new_discriminant }
+        }
+    }
+}
+
+fn derive_bitwrite_trait(
+    input: proc_macro::TokenStream,
+    trait_name: String,
+    extra_param: Option<TokenStream>,
+) -> proc_macro::TokenStream {
+    let input: DeriveInput = parse_macro_input!(input as DeriveInput);
+
+    let name = &input.ident;
+
+    let endianness = get_attribute_value(&input.attrs, &["endianness"]);
+    let mut trait_generics = input.generics.clone();
+    // we need these separate generics to only add out Endianness param to the 'impl'
+    let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+    if endianness.is_none() {
+        trait_generics
+            .params
+            .push(parse_quote!(_E: ::bitbuffer::Endianness));
+    }
+    let (impl_generics, _, _) = trait_generics.split_for_impl();
+    let span = input.span();
+
+    let size = size(
+        input.data.clone(),
+        &name,
+        &input.attrs,
+        extra_param.is_some(),
+    );
+    let write = write(input.data.clone(), &name, &input.attrs);
+    let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
+
+    let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
+    let trait_def_str = format!("::bitbuffer::{}<{}>", trait_name, &endianness_placeholder);
+    let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
+
+    let endianness_ident = Ident::new(&endianness_placeholder, span);
+
+    let size_extra_param = if extra_param.is_some() {
+        Some(quote!(input_size: usize))
+    } else {
+        None
+    };
+
+    let extra_param_call = if extra_param.is_some() {
+        Some(quote!(input_size))
+    } else {
+        None
+    };
+
+    //
+    let expanded = quote! {
+        impl #impl_generics #trait_def for #name #ty_generics #where_clause {
+            fn write(&self, stream: &mut ::bitbuffer::BitWriteStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<()> {
+                #write
+            }
+        }
+    };
+
+    //    panic!("{}", TokenStream::to_string(&expanded));
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
+    let span = struct_name.span();
+
+    match data {
+        Data::Struct(DataStruct { fields, .. }) => {
+            let destructure = fields.iter().map(|field| {
+                let span = field.span();
+                if let Some(name) = &field.ident {
+                    quote_spanned! { span => let #name = &self.#name; }
+                } else {
+                    quote! {}
+                }
+            });
+            let write_field = |index: usize, field: &Field| {
+                let span = field.span();
+                let size = get_field_size(&field.attrs, span, false);
+                let field_type = &field.ty;
+                let name = field
+                    .ident
+                    .as_ref()
+                    .map(|name| quote_spanned! { span => #name})
+                    .unwrap_or(quote_spanned! { span => 0});
+                match size {
+                    Some(size) => {
+                        quote_spanned! { span =>
+                            {
+                                let _size: usize = #size;
+                                stream.write_sized::<#field_type>(&self.#name, _size)?
+                            };
+                        }
+                    }
+                    None => {
+                        quote_spanned! { span =>
+                            stream.write::<#field_type>(&self.#name)?;
+                        }
+                    }
+                }
+            };
+
+            let writes = fields
+                .iter()
+                .enumerate()
+                .map(|(index, field)| write_field(index, field));
+
+            quote_spanned! { span =>
+                #(#destructure)*
+                #(#writes)*
+                Ok(())
+            }
+        }
+        Data::Enum(data) => {
+            let discriminant_bits: u64 = get_attribute_value(attrs, &["discriminant_bits"]).expect(
+                "'discriminant_bits' attribute is required when deriving `BinWrite` for enums",
+            );
+
+            let mut last_discriminant = -1;
+            let match_arms = data.variants.iter().map(|variant| {
+                let discriminant_token = get_discriminant_token(variant, &mut last_discriminant);
+
+                let span = variant.span();
+                let variant_name = &variant.ident;
+                match &variant.fields {
+                    Fields::Unit => quote_spanned! {span=>
+                        #struct_name::#variant_name => stream.write_int(#discriminant_token, #discriminant_bits as usize)
+                    },
+                    Fields::Unnamed(f) => {
+                        let size = get_field_size(&variant.attrs, f.span(), false);
+                        match size {
+                            Some(size) => {
+                                quote_spanned! { span =>
+                                     #struct_name::#variant_name(inner) => {
+                                        stream.write_int(#discriminant_token, #discriminant_bits as usize)?;
+                                        stream.write_sized(inner, #size)
+                                    }
+                                }
+                            }
+                            None => {
+                                quote_spanned! { span =>
+                                    #struct_name::#variant_name(inner) => {
+                                        stream.write_int(#discriminant_token, #discriminant_bits as usize)?;
+                                        stream.write(inner)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => unimplemented!(),
+                }
+            });
+
+            let span = data.enum_token.span();
+
+            let enum_name = Lit::Str(LitStr::new(&struct_name.to_string(), struct_name.span()));
+            quote_spanned! {span=>
+                match self {
+                    #(#match_arms),*
+                }
+            }
+        }
+        _ => unimplemented!(),
+    }
+}
+
 fn is_const_size(attrs: &[Attribute], has_input_size: bool) -> bool {
     if get_attribute_value::<Lit>(attrs, &["size_bits"]).is_some() {
         return false;
@@ -476,7 +655,7 @@ fn is_const_size(attrs: &[Attribute], has_input_size: bool) -> bool {
         .unwrap_or(true)
 }
 
-fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
+fn get_field_size(attrs: &[Attribute], span: Span, is_read: bool) -> Option<TokenStream> {
     get_attribute_value(attrs, &["size"])
         .map(|size_lit| match size_lit {
             Lit::Int(size) => {
@@ -486,16 +665,27 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).unwrap();
-                quote_spanned! {span =>
-                    (#size) as usize
+                if !is_read {
+                    // we borrow the field so we need to deref
+                    quote_spanned! {span =>
+                        *(#size) as usize
+                    }
+                } else {
+                    quote_spanned! {span =>
+                        (#size) as usize
+                    }
                 }
             }
             _ => panic!("Unsupported value for size attribute"),
         })
         .or_else(|| {
             get_attribute_value::<Lit>(attrs, &["size_bits"]).map(|size_bits_lit| {
-                quote_spanned! {span =>
-                    stream.read_int::<usize> (#size_bits_lit) ?
+                if is_read {
+                    quote_spanned! {span =>
+                        stream.read_int::<usize> (#size_bits_lit) ?
+                    }
+                } else {
+                    panic!("size_bits is not allowed here")
                 }
             })
         })

@@ -87,8 +87,8 @@ use std::sync::Arc;
 /// ```
 ///
 /// [`BitReadSized`]: trait.BitReadSized.html
-/// [read_sized]: struct.BitStream.html#method.read_sized
-/// [read]: struct.BitStream.html#method.read
+/// [read_sized]: struct.BitReadStream.html#method.read_sized
+/// [read]: struct.BitReadStream.html#method.read
 pub trait BitRead<E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitReadStream<E>) -> Result<Self>;

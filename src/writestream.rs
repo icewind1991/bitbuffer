@@ -6,6 +6,7 @@ use std::ops::{BitOrAssign, BitXor};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::write::{BitWrite, BitWriteSized};
 use crate::{BitError, Result};
 
 const USIZE_SIZE: usize = size_of::<usize>();
@@ -118,11 +119,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # use bitbuffer::{BitWriteStream, LittleEndian};
-    ///
     /// let mut stream = BitWriteStream::new(LittleEndian);
     /// stream.write_bool(true)?;
     /// #
@@ -140,11 +139,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # use bitbuffer::{BitWriteStream, LittleEndian};
-    ///
     /// let mut stream = BitWriteStream::new(LittleEndian);
     /// stream.write_int(123u16, 15)?;
     /// #
@@ -183,11 +180,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # use bitbuffer::{BitWriteStream, LittleEndian};
-    ///
     /// let mut stream = BitWriteStream::new(LittleEndian);
     /// stream.write_float(123.15f32)?;
     /// #
@@ -217,11 +212,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # use bitbuffer::{BitWriteStream, LittleEndian};
-    ///
     /// let mut stream = BitWriteStream::new(LittleEndian);
     /// stream.write_bytes(&[0, 1, 2 ,3])?;
     /// #
@@ -248,11 +241,9 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # use bitbuffer::{BitWriteStream, LittleEndian};
-    ///
     /// let mut stream = BitWriteStream::new(LittleEndian);
     /// stream.write_string("zero terminated string", None)?;
     /// stream.write_string("fixed size string, zero padded", Some(64))?;
@@ -283,5 +274,71 @@ where
     /// Convert the write buffer into the written bytes
     pub fn finish(self) -> Vec<u8> {
         self.bytes
+    }
+
+    /// Write a value based on the provided type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let mut stream = BitWriteStream::new(LittleEndian);
+    /// stream.write(&53)?;
+    /// stream.write("fixed size text")?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```
+    /// # use bitbuffer::{BitWriteBuffer, BitWriteStream, LittleEndian, Result};
+    /// use bitbuffer::BitWrite;
+    /// #
+    /// #[derive(BitWrite, Debug, PartialEq)]
+    /// struct ComplexType {
+    ///     first: u8,
+    ///     #[size = 15]
+    ///     second: u16,
+    ///     third: bool,
+    /// }
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let mut stream = BitWriteStream::new(LittleEndian);
+    /// stream.write(&ComplexType {
+    ///     first: 73,
+    ///     second: 982,
+    ///     third: false,
+    /// })?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    pub fn write<T: BitWrite<E>>(&mut self, value: &T) -> Result<()> {
+        T::write(value, self)
+    }
+
+    /// Write a value based on the provided type and size
+    ///
+    /// The meaning of the size parameter differs depending on the type that is being read
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitWriteStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let mut stream = BitWriteStream::new(LittleEndian);
+    /// stream.write_sized(&53, 12)?;
+    /// stream.write_sized("text", 8)?;
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    #[inline]
+    pub fn write_sized<T: BitWriteSized<E>>(&mut self, value: &T, size: usize) -> Result<()> {
+        T::write(value, self, size)
     }
 }

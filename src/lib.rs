@@ -57,11 +57,12 @@
 use err_derive::Error;
 pub use std::string::FromUtf8Error;
 
-pub use bitbuffer_derive::{BitRead, BitReadSized};
+pub use bitbuffer_derive::{BitRead, BitReadSized, BitWrite};
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};
 pub use readbuffer::BitReadBuffer;
 pub use readstream::BitReadStream;
+pub use write::BitWrite;
 pub use writestream::BitWriteStream;
 
 mod endianness;
@@ -69,6 +70,7 @@ mod num_traits;
 mod read;
 mod readbuffer;
 mod readstream;
+mod write;
 mod writestream;
 
 /// Errors that can be returned when trying to read from a buffer
