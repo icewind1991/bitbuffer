@@ -98,15 +98,19 @@ where
         debug_assert!(count < USIZE_BITS - 8);
 
         let bit_offset = self.bit_len & 7;
-        let last_written_byte = self.bytes.pop().unwrap_or(0);
+        let merge_byte = if bit_offset == 0 {
+            0
+        } else {
+            self.bytes.pop().unwrap_or(0)
+        };
         let merged_byte_count = (count + bit_offset + 7) / 8;
 
         if E::is_le() {
-            let merged = last_written_byte as usize | bits << bit_offset;
+            let merged = merge_byte as usize | bits << bit_offset;
             self.bytes
                 .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
-            let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
+            let merged = ((merge_byte as usize) << (USIZE_BITS - 8))
                 | bits << (USIZE_BITS - bit_offset - count);
             self.bytes
                 .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
