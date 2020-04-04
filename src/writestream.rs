@@ -166,7 +166,7 @@ where
             });
         }
 
-        if type_bit_size <= USIZE_BITS {
+        if type_bit_size < USIZE_BITS {
             if T::is_signed() {
                 todo!()
             } else {
