@@ -316,7 +316,7 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn write<T: BitWrite<E>>(&mut self, value: &T) -> Result<()> {
+    pub fn write<T: BitWrite<E> + ?Sized>(&mut self, value: &T) -> Result<()> {
         T::write(value, self)
     }
 
@@ -338,7 +338,11 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn write_sized<T: BitWriteSized<E>>(&mut self, value: &T, size: usize) -> Result<()> {
+    pub fn write_sized<T: BitWriteSized<E> + ?Sized>(
+        &mut self,
+        value: &T,
+        size: usize,
+    ) -> Result<()> {
         T::write(value, self, size)
     }
 }

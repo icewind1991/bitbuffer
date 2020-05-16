@@ -16,6 +16,8 @@ struct TestStruct {
     float: f32,
     #[size = 3]
     asd: u8,
+    #[size_bits = 2]
+    dynamic: u8,
     #[size = "asd"]
     previous_field: u8,
 }

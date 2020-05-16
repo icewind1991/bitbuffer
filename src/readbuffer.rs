@@ -105,7 +105,7 @@ where
 
     unsafe fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
         debug_assert!(byte_index + USIZE_SIZE <= self.bytes.len());
-        // this is safe because all calling paths check that byte_index is less than the unpadded
+        // this is safe because all (safe) calling paths check that byte_index is less than the unpadded
         // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
         // always within bounds
         self.bytes

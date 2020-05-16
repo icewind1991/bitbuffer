@@ -84,7 +84,7 @@ use std::sync::Arc;
 /// [`BitWriteSized`]: trait.BitWriteSized.html
 /// [write_sized]: struct.BitWriteStream.html#method.write_sized
 /// [write]: struct.BitWriteStream.html#method.write
-pub trait BitWrite<E: Endianness>: Sized {
+pub trait BitWrite<E: Endianness> {
     /// Write the type to the stream
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()>;
 }
@@ -157,6 +157,13 @@ impl<E: Endianness> BitWrite<E> for bool {
 }
 
 impl<E: Endianness> BitWrite<E> for String {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        stream.write_string(self, None)
+    }
+}
+
+impl<E: Endianness> BitWrite<E> for str {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
         stream.write_string(self, None)
@@ -267,7 +274,7 @@ impl_write_tuple!(T1, T2, T3, T4);
 /// [`BitWrite`]: trait.BitWrite.html
 /// [read_sized]: struct.BitStream.html#method.read_sized
 /// [read]: struct.BitStream.html#method.read
-pub trait BitWriteSized<E: Endianness>: Sized {
+pub trait BitWriteSized<E: Endianness> {
     /// Write the type from stream
     fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()>;
 }
@@ -295,6 +302,13 @@ impl_write_int_sized!(i64);
 impl_write_int_sized!(i128);
 
 impl<E: Endianness> BitWriteSized<E> for String {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()> {
+        stream.write_string(self, Some(size))
+    }
+}
+
+impl<E: Endianness> BitWriteSized<E> for str {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()> {
         stream.write_string(self, Some(size))
