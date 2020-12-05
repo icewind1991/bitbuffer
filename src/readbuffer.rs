@@ -105,7 +105,7 @@ impl<'a, E> BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
-    /// Create a new BitBuffer from a byte vector
+    /// Create a new BitBuffer from a byte slice
     ///
     /// # Examples
     ///
@@ -123,6 +123,34 @@ where
 
         BitReadBuffer {
             bytes: Data::Borrowed(bytes),
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+        }
+    }
+}
+
+impl<E> BitReadBuffer<'static, E>
+where
+    E: Endianness,
+{
+    /// Create a new BitBuffer from a byte vector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bitbuffer::{BitReadBuffer, LittleEndian};
+    ///
+    /// let bytes = vec![
+    ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// ];
+    /// let buffer = BitReadBuffer::new_owned(bytes, LittleEndian);
+    /// ```
+    pub fn new_owned(bytes: Vec<u8>, _endianness: E) -> Self {
+        let byte_len = bytes.len();
+
+        BitReadBuffer {
+            bytes: Data::Owned(Rc::new(bytes)),
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
