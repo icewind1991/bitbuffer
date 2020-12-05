@@ -277,6 +277,9 @@ impl_write_tuple!(T1, T2, T3, T4);
 pub trait BitWriteSized<E: Endianness> {
     /// Write the type from stream
     fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()>;
+
+    /// The minimum required size to write the value
+    fn required_size(&self) -> usize;
 }
 
 macro_rules! impl_write_int_sized {
@@ -285,6 +288,11 @@ macro_rules! impl_write_int_sized {
             #[inline]
             fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()> {
                 stream.write_int::<$type>(*self, size)
+            }
+
+            #[inline]
+            fn required_size(&self) -> usize {
+                std::mem::size_of::<$type>() - self.leading_zeros()
             }
         }
     };
@@ -306,12 +314,22 @@ impl<E: Endianness> BitWriteSized<E> for String {
     fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()> {
         stream.write_string(self, Some(size))
     }
+
+    #[inline]
+    fn required_size(&self) -> usize {
+        self.len() + 1
+    }
 }
 
 impl<E: Endianness> BitWriteSized<E> for str {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>, size: usize) -> Result<()> {
         stream.write_string(self, Some(size))
+    }
+
+    #[inline]
+    fn required_size(&self) -> usize {
+        self.len() + 1
     }
 }
 
@@ -335,6 +353,14 @@ impl<E: Endianness, T: BitWriteSized<E>> BitWriteSized<E> for Option<T> {
                 T::write(inner, stream, size)
             }
             None => stream.write_bool(false),
+        }
+    }
+
+    #[inline]
+    fn required_size(&self) -> usize {
+        match self.as_ref() {
+            Some(inner) => 1 + inner.required_size(),
+            None => 1,
         }
     }
 }
