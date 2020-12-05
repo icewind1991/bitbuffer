@@ -3,7 +3,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::{BitOrAssign, BitXor};
+use std::ops::{BitOrAssign, BitXor, Index, Range, RangeFrom};
 
 use num_traits::{Float, PrimInt};
 
@@ -11,9 +11,67 @@ use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{BitError, Result};
 use std::convert::TryInto;
+use std::rc::Rc;
+use std::slice::SliceIndex;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
+
+// Cow<[u8]> but with cheap clones using Rc
+enum Data<'a> {
+    Borrowed(&'a [u8]),
+    Owned(Rc<Vec<u8>>),
+}
+
+impl<'a> Data<'a> {
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            Data::Borrowed(bytes) => *bytes,
+            Data::Owned(bytes) => bytes.as_slice(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.as_slice().len()
+    }
+
+    pub unsafe fn get_unchecked<I: SliceIndex<[u8]>>(&self, index: I) -> &I::Output {
+        self.as_slice().get_unchecked(index)
+    }
+}
+
+impl<'a> Index<Range<usize>> for Data<'a> {
+    type Output = [u8];
+
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        self.as_slice().index(index)
+    }
+}
+
+impl<'a> Index<RangeFrom<usize>> for Data<'a> {
+    type Output = [u8];
+
+    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
+        self.as_slice().index(index)
+    }
+}
+
+impl<'a> Index<usize> for Data<'a> {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.as_slice().index(index)
+    }
+}
+
+impl<'a> Clone for Data<'a> {
+    fn clone(&self) -> Self {
+        match self {
+            Data::Borrowed(bytes) => Data::Borrowed(*bytes),
+            Data::Owned(bytes) => Data::Owned(Rc::clone(bytes)),
+        }
+    }
+}
 
 /// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
 ///
@@ -38,7 +96,7 @@ pub struct BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
-    bytes: &'a [u8],
+    bytes: Data<'a>,
     bit_len: usize,
     endianness: PhantomData<E>,
 }
@@ -64,7 +122,7 @@ where
         let byte_len = bytes.len();
 
         BitReadBuffer {
-            bytes,
+            bytes: Data::Borrowed(bytes),
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
@@ -596,7 +654,7 @@ where
         }
 
         Ok(BitReadBuffer {
-            bytes: self.bytes,
+            bytes: self.bytes.clone(),
             bit_len,
             endianness: PhantomData,
         })
@@ -607,7 +665,18 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
     fn from(bytes: &'a [u8]) -> Self {
         let byte_len = bytes.len();
         BitReadBuffer {
-            bytes,
+            bytes: Data::Borrowed(bytes),
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+        }
+    }
+}
+
+impl<'a, E: Endianness> From<Vec<u8>> for BitReadBuffer<'a, E> {
+    fn from(bytes: Vec<u8>) -> Self {
+        let byte_len = bytes.len();
+        BitReadBuffer {
+            bytes: Data::Owned(Rc::new(bytes)),
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
@@ -617,7 +686,7 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
 impl<'a, E: Endianness> Clone for BitReadBuffer<'a, E> {
     fn clone(&self) -> Self {
         BitReadBuffer {
-            bytes: self.bytes,
+            bytes: self.bytes.clone(),
             bit_len: self.bit_len(),
             endianness: PhantomData,
         }
