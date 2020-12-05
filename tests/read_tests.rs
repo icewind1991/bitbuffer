@@ -300,18 +300,18 @@ fn read_trait_unchecked() {
     unsafe {
         let buffer = BitReadBuffer::new(BYTES.to_vec(), BigEndian);
         let mut stream = BitReadStream::new(buffer);
-        let a: u8 = stream.read_unchecked().unwrap();
+        let a: u8 = stream.read_unchecked(true).unwrap();
         assert_eq!(0b1011_0101, a);
-        let b: i8 = stream.read_unchecked().unwrap();
+        let b: i8 = stream.read_unchecked(true).unwrap();
         assert_eq!(0b110_1010, b);
-        let c: i16 = stream.read_unchecked().unwrap();
+        let c: i16 = stream.read_unchecked(true).unwrap();
         assert_eq!(-0b101_0011_0110_0111, c);
-        let d: bool = stream.read_unchecked().unwrap();
+        let d: bool = stream.read_unchecked(true).unwrap();
         assert_eq!(true, d);
-        let e: Option<u8> = stream.read_unchecked().unwrap();
+        let e: Option<u8> = stream.read_unchecked(true).unwrap();
         assert_eq!(None, e);
         stream.set_pos(0).unwrap();
-        let f: Option<u8> = stream.read_unchecked().unwrap();
+        let f: Option<u8> = stream.read_unchecked(true).unwrap();
         assert_eq!(Some(0b011_0101_0), f);
     }
 }
@@ -351,10 +351,10 @@ fn read_sized_trait_unchecked() {
     unsafe {
         let buffer = BitReadBuffer::new(BYTES.to_vec(), BigEndian);
         let mut stream = BitReadStream::new(buffer);
-        let a: u8 = stream.read_sized_unchecked(4).unwrap();
+        let a: u8 = stream.read_sized_unchecked(4, true).unwrap();
         assert_eq!(0b1011, a);
         stream.set_pos(0).unwrap();
-        let vec: Vec<u16> = stream.read_sized_unchecked(3).unwrap();
+        let vec: Vec<u16> = stream.read_sized_unchecked(3, true).unwrap();
         assert_eq!(
             vec![
                 0b1011_0101_0110_1010,
@@ -364,16 +364,16 @@ fn read_sized_trait_unchecked() {
             vec
         );
         stream.set_pos(0).unwrap();
-        let vec: Vec<u8> = stream.read_sized_unchecked(3).unwrap();
+        let vec: Vec<u8> = stream.read_sized_unchecked(3, true).unwrap();
         assert_eq!(vec![0b1011_0101, 0b0110_1010, 0b1010_1100], vec);
         stream.set_pos(0).unwrap();
-        let result: HashMap<u8, u8> = stream.read_sized_unchecked(2).unwrap();
+        let result: HashMap<u8, u8> = stream.read_sized_unchecked(2, true).unwrap();
         assert_eq!(
             hashmap!(0b1011_0101 => 0b0110_1010, 0b1010_1100 => 0b1001_1001),
             result
         );
         stream.set_pos(0).unwrap();
-        let mut result: BitReadStream<BigEndian> = stream.read_sized_unchecked(4).unwrap();
+        let mut result: BitReadStream<BigEndian> = stream.read_sized_unchecked(4, true).unwrap();
         assert_eq!(0b10u8, result.read_int(2).unwrap());
     }
 }

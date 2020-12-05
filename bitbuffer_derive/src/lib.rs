@@ -205,7 +205,7 @@ fn derive_bitread_trait(
     };
 
     let extra_param_call = if extra_param.is_some() {
-        Some(quote!(input_size))
+        Some(quote!(input_size,))
     } else {
         None
     };
@@ -225,9 +225,9 @@ fn derive_bitread_trait(
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
                     Some(size) => {
-                        stream.check_read(size)?;
+                        let end = stream.check_read(size)?;
                         unsafe {
-                            <Self as #trait_def>::read_unchecked(stream, #extra_param_call)
+                            <Self as #trait_def>::read_unchecked(stream, #extra_param_call end)
                         }
                     },
                     None => {
@@ -236,7 +236,7 @@ fn derive_bitread_trait(
                 }
             }
 
-            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
+            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param, end: bool) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
 
@@ -267,13 +267,13 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                             quote_spanned! { span =>
                                 {
                                     let _size: usize = #size;
-                                    stream.read_sized_unchecked::<#field_type>(_size)?
+                                    stream.read_sized_unchecked::<#field_type>(_size, end)?
                                 }
                             }
                         }
                         None => {
                             quote_spanned! { span =>
-                                stream.read_unchecked::<#field_type>()?
+                                stream.read_unchecked::<#field_type>(end)?
                             }
                         }
                     }

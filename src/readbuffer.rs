@@ -14,6 +14,7 @@ use crate::{BitError, Result};
 use std::convert::TryInto;
 
 const USIZE_SIZE: usize = size_of::<usize>();
+const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
 
 /// Buffer that allows reading integers of arbitrary bit length and non byte-aligned integers
 ///
@@ -60,11 +61,9 @@ where
     /// ];
     /// let buffer = BitReadBuffer::new(bytes, LittleEndian);
     /// ```
-    pub fn new(mut bytes: Vec<u8>, _endianness: E) -> Self {
+    pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
 
-        // pad with usize worth of bytes to ensure we can always read a full usize
-        bytes.extend_from_slice(&0usize.to_le_bytes());
         BitReadBuffer {
             bytes: Rc::new(bytes),
             bit_len: byte_len * 8,
@@ -103,29 +102,37 @@ where
         self.bytes.len()
     }
 
-    unsafe fn read_usize_bytes(&self, byte_index: usize) -> [u8; USIZE_SIZE] {
-        debug_assert!(byte_index + USIZE_SIZE <= self.bytes.len());
-        // this is safe because all calling paths check that byte_index is less than the unpadded
-        // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
-        // always within bounds
-        self.bytes
-            .get_unchecked(byte_index..byte_index + USIZE_SIZE)
-            .try_into()
-            .unwrap()
+    unsafe fn read_usize_bytes(&self, byte_index: usize, end: bool) -> [u8; USIZE_SIZE] {
+        if end {
+            let mut bytes = [0; USIZE_SIZE];
+            let count = min(USIZE_SIZE, self.bytes.len() - byte_index);
+            bytes[0..count]
+                .copy_from_slice(self.bytes.get_unchecked(byte_index..byte_index + count));
+            bytes
+        } else {
+            debug_assert!(byte_index + USIZE_SIZE <= self.bytes.len());
+            // this is safe because all calling paths check that byte_index is less than the unpadded
+            // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
+            // always within bounds
+            self.bytes
+                .get_unchecked(byte_index..byte_index + USIZE_SIZE)
+                .try_into()
+                .unwrap()
+        }
     }
 
     /// note that only the bottom USIZE - 1 bytes are usable
-    unsafe fn read_shifted_usize(&self, byte_index: usize, shift: usize) -> usize {
-        let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
+    unsafe fn read_shifted_usize(&self, byte_index: usize, shift: usize, end: bool) -> usize {
+        let raw_bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index, end);
         let raw_usize: usize = usize::from_le_bytes(raw_bytes);
         raw_usize >> shift
     }
 
-    unsafe fn read_usize(&self, position: usize, count: usize) -> usize {
+    unsafe fn read_usize(&self, position: usize, count: usize, end: bool) -> usize {
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
-        let bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index);
+        let bytes: [u8; USIZE_SIZE] = self.read_usize_bytes(byte_index, end);
 
         let container = if E::is_le() {
             usize::from_le_bytes(bytes)
@@ -235,26 +242,31 @@ where
             });
         }
 
-        if position + count > self.bit_len() {
-            return if position > self.bit_len() {
-                Err(BitError::IndexOutOfBounds {
-                    pos: position,
-                    size: self.bit_len(),
-                })
-            } else {
-                Err(BitError::NotEnoughData {
-                    requested: count,
-                    bits_left: self.bit_len() - position,
-                })
-            };
-        }
+        let end = if position + count + USIZE_BIT_SIZE > self.bit_len() {
+            if position + count > self.bit_len() {
+                return if position > self.bit_len() {
+                    Err(BitError::IndexOutOfBounds {
+                        pos: position,
+                        size: self.bit_len(),
+                    })
+                } else {
+                    Err(BitError::NotEnoughData {
+                        requested: count,
+                        bits_left: self.bit_len() - position,
+                    })
+                };
+            }
+            true
+        } else {
+            false
+        };
 
-        Ok(unsafe { self.read_int_unchecked(position, count) })
+        Ok(unsafe { self.read_int_unchecked(position, count, end) })
     }
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize) -> T
+    pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize, end: bool) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
@@ -265,9 +277,9 @@ where
 
         let fit_usize = count + bit_offset < usize_bit_size;
         let value = if fit_usize {
-            self.read_fit_usize(position, count)
+            self.read_fit_usize(position, count, end)
         } else {
-            self.read_no_fit_usize(position, count)
+            self.read_no_fit_usize(position, count, end)
         };
 
         if count == type_bit_size {
@@ -278,15 +290,15 @@ where
     }
 
     #[inline]
-    unsafe fn read_fit_usize<T>(&self, position: usize, count: usize) -> T
+    unsafe fn read_fit_usize<T>(&self, position: usize, count: usize, end: bool) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        let raw = self.read_usize(position, count);
+        let raw = self.read_usize(position, count, end);
         T::from_unchecked(raw)
     }
 
-    unsafe fn read_no_fit_usize<T>(&self, position: usize, count: usize) -> T
+    unsafe fn read_no_fit_usize<T>(&self, position: usize, count: usize, end: bool) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
@@ -298,7 +310,7 @@ where
         while left_to_read > 0 {
             let bits_left = self.bit_len() - read_pos;
             let read = min(min(left_to_read, max_read), bits_left);
-            let data = T::from_unchecked(self.read_usize(read_pos, read));
+            let data = T::from_unchecked(self.read_usize(read_pos, read, end));
             if E::is_le() {
                 acc |= data << bit_offset;
             } else {
@@ -392,7 +404,9 @@ where
         let mut byte_left = byte_count;
         let mut read_pos = position / 8;
         while byte_left > USIZE_SIZE - 1 {
-            let bytes = self.read_shifted_usize(read_pos, shift).to_le_bytes();
+            let bytes = self
+                .read_shifted_usize(read_pos, shift, false)
+                .to_le_bytes();
             let read_bytes = USIZE_SIZE - 1;
             let usable_bytes = &bytes[0..read_bytes];
             data.extend_from_slice(usable_bytes);
@@ -401,7 +415,7 @@ where
             byte_left -= read_bytes;
         }
 
-        let bytes = self.read_shifted_usize(read_pos, shift).to_le_bytes();
+        let bytes = self.read_shifted_usize(read_pos, shift, true).to_le_bytes();
         let usable_bytes = &bytes[0..byte_left];
         data.extend_from_slice(usable_bytes);
 
@@ -462,7 +476,7 @@ where
     fn find_null_byte(&self, byte_index: usize) -> usize {
         memchr::memchr(0, &self.bytes[byte_index..])
             .map(|index| index + byte_index)
-            .unwrap() // due to padding we always have 0 bytes at the end
+            .unwrap_or(self.bytes.len()) // due to padding we always have 0 bytes at the end
     }
 
     #[inline]
@@ -481,7 +495,7 @@ where
                 //
                 // This is safe because the final usize is filled with 0's, thus triggering the exit clause
                 // before reading any out of bounds
-                let shifted = unsafe { self.read_shifted_usize(byte_index, shift) };
+                let shifted = unsafe { self.read_shifted_usize(byte_index, shift, true) };
 
                 let has_null = contains_zero_byte_non_top(shifted);
                 let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
@@ -533,38 +547,43 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
-        if position + type_bit_size > self.bit_len() {
-            if position > self.bit_len() {
-                return Err(BitError::IndexOutOfBounds {
-                    pos: position,
-                    size: self.bit_len(),
-                });
-            } else {
-                return Err(BitError::NotEnoughData {
-                    requested: size_of::<T>() * 8,
-                    bits_left: self.bit_len() - position,
-                });
+        let end = if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
+            if position + type_bit_size > self.bit_len() {
+                if position > self.bit_len() {
+                    return Err(BitError::IndexOutOfBounds {
+                        pos: position,
+                        size: self.bit_len(),
+                    });
+                } else {
+                    return Err(BitError::NotEnoughData {
+                        requested: size_of::<T>() * 8,
+                        bits_left: self.bit_len() - position,
+                    });
+                }
             }
-        }
+            true
+        } else {
+            false
+        };
 
-        Ok(unsafe { self.read_float_unchecked(position) })
+        Ok(unsafe { self.read_float_unchecked(position, end) })
     }
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_float_unchecked<T>(&self, position: usize) -> T
+    pub unsafe fn read_float_unchecked<T>(&self, position: usize, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
     {
         if size_of::<T>() == 4 {
             let int = if size_of::<T>() < USIZE_SIZE {
-                self.read_fit_usize::<u32>(position, 32)
+                self.read_fit_usize::<u32>(position, 32, end)
             } else {
-                self.read_no_fit_usize::<u32>(position, 32)
+                self.read_no_fit_usize::<u32>(position, 32, end)
             };
             T::from_f32_unchecked(f32::from_bits(int))
         } else {
-            let int = self.read_no_fit_usize::<u64>(position, 64);
+            let int = self.read_no_fit_usize::<u64>(position, 64, end);
             T::from_f64_unchecked(f64::from_bits(int))
         }
     }

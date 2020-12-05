@@ -150,11 +150,11 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_int_unchecked<T>(&mut self, count: usize) -> T
+    pub unsafe fn read_int_unchecked<T>(&mut self, count: usize, end: bool) -> T
     where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
     {
-        let result = self.buffer.read_int_unchecked(self.pos, count);
+        let result = self.buffer.read_int_unchecked(self.pos, count, end);
         self.pos += count;
         result
     }
@@ -200,12 +200,12 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_float_unchecked<T>(&mut self) -> T
+    pub unsafe fn read_float_unchecked<T>(&mut self, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
     {
         let count = size_of::<T>() * 8;
-        let result = self.buffer.read_float_unchecked(self.pos);
+        let result = self.buffer.read_float_unchecked(self.pos, end);
         self.pos += count;
         result
     }
@@ -585,8 +585,8 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_unchecked<T: BitRead<E>>(&mut self) -> Result<T> {
-        T::read_unchecked(self)
+    pub unsafe fn read_unchecked<T: BitRead<E>>(&mut self, end: bool) -> Result<T> {
+        T::read_unchecked(self, end)
     }
 
     /// Read a value based on the provided type and size
@@ -635,19 +635,27 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_sized_unchecked<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
-        T::read_unchecked(self, size)
+    pub unsafe fn read_sized_unchecked<T: BitReadSized<E>>(
+        &mut self,
+        size: usize,
+        end: bool,
+    ) -> Result<T> {
+        T::read_unchecked(self, size, end)
     }
 
     /// Check if we can read a number of bits from the stream
-    pub fn check_read(&self, count: usize) -> Result<()> {
-        if self.bits_left() < count {
-            Err(BitError::NotEnoughData {
-                requested: count,
-                bits_left: self.bits_left(),
-            })
+    pub fn check_read(&self, count: usize) -> Result<bool> {
+        if self.bits_left() < count + 64 {
+            if self.bits_left() < count {
+                Err(BitError::NotEnoughData {
+                    requested: count,
+                    bits_left: self.bits_left(),
+                })
+            } else {
+                Ok(true)
+            }
         } else {
-            Ok(())
+            Ok(false)
         }
     }
 }

@@ -98,7 +98,7 @@ pub trait BitRead<E: Endianness>: Sized {
     /// any other validations (e.g. checking for valid utf8) still needs to be done
     #[doc(hidden)]
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<Self> {
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, _end: bool) -> Result<Self> {
         Self::read(stream)
     }
 
@@ -130,8 +130,8 @@ macro_rules! impl_read_int {
             }
 
             #[inline]
-            unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<$type> {
-                Ok(stream.read_int_unchecked::<$type>(size_of::<$type>() * 8))
+            unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<$type> {
+                Ok(stream.read_int_unchecked::<$type>(size_of::<$type>() * 8, end))
             }
 
             #[inline]
@@ -151,9 +151,12 @@ macro_rules! impl_read_int_nonzero {
             }
 
             #[inline]
-            unsafe fn read_unchecked(stream: &mut BitReadStream<LittleEndian>) -> Result<Self> {
+            unsafe fn read_unchecked(
+                stream: &mut BitReadStream<LittleEndian>,
+                end: bool,
+            ) -> Result<Self> {
                 Ok(<$type>::new(
-                    stream.read_int_unchecked(size_of::<$type>() * 8),
+                    stream.read_int_unchecked(size_of::<$type>() * 8, end),
                 ))
             }
 
@@ -170,9 +173,12 @@ macro_rules! impl_read_int_nonzero {
             }
 
             #[inline]
-            unsafe fn read_unchecked(stream: &mut BitReadStream<BigEndian>) -> Result<Self> {
+            unsafe fn read_unchecked(
+                stream: &mut BitReadStream<BigEndian>,
+                end: bool,
+            ) -> Result<Self> {
                 Ok(<$type>::new(
-                    stream.read_int_unchecked(size_of::<$type>() * 8),
+                    stream.read_int_unchecked(size_of::<$type>() * 8, end),
                 ))
             }
 
@@ -208,8 +214,8 @@ impl<E: Endianness> BitRead<E> for f32 {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<f32> {
-        Ok(stream.read_float_unchecked::<f32>())
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<f32> {
+        Ok(stream.read_float_unchecked::<f32>(end))
     }
 
     #[inline]
@@ -225,8 +231,8 @@ impl<E: Endianness> BitRead<E> for f64 {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<f64> {
-        Ok(stream.read_float_unchecked::<f64>())
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<f64> {
+        Ok(stream.read_float_unchecked::<f64>(end))
     }
 
     #[inline]
@@ -242,7 +248,7 @@ impl<E: Endianness> BitRead<E> for bool {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<bool> {
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, _end: bool) -> Result<bool> {
         Ok(stream.read_bool_unchecked())
     }
 
@@ -266,8 +272,8 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Rc<T> {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<Self> {
-        Ok(Rc::new(T::read_unchecked(stream)?))
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<Self> {
+        Ok(Rc::new(T::read_unchecked(stream, end)?))
     }
 
     #[inline]
@@ -283,8 +289,8 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Arc<T> {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<Self> {
-        Ok(Arc::new(T::read_unchecked(stream)?))
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<Self> {
+        Ok(Arc::new(T::read_unchecked(stream, end)?))
     }
 
     #[inline]
@@ -300,8 +306,8 @@ impl<E: Endianness, T: BitRead<E>> BitRead<E> for Box<T> {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<Self> {
-        Ok(Box::new(T::read_unchecked(stream)?))
+    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<Self> {
+        Ok(Box::new(T::read_unchecked(stream, end)?))
     }
 
     #[inline]
@@ -319,8 +325,8 @@ macro_rules! impl_read_tuple {
             }
 
             #[inline]
-            unsafe fn read_unchecked(stream: &mut BitReadStream<E>) -> Result<Self> {
-                Ok(($(<$type>::read_unchecked(stream)?),*))
+            unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<Self> {
+                Ok(($(<$type>::read_unchecked(stream, end)?),*))
             }
 
             #[inline]
@@ -405,7 +411,11 @@ pub trait BitReadSized<E: Endianness>: Sized {
 
     #[doc(hidden)]
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, size: usize) -> Result<Self> {
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<E>,
+        size: usize,
+        _end: bool,
+    ) -> Result<Self> {
         Self::read(stream, size)
     }
 
@@ -437,8 +447,12 @@ macro_rules! impl_read_int_sized {
             }
 
             #[inline]
-            unsafe fn read_unchecked(stream: &mut BitReadStream<E>, size: usize) -> Result<$type> {
-                Ok(stream.read_int_unchecked::<$type>(size))
+            unsafe fn read_unchecked(
+                stream: &mut BitReadStream<E>,
+                size: usize,
+                end: bool,
+            ) -> Result<$type> {
+                Ok(stream.read_int_unchecked::<$type>(size, end))
             }
 
             #[inline]
@@ -516,10 +530,14 @@ impl<E: Endianness, T: BitRead<E>> BitReadSized<E> for Vec<T> {
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, size: usize) -> Result<Self> {
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
         let mut vec = Vec::with_capacity(min(size, 128));
         for _ in 0..size {
-            vec.push(stream.read_unchecked()?)
+            vec.push(stream.read_unchecked(end)?)
         }
         Ok(vec)
     }
@@ -552,11 +570,15 @@ impl<E: Endianness, K: BitRead<E> + Eq + Hash, T: BitRead<E>> BitReadSized<E> fo
     }
 
     #[inline]
-    unsafe fn read_unchecked(stream: &mut BitReadStream<E>, size: usize) -> Result<Self> {
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
         let mut map = HashMap::with_capacity(min(size, 128));
         for _ in 0..size {
-            let key = stream.read_unchecked()?;
-            let value = stream.read_unchecked()?;
+            let key = stream.read_unchecked(end)?;
+            let value = stream.read_unchecked(end)?;
             map.insert(key, value);
         }
         Ok(map)
