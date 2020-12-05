@@ -10,7 +10,7 @@ fn test_write_bool_le() {
     stream.write_bool(true).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, LittleEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!(true, read.read_bool().unwrap());
@@ -31,7 +31,7 @@ fn test_write_bool_be() {
     stream.write_bool(true).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, BigEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!(true, read.read_bool().unwrap());
@@ -51,7 +51,7 @@ fn test_write_bool_number_le() {
     stream.write_int(13253u64, 64).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, LittleEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!(3253u16, read.read().unwrap());
@@ -70,7 +70,7 @@ fn test_write_bool_number_be() {
     stream.write_int(13253u64, 64).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, BigEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
     assert_eq!(1u8, read.read_int(1).unwrap());
     assert_eq!(3253u16, read.read().unwrap());
@@ -88,7 +88,7 @@ fn test_write_float_le() {
     stream.write_float(3253.12f32).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, LittleEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!(3253.12f32, read.read().unwrap());
@@ -105,7 +105,7 @@ fn test_write_float_be() {
     stream.write_float(3253.12f32).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, BigEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
     assert_eq!(1u8, read.read_int(1).unwrap());
     assert_eq!(3253.12f32, read.read().unwrap());
@@ -124,7 +124,7 @@ fn test_write_string_le() {
     stream.write_string("fixed length2", Some(16)).unwrap();
 
     let data = stream.finish();
-    let mut read = BitReadStream::from(BitReadBuffer::new(data, LittleEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!("null terminated", read.read_string(None).unwrap());

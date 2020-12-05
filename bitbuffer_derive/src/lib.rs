@@ -112,10 +112,10 @@
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "E"]
-//! struct EndiannessStruct<E: Endianness> {
+//! struct EndiannessStruct<'a, E: Endianness> {
 //!     size: u8,
 //!     #[size = "size"]
-//!     stream: BitReadStream<E>,
+//!     stream: BitReadStream<'a, E>,
 //! }
 //! ```
 //!
@@ -125,10 +125,10 @@
 //! #
 //! #[derive(BitRead)]
 //! #[endianness = "BigEndian"]
-//! struct EndiannessStruct {
+//! struct EndiannessStruct<'a> {
 //!     size: u8,
 //!     #[size = "size"]
-//!     stream: BitReadStream<BigEndian>,
+//!     stream: BitReadStream<'a, BigEndian>,
 //! }
 //! ```
 extern crate proc_macro;
@@ -138,7 +138,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, Ident, Lit, LitStr, Path, Variant,
+    Fields, GenericParam, Ident, Lit, LitStr, Path, Variant,
 };
 use syn_util::get_attribute_value;
 
@@ -175,6 +175,18 @@ fn derive_bitread_trait(
     let mut trait_generics = input.generics.clone();
     // we need these separate generics to only add out Endianness param to the 'impl'
     let (_, ty_generics, where_clause) = input.generics.split_for_impl();
+    let lifetime: Option<&GenericParam> = trait_generics
+        .params
+        .iter()
+        .filter(|param| matches!(param, GenericParam::Lifetime(_)))
+        .next();
+    let lifetime = match lifetime {
+        Some(GenericParam::Lifetime(lifetime)) => lifetime.lifetime.clone(),
+        _ => {
+            trait_generics.params.push(parse_quote!('a));
+            parse_quote!('a)
+        }
+    };
     if endianness.is_none() {
         trait_generics
             .params
@@ -193,7 +205,10 @@ fn derive_bitread_trait(
     let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
 
     let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
-    let trait_def_str = format!("::bitbuffer::{}<{}>", trait_name, &endianness_placeholder);
+    let trait_def_str = format!(
+        "::bitbuffer::{}<{}, {}>",
+        trait_name, lifetime, &endianness_placeholder
+    );
     let trait_def = parse_str::<Path>(&trait_def_str).unwrap();
 
     let endianness_ident = Ident::new(&endianness_placeholder, span);
@@ -218,10 +233,10 @@ fn derive_bitread_trait(
         },
         Span::call_site(),
     );
-    //
+
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
-            fn read(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
+            fn read(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
                     Some(size) => {
@@ -236,7 +251,7 @@ fn derive_bitread_trait(
                 }
             }
 
-            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#endianness_ident>#extra_param, end: bool) -> ::bitbuffer::Result<Self> {
+            unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param, end: bool) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
 
@@ -410,12 +425,12 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
                     match size {
                         Some(size) => {
                             quote_spanned! { span =>
-                                <#field_type as ::bitbuffer::BitReadSized<::bitbuffer::LittleEndian>>::bit_size_sized(#size)
+                                <#field_type as ::bitbuffer::BitReadSized<'_, ::bitbuffer::LittleEndian>>::bit_size_sized(#size)
                             }
                         }
                         None => {
                             quote_spanned! { span =>
-                                <#field_type as ::bitbuffer::BitRead<::bitbuffer::LittleEndian>>::bit_size()
+                                <#field_type as ::bitbuffer::BitRead<'_, ::bitbuffer::LittleEndian>>::bit_size()
                             }
                         }
                     }

@@ -31,7 +31,7 @@
 //!     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 //!     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 //! ];
-//! let buffer = BitReadBuffer::new(bytes, LittleEndian);
+//! let buffer = BitReadBuffer::new(&bytes, LittleEndian);
 //! let mut stream = BitReadStream::new(buffer);
 //! let value: u8 = stream.read_int(7)?;
 //! let complex: ComplexType = stream.read()?;
@@ -144,12 +144,12 @@ pub type Result<T> = std::result::Result<T, BitError>;
 
 /// Get the number of bits required to read a type from stream
 #[inline(always)]
-pub fn bit_size_of<T: BitRead<LittleEndian>>() -> Option<usize> {
+pub fn bit_size_of<'a, T: BitRead<'a, LittleEndian>>() -> Option<usize> {
     T::bit_size()
 }
 
 /// Get the number of bits required to read a type from stream
 #[inline(always)]
-pub fn bit_size_of_sized<T: BitReadSized<LittleEndian>>(size: usize) -> Option<usize> {
+pub fn bit_size_of_sized<'a, T: BitReadSized<'a, LittleEndian>>(size: usize) -> Option<usize> {
     T::bit_size_sized(size)
 }

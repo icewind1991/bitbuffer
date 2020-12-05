@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
-use std::rc::Rc;
 
 use num_traits::{Float, PrimInt};
 
@@ -28,23 +27,23 @@ const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
-/// let buffer = BitReadBuffer::new(bytes, LittleEndian);
+/// let buffer = BitReadBuffer::new(&bytes, LittleEndian);
 /// // read 7 bits as u8, starting from bit 3
 /// let result: u8 = buffer.read_int(3, 7)?;
 /// #
 /// #     Ok(())
 /// # }
 /// ```
-pub struct BitReadBuffer<E>
+pub struct BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
-    bytes: Rc<Vec<u8>>,
+    bytes: &'a [u8],
     bit_len: usize,
     endianness: PhantomData<E>,
 }
 
-impl<E> BitReadBuffer<E>
+impl<'a, E> BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
@@ -59,13 +58,13 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// ```
-    pub fn new(bytes: Vec<u8>, _endianness: E) -> Self {
+    pub fn new(bytes: &'a [u8], _endianness: E) -> Self {
         let byte_len = bytes.len();
 
         BitReadBuffer {
-            bytes: Rc::new(bytes),
+            bytes,
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
@@ -88,7 +87,7 @@ pub(crate) fn get_bits_from_usize<E: Endianness>(
     shifted & mask
 }
 
-impl<E> BitReadBuffer<E>
+impl<'a, E> BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
@@ -159,7 +158,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// let result = buffer.read_bool(5)?;
     /// assert_eq!(result, true);
     /// #
@@ -218,7 +217,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// let result = buffer.read_int::<u16>(10, 9)?;
     /// assert_eq!(result, 0b100_0110_10);
     /// #
@@ -359,7 +358,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// assert_eq!(buffer.read_bytes(5, 3)?, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
     /// assert_eq!(buffer.read_bytes(0, 8)?, &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
@@ -443,7 +442,7 @@ where
     /// #     0x72, 0x6c, 0x64, 0,
     /// #     0,    0,    0,    0
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// // Fixed length string
     /// assert_eq!(buffer.read_string(0, Some(13))?, "Hello world".to_owned());
     /// // fixed length with null padding
@@ -533,7 +532,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// let result = buffer.read_float::<f32>(10)?;
     /// #
     /// #     Ok(())
@@ -597,35 +596,35 @@ where
         }
 
         Ok(BitReadBuffer {
-            bytes: Rc::clone(&self.bytes),
+            bytes: self.bytes,
             bit_len,
             endianness: PhantomData,
         })
     }
 }
 
-impl<E: Endianness> From<Vec<u8>> for BitReadBuffer<E> {
-    fn from(bytes: Vec<u8>) -> Self {
+impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
+    fn from(bytes: &'a [u8]) -> Self {
         let byte_len = bytes.len();
         BitReadBuffer {
-            bytes: Rc::new(bytes),
+            bytes,
             bit_len: byte_len * 8,
             endianness: PhantomData,
         }
     }
 }
 
-impl<E: Endianness> Clone for BitReadBuffer<E> {
+impl<'a, E: Endianness> Clone for BitReadBuffer<'a, E> {
     fn clone(&self) -> Self {
         BitReadBuffer {
-            bytes: Rc::clone(&self.bytes),
+            bytes: self.bytes,
             bit_len: self.bit_len(),
             endianness: PhantomData,
         }
     }
 }
 
-impl<E: Endianness> Debug for BitReadBuffer<E> {
+impl<E: Endianness> Debug for BitReadBuffer<'_, E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

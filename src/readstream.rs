@@ -20,22 +20,22 @@ use std::cmp::min;
 ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
 ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
 /// ];
-/// let buffer = BitReadBuffer::new(bytes, LittleEndian);
+/// let buffer = BitReadBuffer::new(&bytes, LittleEndian);
 /// let mut stream = BitReadStream::new(buffer);
 /// ```
 ///
 /// [`BitBuffer`]: struct.BitBuffer.html
 #[derive(Debug)]
-pub struct BitReadStream<E>
+pub struct BitReadStream<'a, E>
 where
     E: Endianness,
 {
-    buffer: BitReadBuffer<E>,
+    buffer: BitReadBuffer<'a, E>,
     start_pos: usize,
     pos: usize,
 }
 
-impl<E> BitReadStream<E>
+impl<'a, E> BitReadStream<'a, E>
 where
     E: Endianness,
 {
@@ -50,12 +50,12 @@ where
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ];
-    /// let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// let mut stream = BitReadStream::new(buffer);
     /// ```
     ///
     /// [`BitBuffer`]: struct.BitBuffer.html
-    pub fn new(buffer: BitReadBuffer<E>) -> Self {
+    pub fn new(buffer: BitReadBuffer<'a, E>) -> Self {
         BitReadStream {
             start_pos: 0,
             pos: 0,
@@ -79,7 +79,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.read_bool()?, true);
     /// assert_eq!(stream.read_bool()?, false);
@@ -124,7 +124,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.read_int::<u16>(3)?, 0b101);
     /// assert_eq!(stream.read_int::<u16>(3)?, 0b110);
@@ -175,7 +175,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let result = stream.read_float::<f32>()?;
     /// assert_eq!(stream.pos(), 32);
@@ -226,7 +226,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.read_bytes(3)?, &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
@@ -276,7 +276,7 @@ where
     /// #     0x72, 0x6c, 0x64, 0,
     /// #     0,    0,    0,    0
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// // Fixed length string
     /// stream.set_pos(0);
@@ -351,7 +351,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let mut bits = stream.read_bits(3)?;
     /// assert_eq!(stream.pos(), 3);
@@ -392,7 +392,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// stream.skip_bits(3)?;
     /// assert_eq!(stream.pos(), 3);
@@ -431,7 +431,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// stream.set_pos(3)?;
     /// assert_eq!(stream.pos(), 3);
@@ -465,7 +465,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.bit_len(), 64);
     /// #
@@ -488,7 +488,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.pos(), 0);
     /// stream.skip_bits(5)?;
@@ -513,7 +513,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// assert_eq!(stream.bits_left(), 64);
     /// stream.skip_bits(5)?;
@@ -538,7 +538,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let int: u8 = stream.read()?;
     /// assert_eq!(int, 0b1011_0101);
@@ -566,7 +566,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let data: ComplexType = stream.read()?;
     /// assert_eq!(data, ComplexType {
@@ -579,13 +579,13 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn read<T: BitRead<E>>(&mut self) -> Result<T> {
+    pub fn read<T: BitRead<'a, E>>(&mut self) -> Result<T> {
         T::read(self)
     }
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_unchecked<T: BitRead<E>>(&mut self, end: bool) -> Result<T> {
+    pub unsafe fn read_unchecked<T: BitRead<'a, E>>(&mut self, end: bool) -> Result<T> {
         T::read_unchecked(self, end)
     }
 
@@ -603,7 +603,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let int: u8 = stream.read_sized(7)?;
     /// assert_eq!(int, 0b011_0101);
@@ -620,7 +620,7 @@ where
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
-    /// # let buffer = BitReadBuffer::new(bytes, LittleEndian);
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
     /// let data: Vec<u16> = stream.read_sized(3)?;
     /// assert_eq!(data, vec![0b0110_1010_1011_0101, 0b1001_1001_1010_1100, 0b1001_1001_1001_1001]);
@@ -629,13 +629,13 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn read_sized<T: BitReadSized<E>>(&mut self, size: usize) -> Result<T> {
+    pub fn read_sized<T: BitReadSized<'a, E>>(&mut self, size: usize) -> Result<T> {
         T::read(self, size)
     }
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_sized_unchecked<T: BitReadSized<E>>(
+    pub unsafe fn read_sized_unchecked<T: BitReadSized<'a, E>>(
         &mut self,
         size: usize,
         end: bool,
@@ -660,7 +660,7 @@ where
     }
 }
 
-impl<E: Endianness> Clone for BitReadStream<E> {
+impl<'a, E: Endianness> Clone for BitReadStream<'a, E> {
     fn clone(&self) -> Self {
         BitReadStream {
             buffer: self.buffer.clone(),
@@ -670,14 +670,14 @@ impl<E: Endianness> Clone for BitReadStream<E> {
     }
 }
 
-impl<E: Endianness> From<BitReadBuffer<E>> for BitReadStream<E> {
-    fn from(buffer: BitReadBuffer<E>) -> Self {
+impl<'a, E: Endianness> From<BitReadBuffer<'a, E>> for BitReadStream<'a, E> {
+    fn from(buffer: BitReadBuffer<'a, E>) -> Self {
         BitReadStream::new(buffer)
     }
 }
 
-impl<E: Endianness> From<Vec<u8>> for BitReadStream<E> {
-    fn from(bytes: Vec<u8>) -> Self {
+impl<'a, E: Endianness> From<&'a [u8]> for BitReadStream<'a, E> {
+    fn from(bytes: &'a [u8]) -> Self {
         BitReadStream::new(BitReadBuffer::from(bytes))
     }
 }
