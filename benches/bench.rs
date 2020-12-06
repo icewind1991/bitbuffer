@@ -23,7 +23,7 @@ fn read_perf<E: Endianness>(buffer: &BitReadBuffer<E>) -> u16 {
 #[bench]
 fn perf_le(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitReadBuffer::new(data, LittleEndian);
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
     b.iter(|| {
         let data = read_perf(&buffer);
         assert_eq!(data, 0);
@@ -34,7 +34,7 @@ fn perf_le(b: &mut Bencher) {
 #[bench]
 fn perf_be(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitReadBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(&data, BigEndian);
     b.iter(|| {
         let data = read_perf(&buffer);
         assert_eq!(data, 0);
@@ -45,7 +45,7 @@ fn perf_be(b: &mut Bencher) {
 #[bench]
 fn perf_f32_be(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitReadBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(&data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -66,7 +66,7 @@ fn perf_f32_be(b: &mut Bencher) {
 #[bench]
 fn perf_f32_le(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitReadBuffer::new(data, LittleEndian);
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -89,7 +89,7 @@ const F64_RESULT: f64 = 0.000000000000000000000000000000000000000000000000000000
 #[bench]
 fn perf_f64(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 10];
-    let buffer = BitReadBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(&data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -110,7 +110,7 @@ fn perf_f64(b: &mut Bencher) {
 #[bench]
 fn perf_bool(b: &mut Bencher) {
     let data = vec![1u8; 1024 * 1024 * 1];
-    let buffer = BitReadBuffer::new(data, BigEndian);
+    let buffer = BitReadBuffer::new(&data, BigEndian);
     b.iter(|| {
         let mut pos = 0;
         let len = buffer.bit_len();
@@ -151,7 +151,8 @@ fn get_string_buffer() -> Vec<u8> {
 
 #[bench]
 fn perf_string_be(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, BigEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -169,7 +170,8 @@ fn perf_string_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_string_le(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -187,7 +189,8 @@ fn perf_string_le(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_be(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, BigEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -205,7 +208,8 @@ fn perf_bytes_be(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
 
     b.iter(|| {
         let mut pos = 0;
@@ -223,7 +227,8 @@ fn perf_bytes_le(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_be_unaligned(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), BigEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, BigEndian);
 
     b.iter(|| {
         let mut pos = 3;
@@ -241,7 +246,8 @@ fn perf_bytes_be_unaligned(b: &mut Bencher) {
 
 #[bench]
 fn perf_bytes_le_unaligned(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
 
     b.iter(|| {
         let mut pos = 3;
@@ -268,7 +274,8 @@ struct BasicStruct {
 
 #[bench]
 fn perf_struct(b: &mut Bencher) {
-    let buffer = BitReadBuffer::new(get_string_buffer(), LittleEndian);
+    let data = get_string_buffer();
+    let buffer = BitReadBuffer::new(&data, LittleEndian);
 
     b.iter(|| {
         let mut stream: BitReadStream<LittleEndian> = buffer.clone().into();

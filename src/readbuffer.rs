@@ -10,7 +10,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{BitError, Result};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -333,7 +333,7 @@ where
             });
         }
 
-        let end = if position + count + USIZE_BIT_SIZE > self.bit_len() {
+        if position + count + USIZE_BIT_SIZE > self.bit_len() {
             if position + count > self.bit_len() {
                 return if position > self.bit_len() {
                     Err(BitError::IndexOutOfBounds {
@@ -347,12 +347,10 @@ where
                     })
                 };
             }
-            true
+            Ok(unsafe { self.read_int_unchecked(position, count, true) })
         } else {
-            false
-        };
-
-        Ok(unsafe { self.read_int_unchecked(position, count, end) })
+            Ok(unsafe { self.read_int_unchecked(position, count, false) })
+        }
     }
 
     #[doc(hidden)]
@@ -451,8 +449,8 @@ where
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
-    /// assert_eq!(buffer.read_bytes(5, 3)?, &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
-    /// assert_eq!(buffer.read_bytes(0, 8)?, &[
+    /// assert_eq!(buffer.read_bytes(5, 3)?.to_vec(), &[0b0_1010_101, 0b0_1100_011, 0b1_1001_101]);
+    /// assert_eq!(buffer.read_bytes(0, 8)?.to_vec(), &[
     ///     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     ///     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// ]);
@@ -463,7 +461,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     #[inline]
-    pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Vec<u8>> {
+    pub fn read_bytes(&self, position: usize, byte_count: usize) -> Result<Cow<'a, [u8]>> {
         if position + byte_count * 8 > self.bit_len() {
             if position > self.bit_len() {
                 return Err(BitError::IndexOutOfBounds {
@@ -483,12 +481,12 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_bytes_unchecked(&self, position: usize, byte_count: usize) -> Vec<u8> {
+    pub unsafe fn read_bytes_unchecked(&self, position: usize, byte_count: usize) -> Cow<'a, [u8]> {
         let shift = position & 7;
 
         if shift == 0 {
             let byte_pos = position / 8;
-            return self.slice[byte_pos..byte_pos + byte_count].to_vec();
+            return Cow::Borrowed(&self.slice[byte_pos..byte_pos + byte_count]);
         }
 
         let mut data = Vec::with_capacity(byte_count);
@@ -510,7 +508,7 @@ where
         let usable_bytes = &bytes[0..byte_left];
         data.extend_from_slice(usable_bytes);
 
-        data
+        Cow::Owned(data)
     }
 
     /// Read a series of bytes from the buffer as string
@@ -549,16 +547,30 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     #[inline]
-    pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<String> {
+    pub fn read_string(&self, position: usize, byte_len: Option<usize>) -> Result<Cow<'a, str>> {
         match byte_len {
             Some(byte_len) => {
                 let bytes = self.read_bytes(position, byte_len)?;
-                let raw_string = String::from_utf8(bytes)?;
-                Ok(raw_string.trim_end_matches(char::from(0)).to_owned())
+
+                let string = match bytes {
+                    Cow::Owned(bytes) => Cow::Owned(
+                        String::from_utf8(bytes)?
+                            .trim_end_matches(char::from(0))
+                            .to_string(),
+                    ),
+                    Cow::Borrowed(bytes) => {
+                        Cow::Borrowed(std::str::from_utf8(bytes)?.trim_end_matches(char::from(0)))
+                    }
+                };
+                Ok(string)
             }
             None => {
                 let bytes = self.read_string_bytes(position)?;
-                String::from_utf8(bytes).map_err(BitError::from)
+                let string = match bytes {
+                    Cow::Owned(bytes) => Cow::Owned(String::from_utf8(bytes)?),
+                    Cow::Borrowed(bytes) => Cow::Borrowed(std::str::from_utf8(bytes)?),
+                };
+                Ok(string)
             }
         }
     }
@@ -571,11 +583,13 @@ where
     }
 
     #[inline]
-    fn read_string_bytes(&self, position: usize) -> Result<Vec<u8>> {
+    fn read_string_bytes(&self, position: usize) -> Result<Cow<'a, [u8]>> {
         let shift = position & 7;
         if shift == 0 {
             let byte_index = position / 8;
-            Ok(self.slice[byte_index..self.find_null_byte(byte_index)].to_vec())
+            Ok(Cow::Borrowed(
+                &self.slice[byte_index..self.find_null_byte(byte_index)],
+            ))
         } else {
             let mut acc = Vec::with_capacity(32);
             let mut byte_index = position / 8;
@@ -596,7 +610,7 @@ where
                     for i in 0..USIZE_SIZE - 1 {
                         if usable_bytes[i] == 0 {
                             acc.extend_from_slice(&usable_bytes[0..i]);
-                            return Ok(acc);
+                            return Ok(Cow::Owned(acc));
                         }
                     }
                 }
@@ -638,7 +652,7 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
-        let end = if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
+        if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
             if position + type_bit_size > self.bit_len() {
                 if position > self.bit_len() {
                     return Err(BitError::IndexOutOfBounds {
@@ -652,12 +666,10 @@ where
                     });
                 }
             }
-            true
+            Ok(unsafe { self.read_float_unchecked(position, true) })
         } else {
-            false
-        };
-
-        Ok(unsafe { self.read_float_unchecked(position, end) })
+            Ok(unsafe { self.read_float_unchecked(position, false) })
+        }
     }
 
     #[doc(hidden)]

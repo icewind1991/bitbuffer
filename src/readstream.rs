@@ -7,6 +7,7 @@ use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::BitReadBuffer;
 use crate::{BitError, BitRead, BitReadSized, Result};
+use std::borrow::Cow;
 use std::cmp::min;
 
 /// Stream that provides an easy way to iterate trough a [`BitBuffer`]
@@ -222,13 +223,14 @@ where
     /// # use bitbuffer::{BitReadBuffer, BitReadStream, LittleEndian, Result};
     /// #
     /// # fn main() -> Result<()> {
-    /// # let bytes = vec![
+    /// # use std::borrow::Borrow;
+    /// let bytes = vec![
     /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
     /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
     /// # ];
     /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     /// # let mut stream = BitReadStream::new(buffer);
-    /// assert_eq!(stream.read_bytes(3)?, &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
+    /// assert_eq!(stream.read_bytes(3)?.to_vec(), &[0b1011_0101, 0b0110_1010, 0b1010_1100]);
     /// assert_eq!(stream.pos(), 24);
     /// #
     /// #     Ok(())
@@ -237,7 +239,7 @@ where
     ///
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     #[inline]
-    pub fn read_bytes(&mut self, byte_count: usize) -> Result<Vec<u8>> {
+    pub fn read_bytes(&mut self, byte_count: usize) -> Result<Cow<'a, [u8]>> {
         let count = byte_count * 8;
         let result = self.buffer.read_bytes(self.pos, byte_count);
         if result.is_ok() {
@@ -248,7 +250,7 @@ where
 
     #[doc(hidden)]
     #[inline]
-    pub unsafe fn read_bytes_unchecked(&mut self, byte_count: usize) -> Vec<u8> {
+    pub unsafe fn read_bytes_unchecked(&mut self, byte_count: usize) -> Cow<'a, [u8]> {
         let count = byte_count * 8;
         let result = self.buffer.read_bytes_unchecked(self.pos, byte_count);
         self.pos += count;
@@ -298,7 +300,7 @@ where
     /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
     /// [`ReadError::Utf8Error`]: enum.ReadError.html#variant.Utf8Error
     #[inline]
-    pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<String> {
+    pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<Cow<'a, str>> {
         let max_length = self.bits_left() / 8;
 
         let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
@@ -306,7 +308,7 @@ where
             if let BitError::Utf8Error(err) = &err {
                 self.pos += match byte_len {
                     Some(len) => len * 8,
-                    None => min((err.as_bytes().len() + 1) * 8, max_length),
+                    None => min((err.valid_up_to() + 1) * 8, max_length),
                 };
             }
             err
@@ -329,7 +331,7 @@ where
                 acc.push(c);
             }
             self.pos += acc.len() * 8;
-            return Ok(acc);
+            return Ok(Cow::Owned(acc));
         }
         self.pos += read;
         Ok(result)

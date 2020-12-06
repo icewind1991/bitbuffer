@@ -55,13 +55,14 @@
 #![warn(missing_docs)]
 
 use err_derive::Error;
-pub use std::string::FromUtf8Error;
 
 pub use bitbuffer_derive::{BitRead, BitReadSized};
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};
 pub use readbuffer::BitReadBuffer;
 pub use readstream::BitReadStream;
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 pub use writestream::BitWriteStream;
 
 mod endianness;
@@ -124,7 +125,7 @@ pub enum BitError {
     },
     /// The read slice of bytes are not valid utf8
     #[error(display = "The read slice of bytes are not valid utf8: {}", _0)]
-    Utf8Error(#[error(source)] FromUtf8Error),
+    Utf8Error(#[error(source)] Utf8Error),
     /// The string that was requested to be written does not fit in the specified fixed length
     #[error(
         display = "The string that was requested to be written does not fit in the specified fixed length, string is {} bytes long, while a size of {} has been specified",
@@ -137,6 +138,12 @@ pub enum BitError {
         /// The requested fixed size to encode the string into
         requested_length: usize,
     },
+}
+
+impl From<FromUtf8Error> for BitError {
+    fn from(err: FromUtf8Error) -> Self {
+        BitError::from(err.utf8_error())
+    }
 }
 
 /// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)

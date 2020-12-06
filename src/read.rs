@@ -1,5 +1,6 @@
 use crate::endianness::{BigEndian, LittleEndian};
 use crate::{BitReadStream, Endianness, Result};
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -261,6 +262,13 @@ impl<E: Endianness> BitRead<'_, E> for bool {
 impl<E: Endianness> BitRead<'_, E> for String {
     #[inline]
     fn read(stream: &mut BitReadStream<E>) -> Result<String> {
+        Ok(stream.read_string(None)?.into_owned())
+    }
+}
+
+impl<'a, E: Endianness> BitRead<'a, E> for Cow<'a, str> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>) -> Result<Cow<'a, str>> {
         stream.read_string(None)
     }
 }
@@ -477,7 +485,31 @@ impl_read_int_sized!(i128);
 impl<E: Endianness> BitReadSized<'_, E> for String {
     #[inline]
     fn read(stream: &mut BitReadStream<E>, size: usize) -> Result<String> {
+        Ok(stream.read_string(Some(size))?.into_owned())
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        Some(8 * size)
+    }
+}
+
+impl<'a, E: Endianness> BitReadSized<'a, E> for Cow<'a, str> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Cow<'a, str>> {
         stream.read_string(Some(size))
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        Some(8 * size)
+    }
+}
+
+impl<'a, E: Endianness> BitReadSized<'a, E> for Cow<'a, [u8]> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Cow<'a, [u8]>> {
+        stream.read_bytes(size)
     }
 
     #[inline]
@@ -522,10 +554,24 @@ impl<'a, E: Endianness> BitReadSized<'a, E> for BitReadStream<'a, E> {
 /// Read `T` `size` times and return as `Vec<T>`
 impl<'a, E: Endianness, T: BitRead<'a, E>> BitReadSized<'a, E> for Vec<T> {
     fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
-        // todo check size and use unchecked
         let mut vec = Vec::with_capacity(min(size, 128));
-        for _ in 0..size {
-            vec.push(stream.read()?)
+        match T::bit_size() {
+            Some(bit_size) => {
+                if stream.check_read(bit_size * size)? {
+                    for _ in 0..size {
+                        vec.push(unsafe { stream.read_unchecked(true) }?)
+                    }
+                } else {
+                    for _ in 0..size {
+                        vec.push(unsafe { stream.read_unchecked(false) }?)
+                    }
+                }
+            }
+            _ => {
+                for _ in 0..size {
+                    vec.push(stream.read()?)
+                }
+            }
         }
         Ok(vec)
     }
