@@ -178,8 +178,7 @@ fn derive_bitread_trait(
     let lifetime: Option<&GenericParam> = trait_generics
         .params
         .iter()
-        .filter(|param| matches!(param, GenericParam::Lifetime(_)))
-        .next();
+        .find(|param| matches!(param, GenericParam::Lifetime(_)));
     let lifetime = match lifetime {
         Some(GenericParam::Lifetime(lifetime)) => lifetime.lifetime.clone(),
         _ => {
@@ -459,10 +458,10 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
                     "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
                 ) as usize;
 
-            let is_unit = data.variants.iter().all(|variant| match &variant.fields {
-                Fields::Unit => true,
-                _ => false,
-            });
+            let is_unit = data
+                .variants
+                .iter()
+                .all(|variant| matches!(variant.fields, Fields::Unit));
 
             if is_unit {
                 quote_spanned! {span=>
