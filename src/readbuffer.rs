@@ -10,6 +10,7 @@ use num_traits::{Float, PrimInt};
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::{BitError, Result};
+use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::rc::Rc;
 
@@ -19,14 +20,14 @@ const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
 // Cow<[u8]> but with cheap clones using Rc
 enum Data<'a> {
     Borrowed(&'a [u8]),
-    Owned(Rc<Vec<u8>>),
+    Owned(Rc<[u8]>),
 }
 
 impl<'a> Data<'a> {
     pub fn as_slice(&self) -> &[u8] {
         match self {
             Data::Borrowed(bytes) => *bytes,
-            Data::Owned(bytes) => bytes.as_slice(),
+            Data::Owned(bytes) => bytes.borrow(),
         }
     }
 
@@ -145,7 +146,7 @@ where
     /// ```
     pub fn new_owned(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
-        let bytes = Data::Owned(Rc::new(bytes));
+        let bytes = Data::Owned(Rc::from(bytes));
 
         // this is safe because
         //  - the slice can only be access trough this struct
@@ -710,7 +711,7 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
 impl<'a, E: Endianness> From<Vec<u8>> for BitReadBuffer<'a, E> {
     fn from(bytes: Vec<u8>) -> Self {
         let byte_len = bytes.len();
-        let bytes = Data::Owned(Rc::new(bytes));
+        let bytes = Data::Owned(Rc::from(bytes));
         let slice = unsafe { std::slice::from_raw_parts(bytes.as_slice().as_ptr(), bytes.len()) };
 
         BitReadBuffer {
