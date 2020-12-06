@@ -455,3 +455,21 @@ fn read_read_signed() {
     let buffer = BitReadBuffer::new(&byte_vec, LittleEndian);
     assert_eq!(buffer.read_int::<i32>(0, 32).unwrap(), -10);
 }
+
+#[test]
+fn test_to_owned_stream() {
+    let bytes = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    let buffer = BitReadBuffer::new(&bytes, LittleEndian);
+    let mut stream = BitReadStream::new(buffer);
+    let mut stream = stream.read_bits(15 * 7).unwrap();
+    stream.skip_bits(25).unwrap();
+
+    let mut owned = stream.to_owned();
+
+    assert_eq!(stream.read::<u8>().unwrap(), owned.read::<u8>().unwrap());
+    assert_eq!(stream.read::<u16>().unwrap(), owned.read::<u16>().unwrap());
+    assert_eq!(stream.read::<u8>().unwrap(), owned.read::<u8>().unwrap());
+
+    assert_eq!(stream.bit_len(), owned.bit_len());
+    assert_eq!(stream.bits_left(), owned.bits_left());
+}

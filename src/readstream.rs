@@ -5,6 +5,7 @@ use num_traits::{Float, PrimInt};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::readbuffer::Data;
 use crate::BitReadBuffer;
 use crate::{BitError, BitRead, BitReadSized, Result};
 use std::borrow::Cow;
@@ -658,6 +659,37 @@ where
             }
         } else {
             Ok(false)
+        }
+    }
+
+    /// Create an owned copy of this stream
+    pub fn to_owned(&self) -> BitReadStream<'static, E> {
+        match self.buffer.bytes {
+            Data::Owned(_) => BitReadStream {
+                // already owned, so buffer.to_owned is a cheap rc clone
+                buffer: self.buffer.to_owned(),
+                start_pos: self.pos,
+                pos: self.pos,
+            },
+            Data::Borrowed(bytes) => {
+                // instead of calling buffer.to_owned blindly, we only copy the bytes that this stream covers
+                let byte_pos = self.start_pos / 8;
+                let bit_offset = self.start_pos & 7;
+
+                let end = self.buffer.bit_len() / 8 + 1;
+                let end = min(end, self.buffer.byte_len());
+
+                let sub_bytes = bytes[byte_pos..end].to_vec();
+                let buffer = BitReadBuffer::from(sub_bytes)
+                    .get_sub_buffer(self.buffer.bit_len() - self.start_pos + bit_offset)
+                    .unwrap();
+
+                BitReadStream {
+                    buffer,
+                    start_pos: bit_offset,
+                    pos: bit_offset + (self.pos - self.start_pos),
+                }
+            }
         }
     }
 }

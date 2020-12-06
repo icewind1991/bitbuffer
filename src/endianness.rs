@@ -13,6 +13,8 @@ pub trait Endianness: private::Sealed {
     fn is_le() -> bool;
     /// Input is big endian
     fn is_be() -> bool;
+    /// Get an instance of the endianness
+    fn endianness() -> Self;
 }
 
 /// Marks the buffer or stream as big endian
@@ -24,7 +26,7 @@ pub struct BigEndian;
 pub struct LittleEndian;
 
 macro_rules! impl_endianness {
-    ($type:ty, $le:expr) => {
+    ($type:ty, $le:expr, $instance:expr) => {
         impl Endianness for $type {
             #[inline(always)]
             fn is_le() -> bool {
@@ -35,12 +37,16 @@ macro_rules! impl_endianness {
             fn is_be() -> bool {
                 !$le
             }
+
+            fn endianness() -> Self {
+                $instance
+            }
         }
     };
 }
 
-impl_endianness!(BigEndian, false);
-impl_endianness!(LittleEndian, true);
+impl_endianness!(BigEndian, false, BigEndian);
+impl_endianness!(LittleEndian, true, LittleEndian);
 
 mod private {
     pub trait Sealed {}

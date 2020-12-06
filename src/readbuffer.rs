@@ -18,7 +18,7 @@ const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
 
 // Cow<[u8]> but with cheap clones using Rc
-enum Data<'a> {
+pub(crate) enum Data<'a> {
     Borrowed(&'a [u8]),
     Owned(Rc<[u8]>),
 }
@@ -33,6 +33,14 @@ impl<'a> Data<'a> {
 
     pub fn len(&self) -> usize {
         self.as_slice().len()
+    }
+
+    pub fn to_owned(&self) -> Data<'static> {
+        let bytes = match self {
+            Data::Borrowed(bytes) => Rc::from(bytes.to_vec()),
+            Data::Owned(bytes) => Rc::clone(bytes),
+        };
+        Data::Owned(bytes.into())
     }
 }
 
@@ -92,7 +100,7 @@ pub struct BitReadBuffer<'a, E>
 where
     E: Endianness,
 {
-    bytes: Data<'a>,
+    pub(crate) bytes: Data<'a>,
     bit_len: usize,
     endianness: PhantomData<E>,
     slice: &'a [u8],
@@ -123,6 +131,27 @@ where
             bit_len: byte_len * 8,
             endianness: PhantomData,
             slice: bytes,
+        }
+    }
+
+    /// Create a static version of this buffer
+    ///
+    /// If the current buffer is borrowed, this will copy the data
+    pub fn to_owned(&self) -> BitReadBuffer<'static, E> {
+        let bytes = self.bytes.to_owned();
+        let byte_len = bytes.len();
+
+        // this is safe because
+        //  - the slice can only be access trough this struct
+        //  - this struct keeps the vec the slice comes from alive
+        //  - this struct doesn't allow mutation
+        let slice = unsafe { std::slice::from_raw_parts(bytes.as_slice().as_ptr(), bytes.len()) };
+
+        BitReadBuffer {
+            bytes,
+            bit_len: byte_len * 8,
+            endianness: PhantomData,
+            slice,
         }
     }
 }
@@ -190,7 +219,7 @@ where
 
     /// The available number of bytes in the buffer
     pub fn byte_len(&self) -> usize {
-        self.bytes.len()
+        self.slice.len()
     }
 
     unsafe fn read_usize_bytes(&self, byte_index: usize, end: bool) -> [u8; USIZE_SIZE] {
@@ -710,28 +739,13 @@ where
 
 impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
     fn from(bytes: &'a [u8]) -> Self {
-        let byte_len = bytes.len();
-        BitReadBuffer {
-            bytes: Data::Borrowed(bytes),
-            bit_len: byte_len * 8,
-            endianness: PhantomData,
-            slice: bytes,
-        }
+        BitReadBuffer::new(bytes, E::endianness())
     }
 }
 
 impl<'a, E: Endianness> From<Vec<u8>> for BitReadBuffer<'a, E> {
     fn from(bytes: Vec<u8>) -> Self {
-        let byte_len = bytes.len();
-        let bytes = Data::Owned(Rc::from(bytes));
-        let slice = unsafe { std::slice::from_raw_parts(bytes.as_slice().as_ptr(), bytes.len()) };
-
-        BitReadBuffer {
-            bytes,
-            bit_len: byte_len * 8,
-            endianness: PhantomData,
-            slice,
-        }
+        BitReadBuffer::new_owned(bytes, E::endianness())
     }
 }
 
