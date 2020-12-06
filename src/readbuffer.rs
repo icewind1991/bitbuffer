@@ -12,7 +12,6 @@ use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt
 use crate::{BitError, Result};
 use std::convert::TryInto;
 use std::rc::Rc;
-use std::slice::SliceIndex;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BIT_SIZE: usize = USIZE_SIZE * 8;
@@ -33,10 +32,6 @@ impl<'a> Data<'a> {
 
     pub fn len(&self) -> usize {
         self.as_slice().len()
-    }
-
-    pub unsafe fn get_unchecked<I: SliceIndex<[u8]>>(&self, index: I) -> &I::Output {
-        self.as_slice().get_unchecked(index)
     }
 }
 
@@ -99,6 +94,7 @@ where
     bytes: Data<'a>,
     bit_len: usize,
     endianness: PhantomData<E>,
+    slice: &'a [u8],
 }
 
 impl<'a, E> BitReadBuffer<'a, E>
@@ -125,6 +121,7 @@ where
             bytes: Data::Borrowed(bytes),
             bit_len: byte_len * 8,
             endianness: PhantomData,
+            slice: bytes,
         }
     }
 }
@@ -148,11 +145,19 @@ where
     /// ```
     pub fn new_owned(bytes: Vec<u8>, _endianness: E) -> Self {
         let byte_len = bytes.len();
+        let bytes = Data::Owned(Rc::new(bytes));
+
+        // this is safe because
+        //  - the slice can only be access trough this struct
+        //  - this struct keeps the vec the slice comes from alive
+        //  - this struct doesn't allow mutation
+        let slice = unsafe { std::slice::from_raw_parts(bytes.as_slice().as_ptr(), bytes.len()) };
 
         BitReadBuffer {
-            bytes: Data::Owned(Rc::new(bytes)),
+            bytes,
             bit_len: byte_len * 8,
             endianness: PhantomData,
+            slice,
         }
     }
 }
@@ -190,16 +195,16 @@ where
     unsafe fn read_usize_bytes(&self, byte_index: usize, end: bool) -> [u8; USIZE_SIZE] {
         if end {
             let mut bytes = [0; USIZE_SIZE];
-            let count = min(USIZE_SIZE, self.bytes.len() - byte_index);
+            let count = min(USIZE_SIZE, self.slice.len() - byte_index);
             bytes[0..count]
-                .copy_from_slice(self.bytes.get_unchecked(byte_index..byte_index + count));
+                .copy_from_slice(self.slice.get_unchecked(byte_index..byte_index + count));
             bytes
         } else {
-            debug_assert!(byte_index + USIZE_SIZE <= self.bytes.len());
+            debug_assert!(byte_index + USIZE_SIZE <= self.slice.len());
             // this is safe because all calling paths check that byte_index is less than the unpadded
             // length (because they check based on bit_len), so with padding byte_index + USIZE_SIZE is
             // always within bounds
-            self.bytes
+            self.slice
                 .get_unchecked(byte_index..byte_index + USIZE_SIZE)
                 .try_into()
                 .unwrap()
@@ -259,7 +264,7 @@ where
         let bit_offset = position & 7;
 
         if position < self.bit_len() {
-            let byte = self.bytes[byte_index];
+            let byte = self.slice[byte_index];
             if E::is_le() {
                 let shifted = byte >> bit_offset as u8;
                 Ok(shifted & 1u8 == 1)
@@ -281,7 +286,7 @@ where
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
-        let byte = self.bytes.get_unchecked(byte_index);
+        let byte = self.slice.get_unchecked(byte_index);
         let shifted = byte >> bit_offset;
         shifted & 1u8 == 1
     }
@@ -482,7 +487,7 @@ where
 
         if shift == 0 {
             let byte_pos = position / 8;
-            return self.bytes[byte_pos..byte_pos + byte_count].to_vec();
+            return self.slice[byte_pos..byte_pos + byte_count].to_vec();
         }
 
         let mut data = Vec::with_capacity(byte_count);
@@ -559,9 +564,9 @@ where
 
     #[inline]
     fn find_null_byte(&self, byte_index: usize) -> usize {
-        memchr::memchr(0, &self.bytes[byte_index..])
+        memchr::memchr(0, &self.slice[byte_index..])
             .map(|index| index + byte_index)
-            .unwrap_or(self.bytes.len()) // due to padding we always have 0 bytes at the end
+            .unwrap_or(self.slice.len()) // due to padding we always have 0 bytes at the end
     }
 
     #[inline]
@@ -569,7 +574,7 @@ where
         let shift = position & 7;
         if shift == 0 {
             let byte_index = position / 8;
-            Ok(self.bytes[byte_index..self.find_null_byte(byte_index)].to_vec())
+            Ok(self.slice[byte_index..self.find_null_byte(byte_index)].to_vec())
         } else {
             let mut acc = Vec::with_capacity(32);
             let mut byte_index = position / 8;
@@ -685,6 +690,7 @@ where
             bytes: self.bytes.clone(),
             bit_len,
             endianness: PhantomData,
+            slice: self.slice,
         })
     }
 }
@@ -696,6 +702,7 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
             bytes: Data::Borrowed(bytes),
             bit_len: byte_len * 8,
             endianness: PhantomData,
+            slice: bytes,
         }
     }
 }
@@ -703,10 +710,14 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
 impl<'a, E: Endianness> From<Vec<u8>> for BitReadBuffer<'a, E> {
     fn from(bytes: Vec<u8>) -> Self {
         let byte_len = bytes.len();
+        let bytes = Data::Owned(Rc::new(bytes));
+        let slice = unsafe { std::slice::from_raw_parts(bytes.as_slice().as_ptr(), bytes.len()) };
+
         BitReadBuffer {
-            bytes: Data::Owned(Rc::new(bytes)),
+            bytes,
             bit_len: byte_len * 8,
             endianness: PhantomData,
+            slice,
         }
     }
 }
@@ -717,6 +728,7 @@ impl<'a, E: Endianness> Clone for BitReadBuffer<'a, E> {
             bytes: self.bytes.clone(),
             bit_len: self.bit_len(),
             endianness: PhantomData,
+            slice: self.slice,
         }
     }
 }
