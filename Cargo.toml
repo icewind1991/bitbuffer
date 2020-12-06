@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -10,7 +10,7 @@ repository = "https://github.com/icewind1991/bitbuffer"
 [dependencies]
 num-traits = "0.2"
 err-derive = "0.2.2"
-bitbuffer_derive = { version = "0.7", path = "bitbuffer_derive" }
+bitbuffer_derive = { version = "0.8", path = "bitbuffer_derive" }
 memchr = "2.2"
 
 [dev-dependencies]
