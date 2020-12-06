@@ -587,9 +587,11 @@ where
                             .trim_end_matches(char::from(0))
                             .to_string(),
                     ),
-                    Cow::Borrowed(bytes) => {
-                        Cow::Borrowed(std::str::from_utf8(bytes)?.trim_end_matches(char::from(0)))
-                    }
+                    Cow::Borrowed(bytes) => Cow::Borrowed(
+                        std::str::from_utf8(bytes)
+                            .map_err(|err| BitError::Utf8Error(err, bytes.len()))?
+                            .trim_end_matches(char::from(0)),
+                    ),
                 };
                 Ok(string)
             }
@@ -597,7 +599,10 @@ where
                 let bytes = self.read_string_bytes(position)?;
                 let string = match bytes {
                     Cow::Owned(bytes) => Cow::Owned(String::from_utf8(bytes)?),
-                    Cow::Borrowed(bytes) => Cow::Borrowed(std::str::from_utf8(bytes)?),
+                    Cow::Borrowed(bytes) => Cow::Borrowed(
+                        std::str::from_utf8(bytes)
+                            .map_err(|err| BitError::Utf8Error(err, bytes.len()))?,
+                    ),
                 };
                 Ok(string)
             }

@@ -125,7 +125,7 @@ pub enum BitError {
     },
     /// The read slice of bytes are not valid utf8
     #[error(display = "The read slice of bytes are not valid utf8: {}", _0)]
-    Utf8Error(#[error(source)] Utf8Error),
+    Utf8Error(Utf8Error, usize),
     /// The string that was requested to be written does not fit in the specified fixed length
     #[error(
         display = "The string that was requested to be written does not fit in the specified fixed length, string is {} bytes long, while a size of {} has been specified",
@@ -142,7 +142,7 @@ pub enum BitError {
 
 impl From<FromUtf8Error> for BitError {
     fn from(err: FromUtf8Error) -> Self {
-        BitError::from(err.utf8_error())
+        BitError::Utf8Error(err.utf8_error(), err.as_bytes().len())
     }
 }
 

@@ -3,7 +3,7 @@ use std::num::NonZeroU16;
 
 use maplit::hashmap;
 
-use bitbuffer::{BigEndian, BitRead, BitReadBuffer, BitReadStream, LittleEndian};
+use bitbuffer::{BigEndian, BitError, BitRead, BitReadBuffer, BitReadStream, LittleEndian};
 
 const BYTES: &'static [u8] = &[
     0b1011_0101,
@@ -472,4 +472,27 @@ fn test_to_owned_stream() {
 
     assert_eq!(stream.bit_len(), owned.bit_len());
     assert_eq!(stream.bits_left(), owned.bits_left());
+}
+
+#[test]
+fn test_invalid_utf8() {
+    let bytes = vec![b'b', b'a', 129, b'c', 0, 0, 0];
+    let buffer = BitReadBuffer::new(&bytes, LittleEndian);
+    let mut stream = BitReadStream::new(buffer.clone());
+
+    assert!(matches!(
+        stream.read_string(None),
+        Err(BitError::Utf8Error(_, 4))
+    ));
+
+    assert_eq!(stream.pos(), 5 * 8);
+
+    let mut stream = BitReadStream::new(buffer);
+
+    assert!(matches!(
+        stream.read_string(Some(6)),
+        Err(BitError::Utf8Error(_, 6))
+    ));
+
+    assert_eq!(stream.pos(), 6 * 8);
 }

@@ -306,10 +306,10 @@ where
 
         let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
             // still advance the stream on malformed utf8
-            if let BitError::Utf8Error(err) = &err {
+            if let BitError::Utf8Error(_, len) = &err {
                 self.pos += match byte_len {
                     Some(len) => len * 8,
-                    None => min((err.valid_up_to() + 1) * 8, max_length),
+                    None => min((len + 1) * 8, max_length * 8),
                 };
             }
             err
