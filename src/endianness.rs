@@ -18,11 +18,11 @@ pub trait Endianness: private::Sealed {
 }
 
 /// Marks the buffer or stream as big endian
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct BigEndian;
 
 /// Marks the buffer or stream as little endian
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct LittleEndian;
 
 macro_rules! impl_endianness {

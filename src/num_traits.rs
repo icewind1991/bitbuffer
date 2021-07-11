@@ -202,63 +202,13 @@ pub trait IntoBytes: Sized {
 }
 
 macro_rules! impl_into_bytes {
-    ($type:ty, $iter:ident) => {
-        // once std::array:IntoIter is stabilized we can get rid of this iterator
-        // https://github.com/rust-lang/rust/issues/65798
-        pub struct $iter {
-            data: [u8; std::mem::size_of::<$type>()],
-            start: usize,
-            end: usize,
-        }
-
-        impl $iter {
-            pub fn new(int: $type) -> Self {
-                $iter {
-                    data: int.to_le_bytes(),
-                    start: 0,
-                    end: std::mem::size_of::<$type>(),
-                }
-            }
-        }
-
-        impl Iterator for $iter {
-            type Item = u8;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.start < self.end {
-                    let byte = self.data[self.start];
-                    self.start += 1;
-                    Some(byte)
-                } else {
-                    None
-                }
-            }
-
-            fn size_hint(&self) -> (usize, Option<usize>) {
-                let size = self.end - self.start;
-                (size, Some(size))
-            }
-        }
-
-        impl std::iter::DoubleEndedIterator for $iter {
-            fn next_back(&mut self) -> Option<Self::Item> {
-                if self.end > self.start {
-                    self.end -= 1;
-                    Some(self.data[self.end])
-                } else {
-                    None
-                }
-            }
-        }
-
-        impl std::iter::ExactSizeIterator for $iter {}
-
+    ($type:ty, $bytes:expr) => {
         impl IntoBytes for $type {
-            type Iter = $iter;
+            type Iter = std::array::IntoIter<u8, $bytes>;
 
             #[inline(always)]
             fn into_bytes(self) -> Self::Iter {
-                <$iter>::new(self)
+                Self::Iter::new(self.to_le_bytes())
             }
         }
     };
@@ -277,15 +227,24 @@ impl_is_signed!(i64, true);
 impl_is_signed!(i128, true);
 impl_is_signed!(isize, true);
 
-impl_into_bytes!(u8, BytesIterU8);
-impl_into_bytes!(u16, BytesIterU16);
-impl_into_bytes!(u32, BytesIterU32);
-impl_into_bytes!(u64, BytesIterU64);
-impl_into_bytes!(u128, BytesIterU128);
-impl_into_bytes!(usize, BytesIterUsize);
-impl_into_bytes!(i8, BytesIterI8);
-impl_into_bytes!(i16, BytesIterI16);
-impl_into_bytes!(i32, BytesIterI32);
-impl_into_bytes!(i64, BytesIterI64);
-impl_into_bytes!(i128, BytesIterI128);
-impl_into_bytes!(isize, BytesIterIsize);
+impl_into_bytes!(u8, 1);
+impl_into_bytes!(u16, 2);
+impl_into_bytes!(u32, 4);
+impl_into_bytes!(u64, 8);
+impl_into_bytes!(u128, 16);
+
+#[cfg(target_pointer_width = "64")]
+impl_into_bytes!(usize, 8);
+#[cfg(target_pointer_width = "32")]
+impl_into_bytes!(usize, 4);
+
+impl_into_bytes!(i8, 1);
+impl_into_bytes!(i16, 2);
+impl_into_bytes!(i32, 4);
+impl_into_bytes!(i64, 8);
+impl_into_bytes!(i128, 16);
+
+#[cfg(target_pointer_width = "64")]
+impl_into_bytes!(isize, 8);
+#[cfg(target_pointer_width = "32")]
+impl_into_bytes!(isize, 4);

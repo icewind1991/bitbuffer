@@ -63,6 +63,7 @@ pub use readbuffer::BitReadBuffer;
 pub use readstream::BitReadStream;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
+pub use write::{BitWrite, BitWriteSized};
 pub use writestream::BitWriteStream;
 
 mod endianness;
@@ -70,6 +71,7 @@ mod num_traits;
 mod read;
 mod readbuffer;
 mod readstream;
+mod write;
 mod writestream;
 
 /// Errors that can be returned when trying to read from a buffer

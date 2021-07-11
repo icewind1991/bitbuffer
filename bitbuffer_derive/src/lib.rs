@@ -131,14 +131,20 @@
 //!     stream: BitReadStream<'a, BigEndian>,
 //! }
 //! ```
+//!
+mod discriminant;
+mod write;
+
 extern crate proc_macro;
 
+use crate::write::derive_bitwrite_trait;
+use discriminant::Discriminant;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, GenericParam, Ident, Lit, LitStr, Path, Variant,
+    Fields, GenericParam, Ident, Lit, LitStr, Path,
 };
 use syn_util::get_attribute_value;
 
@@ -160,6 +166,31 @@ pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
     derive_bitread_trait(input, "BitReadSized".to_owned(), Some(extra_param))
+}
+
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(
+    BitWrite,
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+)]
+pub fn derive_bitwrite(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    derive_bitwrite_trait(input, "BitWrite".into(), "write".into(), None)
+}
+
+//
+/// See the [crate documentation](index.html) for details
+#[proc_macro_derive(
+    BitWriteSized,
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+)]
+pub fn derive_bitwrite_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
+    derive_bitwrite_trait(
+        input,
+        "BitWriteSized".into(),
+        "write_sized".into(),
+        Some(extra_param),
+    )
 }
 
 fn derive_bitread_trait(
@@ -513,38 +544,4 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
                 }
             })
         })
-}
-
-enum Discriminant {
-    Int(usize),
-    Default,
-    Wildcard,
-}
-
-impl From<Lit> for Discriminant {
-    fn from(lit: Lit) -> Self {
-        match lit {
-            Lit::Int(lit) => Discriminant::Int(lit.base10_parse::<usize>().unwrap()),
-            Lit::Str(lit) => match lit.value().as_str() {
-                "_" => Discriminant::Wildcard,
-                _ => panic!("discriminant is required to be an integer literal or \"_\""),
-            },
-            _ => panic!("discriminant is required to be an integer literal or \"_\""),
-        }
-    }
-}
-
-impl From<&Variant> for Discriminant {
-    fn from(variant: &Variant) -> Self {
-        variant
-            .discriminant
-            .as_ref()
-            .map(|(_, expr)| match expr {
-                Expr::Lit(expr_lit) => expr_lit.lit.clone(),
-                _ => panic!("discriminant is required to be an integer literal"),
-            })
-            .or_else(|| get_attribute_value(&variant.attrs, &["discriminant"]))
-            .map(Discriminant::from)
-            .unwrap_or(Discriminant::Default)
-    }
 }

@@ -6,7 +6,9 @@ use std::ops::{BitOrAssign, BitXor};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
-use crate::{BitError, Result};
+use crate::{BitError, BitReadStream, BitWrite, BitWriteSized, Result};
+use std::cmp::min;
+use std::fmt::Debug;
 
 const USIZE_SIZE: usize = size_of::<usize>();
 const USIZE_BITS: usize = USIZE_SIZE * 8;
@@ -29,6 +31,7 @@ const USIZE_BITS: usize = USIZE_SIZE * 8;
 /// ```
 ///
 /// [`BitBuffer`]: struct.BitBuffer.html
+#[derive(Clone)]
 pub struct BitWriteStream<E>
 where
     E: Endianness,
@@ -79,14 +82,17 @@ where
         I: ExactSizeIterator,
         I: DoubleEndedIterator<Item = u8>,
     {
+        let full_bytes = min(bits.len() - 1, count / 8);
+
         let counts = repeat(8)
-            .take(bits.len() - 1)
-            .chain(once(count - (bits.len() - 1) * 8));
+            .take(full_bytes)
+            .chain(once(count - full_bytes * 8));
         if E::is_le() {
             bits.zip(counts)
                 .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
         } else {
-            bits.rev()
+            bits.take(count / 8 + 1)
+                .rev()
                 .zip(counts)
                 .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
         }
@@ -97,7 +103,11 @@ where
         debug_assert!(count < USIZE_BITS - 8);
 
         let bit_offset = self.bit_len & 7;
-        let last_written_byte = self.bytes.pop().unwrap_or(0);
+        let last_written_byte = if bit_offset > 0 {
+            self.bytes.pop().unwrap_or(0)
+        } else {
+            0
+        };
         let merged_byte_count = (count + bit_offset + 7) / 8;
 
         if E::is_le() {
@@ -154,7 +164,7 @@ where
     #[inline]
     pub fn write_int<T>(&mut self, value: T, count: usize) -> Result<()>
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + IntoBytes,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + IntoBytes + Debug,
     {
         let type_bit_size = size_of::<T>() * 8;
 
@@ -166,11 +176,13 @@ where
         }
 
         if type_bit_size < USIZE_BITS {
-            if T::is_signed() {
-                todo!()
-            } else {
-                self.push_bits(value.into_usize_unchecked(), count);
-            }
+            // if T::is_signed() && count < type_bit_size {
+            //     // set
+            //     let sign_bit = T::one() << (count - 1);
+            //     let value = abs(value) | sign_bit;
+            // }
+
+            self.push_bits(value.into_usize_unchecked(), count);
         } else {
             self.push_non_fit_bits(value.into_bytes(), count)
         }
@@ -230,7 +242,33 @@ where
     /// ```
     #[inline]
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
-        self.push_non_fit_bits(bytes.iter().copied(), bytes.len() * 8);
+        bytes
+            .iter()
+            .copied()
+            .for_each(|chunk| self.push_bits(chunk as usize, 8));
+        Ok(())
+    }
+
+    /// Write bits from a read stream into the buffer
+    #[inline]
+    pub fn write_bits(&mut self, bits: &BitReadStream<E>) -> Result<()> {
+        let mut bits = bits.clone();
+        let bit_offset = self.bit_len % 8;
+        if bit_offset > 0 {
+            let start = bits.read_int::<u8>(8 - bit_offset)?;
+            self.push_bits(start as usize, 8 - bit_offset);
+        }
+
+        while bits.bits_left() > 32 {
+            let chunk = bits.read::<u32>()?;
+            self.push_bits(chunk as usize, 32);
+        }
+
+        if bits.bits_left() > 0 {
+            let end_bits = bits.bits_left();
+            let end = bits.read_int::<u32>(end_bits)?;
+            self.push_bits(end as usize, end_bits);
+        }
         Ok(())
     }
 
@@ -283,5 +321,17 @@ where
     /// Convert the write buffer into the written bytes
     pub fn finish(self) -> Vec<u8> {
         self.bytes
+    }
+
+    /// Write the type to stream
+    #[inline]
+    pub fn write<T: BitWrite<E>>(&mut self, value: &T) -> Result<()> {
+        value.write(self)
+    }
+
+    /// Write the type to stream
+    #[inline]
+    pub fn write_sized<T: BitWriteSized<E>>(&mut self, value: &T, length: usize) -> Result<()> {
+        value.write_sized(self, length)
     }
 }
