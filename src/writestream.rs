@@ -103,7 +103,7 @@ where
         debug_assert!(count < USIZE_BITS - 8);
 
         // ensure there are no stray bits
-        let bits = bits & (usize::MAX >> count);
+        let bits = bits & (usize::MAX >> (USIZE_BITS - count));
 
         let bit_offset = self.bit_len & 7;
         let last_written_byte = if bit_offset > 0 {
