@@ -119,7 +119,7 @@ where
                 .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
             let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
-                | bits << (USIZE_BITS - bit_offset - count);
+                | (bits << (USIZE_BITS - bit_offset - count));
             self.bytes
                 .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
         }

@@ -521,21 +521,34 @@ where
         let mut data = Vec::with_capacity(byte_count);
         let mut byte_left = byte_count;
         let mut read_pos = position / 8;
-        while byte_left > USIZE_SIZE - 1 {
-            let bytes = self
-                .read_shifted_usize(read_pos, shift, false)
-                .to_le_bytes();
-            let read_bytes = USIZE_SIZE - 1;
-            let usable_bytes = &bytes[0..read_bytes];
+
+        if E::is_le() {
+            while byte_left > USIZE_SIZE - 1 {
+                let raw = self.read_shifted_usize(read_pos, shift, false);
+                let bytes = if E::is_le() {
+                    raw.to_le_bytes()
+                } else {
+                    raw.to_be_bytes()
+                };
+                let read_bytes = USIZE_SIZE - 1;
+                let usable_bytes = &bytes[0..read_bytes];
+                data.extend_from_slice(usable_bytes);
+
+                read_pos += read_bytes;
+                byte_left -= read_bytes;
+            }
+
+            let bytes = self.read_shifted_usize(read_pos, shift, true).to_le_bytes();
+            let usable_bytes = &bytes[0..byte_left];
             data.extend_from_slice(usable_bytes);
-
-            read_pos += read_bytes;
-            byte_left -= read_bytes;
+        } else {
+            let mut pos = position;
+            while byte_left > 0 {
+                data.push(self.read_int_unchecked::<u8>(pos, 8, true));
+                byte_left -= 1;
+                pos += 8;
+            }
         }
-
-        let bytes = self.read_shifted_usize(read_pos, shift, true).to_le_bytes();
-        let usable_bytes = &bytes[0..byte_left];
-        data.extend_from_slice(usable_bytes);
 
         Cow::Owned(data)
     }
@@ -626,32 +639,45 @@ where
             ))
         } else {
             let mut acc = Vec::with_capacity(32);
-            let mut byte_index = position / 8;
-            loop {
-                // note: if less then a usize worth of data is left in the buffer, read_usize_bytes
-                // will automatically pad with null bytes, triggering the loop termination
-                // thus no separate logic for dealing with the end of the bytes is required
-                //
-                // This is safe because the final usize is filled with 0's, thus triggering the exit clause
-                // before reading any out of bounds
-                let shifted = unsafe { self.read_shifted_usize(byte_index, shift, true) };
+            if E::is_le() {
+                let mut byte_index = position / 8;
+                loop {
+                    // note: if less then a usize worth of data is left in the buffer, read_usize_bytes
+                    // will automatically pad with null bytes, triggering the loop termination
+                    // thus no separate logic for dealing with the end of the bytes is required
+                    //
+                    // This is safe because the final usize is filled with 0's, thus triggering the exit clause
+                    // before reading any out of bounds
+                    let shifted = unsafe { self.read_shifted_usize(byte_index, shift, true) };
 
-                let has_null = contains_zero_byte_non_top(shifted);
-                let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
-                let usable_bytes = &bytes[0..USIZE_SIZE - 1];
+                    let has_null = contains_zero_byte_non_top(shifted);
+                    let bytes: [u8; USIZE_SIZE] = shifted.to_le_bytes();
+                    let usable_bytes = &bytes[0..USIZE_SIZE - 1];
 
-                if has_null {
-                    for i in 0..USIZE_SIZE - 1 {
-                        if usable_bytes[i] == 0 {
-                            acc.extend_from_slice(&usable_bytes[0..i]);
-                            return Ok(Cow::Owned(acc));
+                    if has_null {
+                        for i in 0..USIZE_SIZE - 1 {
+                            if usable_bytes[i] == 0 {
+                                acc.extend_from_slice(&usable_bytes[0..i]);
+                                return Ok(Cow::Owned(acc));
+                            }
                         }
                     }
+
+                    acc.extend_from_slice(&usable_bytes[0..USIZE_SIZE - 1]);
+
+                    byte_index += USIZE_SIZE - 1;
                 }
-
-                acc.extend_from_slice(&usable_bytes[0..USIZE_SIZE - 1]);
-
-                byte_index += USIZE_SIZE - 1;
+            } else {
+                let mut pos = position;
+                loop {
+                    let byte = self.read_int::<u8>(pos, 8)?;
+                    pos += 8;
+                    if byte == 0 {
+                        return Ok(Cow::Owned(acc));
+                    } else {
+                        acc.push(byte);
+                    }
+                }
             }
         }
     }
