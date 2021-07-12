@@ -137,9 +137,14 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
             }
         }
         Data::Enum(data) => {
-            let discriminant_bits: u64 = get_attribute_value(attrs, &["discriminant_bits"]).expect(
-                "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
-            );
+            let discriminant_bits: u64 = match get_attribute_value(attrs, &["discriminant_bits"]) {
+                Some(attr) => attr,
+                None => {
+                    return quote! {span=>
+                        compile_error!("'discriminant_bits' attribute is required when deriving `BinWrite` for enums");
+                    }
+                }
+            };
 
             let mut last_discriminant = -1;
 

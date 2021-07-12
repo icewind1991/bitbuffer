@@ -374,9 +374,14 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
             }
         }
         Data::Enum(data) => {
-            let discriminant_bits: u64 = get_attribute_value(attrs, &["discriminant_bits"]).expect(
-                "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
-            );
+            let discriminant_bits: u64 = match get_attribute_value(attrs, &["discriminant_bits"]) {
+                Some(attr) => attr,
+                None => {
+                    return quote! {span=>
+                        compile_error!("'discriminant_bits' attribute is required when deriving `BinRead` for enums");
+                    }
+                }
+            };
 
             let mut last_discriminant = -1;
             let match_arms = data.variants.iter().map(|variant| {
@@ -484,10 +489,15 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
             }
         }
         Data::Enum(data) => {
-            let discriminant_bits = get_attribute_value::<u64>(attrs, &["discriminant_bits"])
-                .expect(
-                    "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
-                ) as usize;
+            let discriminant_bits = match get_attribute_value::<u64>(attrs, &["discriminant_bits"])
+            {
+                Some(attr) => attr as usize,
+                None => {
+                    return quote! {span=>
+                        compile_error!("'discriminant_bits' attribute is required when deriving `BinRead` for enums");
+                    }
+                }
+            };
 
             let is_unit = data
                 .variants

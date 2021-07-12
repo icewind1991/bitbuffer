@@ -150,3 +150,19 @@ fn test_write_string_le_unaligned() {
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
 }
+
+#[test]
+fn test_write_signed() {
+    let mut stream = BitWriteStream::new(LittleEndian);
+
+    stream.write_bool(true).unwrap();
+    stream.write_int(-17i32, 32).unwrap();
+    stream.write_int(-9i32, 8).unwrap();
+
+    let data = stream.finish();
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
+
+    assert_eq!(true, read.read_bool().unwrap());
+    assert_eq!(-17i32, read.read_int(32).unwrap());
+    assert_eq!(-9i32, read.read_int(8).unwrap());
+}
