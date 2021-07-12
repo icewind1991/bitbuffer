@@ -56,7 +56,7 @@
 
 use err_derive::Error;
 
-pub use bitbuffer_derive::{BitRead, BitReadSized};
+pub use bitbuffer_derive::{BitRead, BitReadSized, BitWrite, BitWriteSized};
 pub use endianness::*;
 pub use read::{BitRead, BitReadSized, LazyBitRead, LazyBitReadSized};
 pub use readbuffer::BitReadBuffer;
