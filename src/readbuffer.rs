@@ -40,7 +40,7 @@ impl<'a> Data<'a> {
             Data::Borrowed(bytes) => Rc::from(bytes.to_vec()),
             Data::Owned(bytes) => Rc::clone(bytes),
         };
-        Data::Owned(bytes.into())
+        Data::Owned(bytes)
     }
 }
 
