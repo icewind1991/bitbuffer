@@ -74,3 +74,19 @@ fn test_bare_enum() {
     roundtrip(Enum::C);
     roundtrip(Enum::D);
 }
+
+#[test]
+fn test_field_enum() {
+    #[derive(Debug, PartialEq, BitRead, BitWrite)]
+    #[discriminant_bits = 4]
+    enum Enum {
+        A,
+        B(String),
+        C(f32),
+        D(#[size = 15] i64),
+    }
+    roundtrip(Enum::A);
+    roundtrip(Enum::B("foobar".into()));
+    roundtrip(Enum::C(12.0));
+    roundtrip(Enum::D(-12345));
+}
