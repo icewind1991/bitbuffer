@@ -704,6 +704,34 @@ impl<'a, E: Endianness> Clone for BitReadStream<'a, E> {
     }
 }
 
+impl<'a, E: Endianness> PartialEq for BitReadStream<'a, E> {
+    fn eq(&self, other: &Self) -> bool {
+        // clones so we can mut
+        let mut self_clone = self.clone();
+        self_clone.set_pos(0).ok();
+        let mut other_clone = other.clone();
+        other_clone.set_pos(0).ok();
+
+        if self_clone.bits_left() != other_clone.bits_left() {
+            return false;
+        }
+
+        while self_clone.bits_left() > 32 {
+            if self_clone.read::<u32>().ok() != other_clone.read().ok() {
+                return false;
+            }
+        }
+
+        while self_clone.bits_left() > 0 {
+            if self_clone.read::<bool>().ok() != other_clone.read().ok() {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
 impl<'a, E: Endianness> From<BitReadBuffer<'a, E>> for BitReadStream<'a, E> {
     fn from(buffer: BitReadBuffer<'a, E>) -> Self {
         BitReadStream::new(buffer)

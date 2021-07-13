@@ -802,6 +802,12 @@ impl<E: Endianness> Debug for BitReadBuffer<'_, E> {
     }
 }
 
+impl<'a, E: Endianness> PartialEq for BitReadBuffer<'a, E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.bit_len == other.bit_len && self.slice == other.slice
+    }
+}
+
 /// Return `true` if `x` contains any zero byte except for the topmost byte.
 ///
 /// From *Matters Computational*, J. Arndt
