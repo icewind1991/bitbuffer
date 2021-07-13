@@ -96,3 +96,9 @@ fn test_array() {
     roundtrip([1, 2, 3, 4, 5]);
     roundtrip([String::from("asd"), String::from("foobar")]);
 }
+
+#[test]
+fn test_tuple() {
+    roundtrip((1, false));
+    roundtrip((1, 10.12, String::from("asd")));
+}

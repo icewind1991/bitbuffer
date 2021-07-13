@@ -81,6 +81,22 @@ impl<E: Endianness, T: BitWrite<E>, const N: usize> BitWrite<E> for [T; N] {
     }
 }
 
+macro_rules! impl_write_tuple {
+    ($($i:tt: $type:ident),*) => {
+        impl<'a, E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
+            #[inline]
+            fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+                $(self.$i.write(stream)?;)*
+                Ok(())
+            }
+        }
+    };
+}
+
+impl_write_tuple!(0: T1, 1: T2);
+impl_write_tuple!(0: T1, 1: T2, 2: T3);
+impl_write_tuple!(0: T1, 1: T2, 2: T3, 3: T4);
+
 /// Trait for types that can be written to a stream, requiring the size to be configured
 pub trait BitWriteSized<E: Endianness> {
     /// Write the type to stream
