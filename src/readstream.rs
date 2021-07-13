@@ -728,7 +728,7 @@ impl<'a, E: Endianness> PartialEq for BitReadStream<'a, E> {
             }
         }
 
-        return true;
+        true
     }
 }
 

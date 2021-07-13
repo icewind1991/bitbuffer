@@ -361,11 +361,11 @@ impl<'a, E: Endianness, T: BitRead<'a, E>, const N: usize> BitRead<'a, E> for [T
                 // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
                 let mut array =
                     unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
-                for i in 0..N {
+                for item in array.iter_mut() {
                     unsafe {
                         // length is already checked
                         let val = stream.read()?;
-                        array[i].as_mut_ptr().write(val)
+                        item.as_mut_ptr().write(val)
                     }
                 }
                 unsafe { Ok((&array as *const _ as *const [T; N]).read()) }
@@ -378,10 +378,10 @@ impl<'a, E: Endianness, T: BitRead<'a, E>, const N: usize> BitRead<'a, E> for [T
         // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
         let mut array = MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init();
 
-        for i in 0..N {
+        for item in array.iter_mut() {
             // length is already checked
             let val = stream.read_unchecked(end)?;
-            array[i].as_mut_ptr().write(val);
+            item.as_mut_ptr().write(val);
         }
 
         Ok((&array as *const _ as *const [T; N]).read())
@@ -767,11 +767,11 @@ impl<'a, E: Endianness, T: BitReadSized<'a, E>, const N: usize> BitReadSized<'a,
                 // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
                 let mut array =
                     unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
-                for i in 0..N {
+                for item in array.iter_mut() {
                     unsafe {
                         // length is already checked
                         let val = stream.read_sized(size)?;
-                        array[i].as_mut_ptr().write(val)
+                        item.as_mut_ptr().write(val)
                     }
                 }
                 unsafe { Ok((&array as *const _ as *const [T; N]).read()) }
@@ -788,10 +788,10 @@ impl<'a, E: Endianness, T: BitReadSized<'a, E>, const N: usize> BitReadSized<'a,
         // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
         let mut array = MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init();
 
-        for i in 0..N {
+        for item in array.iter_mut() {
             // length is already checked
             let val = stream.read_sized_unchecked(size, end)?;
-            array[i].as_mut_ptr().write(val);
+            item.as_mut_ptr().write(val);
         }
 
         Ok((&array as *const _ as *const [T; N]).read())
