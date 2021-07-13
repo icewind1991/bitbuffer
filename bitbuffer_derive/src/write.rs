@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, GenericParam, Ident, Index, Lit, Member, Path,
+    Fields, GenericParam, Ident, Index, Lit, Member, Path, Type,
 };
 use syn_util::get_attribute_value;
 
@@ -100,8 +100,14 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                         span: field.span(),
                     })
                 });
-                quote_spanned! { field.span() =>
-                    let #name = &self.#member;
+                // extract int fields to be used in size expressions
+                if type_is_int(&field.ty) {
+                    quote_spanned! { field.span() =>
+                        #[allow(unused_variables)]
+                        let #name = self.#member;
+                    }
+                } else {
+                    quote! {}
                 }
             });
 
@@ -109,22 +115,24 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                 // Get attributes `#[..]` on each field
                 let size = get_field_size(&f.attrs, f.span());
                 let span = f.span();
-                let name = f
-                    .ident
-                    .clone()
-                    .unwrap_or_else(|| Ident::new(&format!("__{}", i), span));
+                let member = f.ident.clone().map(Member::Named).unwrap_or_else(|| {
+                    Member::Unnamed(Index {
+                        index: i as u32,
+                        span,
+                    })
+                });
                 match size {
                     Some(size) => {
                         quote_spanned! { span =>
                             {
                                 let _size: usize = #size;
-                                __target__stream.write_sized(#name, _size)?;
+                                __target__stream.write_sized(&self.#member, _size)?;
                             }
                         }
                     }
                     None => {
                         quote_spanned! { span => {
-                            __target__stream.write(#name)?;
+                            __target__stream.write(&self.#member)?;
                         }}
                     }
                 }
@@ -258,14 +266,8 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).expect("size");
-                if size_field.value() == "input_size" {
-                    quote_spanned! {span =>
-                        (#size) as usize
-                    }
-                } else {
-                    quote_spanned! {span =>
-                        (*#size) as usize
-                    }
+                quote_spanned! {span =>
+                    (#size) as usize
                 }
             }
             _ => panic!("Unsupported value for size attribute"),
@@ -277,4 +279,20 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
                 }
             })
         })
+}
+
+fn type_is_int(ty: &Type) -> bool {
+    if let Type::Path(path) = ty {
+        if let Some(ident) = path.path.get_ident() {
+            let name = ident.to_string();
+            matches!(
+                name.as_str(),
+                "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "isize"
+            )
+        } else {
+            false
+        }
+    } else {
+        false
+    }
 }

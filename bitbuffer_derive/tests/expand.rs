@@ -6,10 +6,8 @@ use bitbuffer::{BitReadStream, Endianness};
 use bitbuffer_derive::{BitWrite, BitWriteSized};
 
 #[derive(BitWrite)]
-struct TestStruct {
-    foo: u8,
+struct TestSizeExpression {
+    size: u8,
+    #[size = "size + 2"]
     str: String,
 }
-
-#[derive(BitWrite)]
-struct UnnamedSize(u8, #[size = 5] String, bool);

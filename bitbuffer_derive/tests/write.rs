@@ -260,3 +260,23 @@ fn test_empty_struct() {
     stream.write(&EmptyStruct).unwrap();
     assert_eq!(Vec::<u8>::new(), stream.finish());
 }
+
+#[derive(BitWrite)]
+struct TestSizeExpression {
+    size: u8,
+    #[size = "size + 2"]
+    str: String,
+}
+
+#[test]
+fn test_read_size_expression() {
+    let bytes = vec![0b0000_0011, b'a', b'b', b'c', b'd', b'e'];
+    let mut stream = BitWriteStream::new(BigEndian);
+
+    let val = TestSizeExpression {
+        size: 3,
+        str: String::from("abcde"),
+    };
+    stream.write(&val).unwrap();
+    assert_eq!(bytes, stream.finish());
+}
