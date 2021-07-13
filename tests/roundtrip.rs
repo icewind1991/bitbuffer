@@ -90,3 +90,9 @@ fn test_field_enum() {
     roundtrip(Enum::C(12.0));
     roundtrip(Enum::D(-12345));
 }
+
+#[test]
+fn test_array() {
+    roundtrip([1, 2, 3, 4, 5]);
+    roundtrip([String::from("asd"), String::from("foobar")]);
+}

@@ -71,6 +71,16 @@ impl<E: Endianness> BitWrite<E> for BitReadStream<'_, E> {
     }
 }
 
+impl<E: Endianness, T: BitWrite<E>, const N: usize> BitWrite<E> for [T; N] {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        for element in self.iter() {
+            stream.write(element)?;
+        }
+        Ok(())
+    }
+}
+
 /// Trait for types that can be written to a stream, requiring the size to be configured
 pub trait BitWriteSized<E: Endianness> {
     /// Write the type to stream
@@ -118,5 +128,15 @@ impl<E: Endianness> BitWriteSized<E> for BitReadStream<'_, E> {
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
         let bits = self.clone().read_bits(len)?;
         stream.write_bits(&bits)
+    }
+}
+
+impl<E: Endianness, T: BitWriteSized<E>, const N: usize> BitWriteSized<E> for [T; N] {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        for element in self.iter() {
+            stream.write_sized(element, len)?;
+        }
+        Ok(())
     }
 }

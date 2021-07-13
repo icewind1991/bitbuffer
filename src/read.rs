@@ -6,7 +6,7 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, MaybeUninit};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -348,6 +348,50 @@ macro_rules! impl_read_tuple {
 impl_read_tuple!(T1, T2);
 impl_read_tuple!(T1, T2, T3);
 impl_read_tuple!(T1, T2, T3, T4);
+
+impl<'a, E: Endianness, T: BitRead<'a, E>, const N: usize> BitRead<'a, E> for [T; N] {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>) -> Result<Self> {
+        match T::bit_size() {
+            Some(bit_size) => {
+                let end = stream.check_read(bit_size * N)?;
+                unsafe { Self::read_unchecked(stream, end) }
+            }
+            None => {
+                // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
+                let mut array =
+                    unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
+                for i in 0..N {
+                    unsafe {
+                        // length is already checked
+                        let val = stream.read()?;
+                        array[i].as_mut_ptr().write(val)
+                    }
+                }
+                unsafe { Ok((&array as *const _ as *const [T; N]).read()) }
+            }
+        }
+    }
+
+    #[inline]
+    unsafe fn read_unchecked(stream: &mut BitReadStream<'a, E>, end: bool) -> Result<Self> {
+        // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
+        let mut array = MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init();
+
+        for i in 0..N {
+            // length is already checked
+            let val = stream.read_unchecked(end)?;
+            array[i].as_mut_ptr().write(val);
+        }
+
+        Ok((&array as *const _ as *const [T; N]).read())
+    }
+
+    #[inline]
+    fn bit_size() -> Option<usize> {
+        T::bit_size().map(|size| size * N)
+    }
+}
 
 /// Trait for types that can be read from a stream, requiring the size to be configured
 ///
@@ -708,5 +752,53 @@ impl<'a, T: BitReadSized<'a, E>, E: Endianness> BitReadSized<'a, E> for LazyBitR
     #[inline]
     fn bit_size_sized(size: usize) -> Option<usize> {
         T::bit_size_sized(size)
+    }
+}
+
+impl<'a, E: Endianness, T: BitReadSized<'a, E>, const N: usize> BitReadSized<'a, E> for [T; N] {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
+        match T::bit_size_sized(size) {
+            Some(bit_size) => {
+                let end = stream.check_read(bit_size * N)?;
+                unsafe { Self::read_unchecked(stream, size, end) }
+            }
+            None => {
+                // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
+                let mut array =
+                    unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() };
+                for i in 0..N {
+                    unsafe {
+                        // length is already checked
+                        let val = stream.read_sized(size)?;
+                        array[i].as_mut_ptr().write(val)
+                    }
+                }
+                unsafe { Ok((&array as *const _ as *const [T; N]).read()) }
+            }
+        }
+    }
+
+    #[inline]
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<'a, E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
+        // SAFETY: An uninitialized `[MaybeUninit<_>; LEN]` is valid.
+        let mut array = MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init();
+
+        for i in 0..N {
+            // length is already checked
+            let val = stream.read_sized_unchecked(size, end)?;
+            array[i].as_mut_ptr().write(val);
+        }
+
+        Ok((&array as *const _ as *const [T; N]).read())
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        T::bit_size_sized(size).map(|size| size * N)
     }
 }
