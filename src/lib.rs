@@ -72,6 +72,7 @@ mod read;
 mod readbuffer;
 mod readstream;
 mod write;
+mod writebuffer;
 mod writestream;
 
 /// Errors that can be returned when trying to read from a buffer

@@ -50,9 +50,10 @@ fn test_read_struct() {
         asd: 0b101,
         previous_field: 0b1010_0,
     };
-    let mut stream = BitWriteStream::new(LittleEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     stream.write(&val).unwrap();
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, PartialEq, Debug)]
@@ -66,12 +67,13 @@ enum TestBareEnum {
 #[test]
 fn test_read_bare_enum() {
     let bytes = vec![0b1100_0100];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     stream.write(&TestBareEnum::Asd).unwrap();
     stream.write(&TestBareEnum::Foo).unwrap();
     stream.write(&TestBareEnum::Bar).unwrap();
 
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, BitRead, PartialEq, Debug)]
@@ -87,7 +89,8 @@ enum TestUnnamedFieldEnum {
 #[test]
 fn test_read_unnamed_field_enum() {
     let bytes = vec![0b1100_0110, 0b1000_0110, 0b1011_0000];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     stream
         .write(&TestUnnamedFieldEnum::Asd(0b_00_0110_10))
         .unwrap();
@@ -98,8 +101,7 @@ fn test_read_unnamed_field_enum() {
 
     stream.write(&TestUnnamedFieldEnum::Bar(true)).unwrap();
 
-    let result = stream.finish();
-    let mut read = BitReadStream::<BigEndian>::from(result.as_slice());
+    let mut read = BitReadStream::<BigEndian>::from(data.as_slice());
 
     assert_eq!(
         TestUnnamedFieldEnum::Asd(0b_00_0110_10),
@@ -108,7 +110,7 @@ fn test_read_unnamed_field_enum() {
     assert_eq!(TestUnnamedFieldEnum::Foo(0b11_0_1), read.read().unwrap());
     assert_eq!(TestUnnamedFieldEnum::Bar(true), read.read().unwrap());
 
-    assert_eq!(bytes, result);
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWriteSized, BitReadSized, PartialEq, Debug)]
@@ -123,19 +125,19 @@ struct TestStructSized {
 #[test]
 fn test_read_struct_sized() {
     let bytes = vec![12, 'h' as u8, 'e' as u8, 'l' as u8, 0b1000_0000];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     let val = TestStructSized {
         foo: 12,
         string: "hel".to_owned(),
         int: 4,
     };
     stream.write_sized(&val, 3).unwrap();
-    let result = stream.finish();
-    let mut read = BitReadStream::<BigEndian>::from(result.as_slice());
+    let mut read = BitReadStream::<BigEndian>::from(data.as_slice());
 
     assert_eq!(val, read.read_sized(3).unwrap());
 
-    assert_eq!(bytes, result);
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWriteSized, PartialEq, Debug)]
@@ -152,11 +154,12 @@ enum TestUnnamedFieldEnumSized {
 #[test]
 fn test_read_unnamed_field_enum_sized() {
     let bytes = vec![0b1100_0110];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     stream
         .write_sized(&TestUnnamedFieldEnumSized::Asd(0b_00_0110), 6)
         .unwrap();
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, PartialEq, Debug)]
@@ -181,14 +184,15 @@ fn test_read_struct2() {
         'r' as u8,
         'l' as u8,
     ];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     stream
         .write(&TestStruct2 {
             size: 5,
             str: "hello worl".to_owned(),
         })
         .unwrap();
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite)]
@@ -202,7 +206,8 @@ struct TestStruct3<'a, E: Endianness> {
 #[test]
 fn test_read_struct3() {
     let bytes = vec![0b0000_0101, 0b1010_1000];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
     let mut inner = BitReadStream::from(BitReadBuffer::new(&[0b1010_1010], BigEndian));
 
     let inner = inner.read_bits(5).unwrap();
@@ -212,7 +217,7 @@ fn test_read_struct3() {
         stream: inner,
     };
     stream.write(&val).unwrap();
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, PartialEq, Debug)]
@@ -227,14 +232,15 @@ enum TestEnumRest {
 #[test]
 fn test_read_rest_enum() {
     let bytes = vec![0b1000_0110];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
 
     stream.write(&TestEnumRest::Asd).unwrap();
     stream.write(&TestEnumRest::Foo).unwrap();
     stream.write(&TestEnumRest::Bar).unwrap();
     stream.write(&TestEnumRest::Asd).unwrap();
 
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, PartialEq, Debug)]
@@ -244,21 +250,23 @@ fn test_unnamed_struct() {
     let bytes = vec![
         12, 'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0, 0, 0, 0,
     ];
-    let mut stream = BitWriteStream::new(LittleEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     stream
         .write(&UnnamedSize(12, "hello".to_string(), false))
         .unwrap();
 
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }
 
 #[derive(BitWrite, PartialEq, Debug)]
 struct EmptyStruct;
 
 fn test_empty_struct() {
-    let mut stream = BitWriteStream::new(LittleEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     stream.write(&EmptyStruct).unwrap();
-    assert_eq!(Vec::<u8>::new(), stream.finish());
+    assert_eq!(Vec::<u8>::new(), data);
 }
 
 #[derive(BitWrite)]
@@ -271,12 +279,13 @@ struct TestSizeExpression {
 #[test]
 fn test_read_size_expression() {
     let bytes = vec![0b0000_0011, b'a', b'b', b'c', b'd', b'e'];
-    let mut stream = BitWriteStream::new(BigEndian);
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
 
     let val = TestSizeExpression {
         size: 3,
         str: String::from("abcde"),
     };
     stream.write(&val).unwrap();
-    assert_eq!(bytes, stream.finish());
+    assert_eq!(bytes, data);
 }

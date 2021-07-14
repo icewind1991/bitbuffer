@@ -1,13 +1,11 @@
 use num_traits::{Float, PrimInt};
-use std::iter::{once, repeat};
-use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::writebuffer::WriteBuffer;
 use crate::{BitError, BitReadStream, BitWrite, BitWriteSized, Result};
-use std::cmp::min;
 use std::fmt::Debug;
 
 const USIZE_SIZE: usize = size_of::<usize>();
@@ -22,7 +20,8 @@ const USIZE_BITS: usize = USIZE_SIZE * 8;
 /// # use bitbuffer::Result;
 ///
 /// # fn main() -> Result<()> {
-/// let mut stream = BitWriteStream::new(LittleEndian);
+/// let mut data = Vec::new();
+/// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 ///
 /// stream.write_bool(false)?;
 /// stream.write_int(123u16, 15)?;
@@ -31,17 +30,14 @@ const USIZE_BITS: usize = USIZE_SIZE * 8;
 /// ```
 ///
 /// [`BitBuffer`]: struct.BitBuffer.html
-#[derive(Clone)]
-pub struct BitWriteStream<E>
+pub struct BitWriteStream<'a, E>
 where
     E: Endianness,
 {
-    bytes: Vec<u8>,
-    bit_len: usize,
-    endianness: PhantomData<E>,
+    buffer: WriteBuffer<'a, E>,
 }
 
-impl<E> BitWriteStream<E>
+impl<'a, E> BitWriteStream<'a, E>
 where
     E: Endianness,
 {
@@ -52,29 +48,28 @@ where
     /// ```
     /// use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// ```
-    pub fn new(_endianness: E) -> Self {
+    pub fn new(data: &'a mut Vec<u8>, endianness: E) -> Self {
         BitWriteStream {
-            bytes: Vec::new(),
-            bit_len: 0,
-            endianness: PhantomData,
+            buffer: WriteBuffer::new(data, endianness),
         }
     }
 }
 
-impl<E> BitWriteStream<E>
+impl<'a, E> BitWriteStream<'a, E>
 where
     E: Endianness,
 {
     /// The number of written bits in the buffer
     pub fn bit_len(&self) -> usize {
-        self.bit_len
+        self.buffer.bit_len()
     }
 
     /// The number of written bytes in the buffer
     pub fn byte_len(&self) -> usize {
-        self.bytes.len()
+        (self.buffer.bit_len() + 7) / 8
     }
 
     fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
@@ -82,48 +77,12 @@ where
         I: ExactSizeIterator,
         I: DoubleEndedIterator<Item = u8>,
     {
-        let full_bytes = min(bits.len() - 1, count / 8);
-
-        let counts = repeat(8)
-            .take(full_bytes)
-            .chain(once(count - full_bytes * 8));
-        if E::is_le() {
-            bits.zip(counts)
-                .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
-        } else {
-            bits.take(count / 8 + 1)
-                .rev()
-                .zip(counts)
-                .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
-        }
+        self.buffer.push_non_fit_bits(bits, count)
     }
 
     /// Push up to an usize worth of bits
     fn push_bits(&mut self, bits: usize, count: usize) {
-        debug_assert!(count < USIZE_BITS - 8);
-
-        // ensure there are no stray bits
-        let bits = bits & (usize::MAX >> (USIZE_BITS - count));
-
-        let bit_offset = self.bit_len & 7;
-        let last_written_byte = if bit_offset > 0 {
-            self.bytes.pop().unwrap_or(0)
-        } else {
-            0
-        };
-        let merged_byte_count = (count + bit_offset + 7) / 8;
-
-        if E::is_le() {
-            let merged = last_written_byte as usize | bits << bit_offset;
-            self.bytes
-                .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
-        } else {
-            let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
-                | (bits << (USIZE_BITS - bit_offset - count));
-            self.bytes
-                .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
-        }
-        self.bit_len += count;
+        self.buffer.push_bits(bits, count)
     }
 
     /// Write a boolean into the buffer
@@ -136,7 +95,8 @@ where
     /// # fn main() -> Result<()> {
     /// # use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// stream.write_bool(true)?;
     /// #
     /// #     Ok(())
@@ -158,7 +118,8 @@ where
     /// # fn main() -> Result<()> {
     /// # use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// stream.write_int(123u16, 15)?;
     /// #
     /// #     Ok(())
@@ -197,7 +158,8 @@ where
     /// # fn main() -> Result<()> {
     /// # use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// stream.write_float(123.15f32)?;
     /// #
     /// #     Ok(())
@@ -231,7 +193,8 @@ where
     /// # fn main() -> Result<()> {
     /// # use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// stream.write_bytes(&[0, 1, 2 ,3])?;
     /// #
     /// #     Ok(())
@@ -250,7 +213,7 @@ where
     #[inline]
     pub fn write_bits(&mut self, bits: &BitReadStream<E>) -> Result<()> {
         let mut bits = bits.clone();
-        let bit_offset = self.bit_len % 8;
+        let bit_offset = self.bit_len() % 8;
         if bit_offset > 0 {
             let start = bits.read_int::<u8>(8 - bit_offset)?;
             self.push_bits(start as usize, 8 - bit_offset);
@@ -269,15 +232,6 @@ where
         Ok(())
     }
 
-    /// Add a number of padding bytes
-    fn zero_pad(&mut self, count: usize) {
-        // since partly written bytes are already 0 padded, we don't need to go trough all the hoop
-        // of merging the padding bits into the partly written bytes
-        // (also because x | 0 == x)
-        self.bytes.resize(self.bytes.len() + count, 0);
-        self.bit_len += count * 8;
-    }
-
     /// Write a string into the buffer
     ///
     /// # Examples
@@ -288,7 +242,8 @@ where
     /// # fn main() -> Result<()> {
     /// # use bitbuffer::{BitWriteStream, LittleEndian};
     ///
-    /// let mut stream = BitWriteStream::new(LittleEndian);
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
     /// stream.write_string("zero terminated string", None)?;
     /// stream.write_string("fixed size string, zero padded", Some(64))?;
     /// #
@@ -305,19 +260,16 @@ where
                     });
                 }
                 self.write_bytes(&string.as_bytes())?;
-                self.zero_pad(length - string.len());
+                for _ in 0..(length - string.len()) {
+                    self.push_bits(0, 8)
+                }
             }
             None => {
                 self.write_bytes(&string.as_bytes())?;
-                self.zero_pad(1);
+                self.push_bits(0, 8)
             }
         }
         Ok(())
-    }
-
-    /// Convert the write buffer into the written bytes
-    pub fn finish(self) -> Vec<u8> {
-        self.bytes
     }
 
     /// Write the type to stream
@@ -330,5 +282,16 @@ where
     #[inline]
     pub fn write_sized<T: BitWriteSized<E>>(&mut self, value: &T, length: usize) -> Result<()> {
         value.write_sized(self, length)
+    }
+
+    /// Reserve some bits to be written later by splitting of two parts
+    ///
+    /// This allows skipping a few bits to write later
+    pub fn reserve(&mut self, count: usize) -> (BitWriteStream<E>, BitWriteStream<E>) {
+        let (head, tail) = self.buffer.reserve(count);
+        (
+            BitWriteStream { buffer: head },
+            BitWriteStream { buffer: tail },
+        )
     }
 }

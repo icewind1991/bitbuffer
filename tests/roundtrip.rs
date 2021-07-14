@@ -14,19 +14,19 @@ fn roundtrip<
     val: T,
 ) {
     {
-        let mut stream = BitWriteStream::new(LittleEndian);
+        let mut data = Vec::new();
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
         stream.write(&val).unwrap();
         let size = stream.bit_len();
-        let data = stream.finish();
         let mut read = BitReadStream::new(BitReadBuffer::new_owned(data, LittleEndian));
         assert_eq!(val, read.read().unwrap());
         assert_eq!(size, read.pos());
     }
     {
-        let mut stream = BitWriteStream::new(BigEndian);
+        let mut data = Vec::new();
+        let mut stream = BitWriteStream::new(&mut data, BigEndian);
         stream.write(&val).unwrap();
         let size = stream.bit_len();
-        let data = stream.finish();
         let mut read = BitReadStream::new(BitReadBuffer::new_owned(data, BigEndian));
         assert_eq!(val, read.read().unwrap());
         assert_eq!(size, read.pos());
