@@ -87,9 +87,8 @@ use std::sync::Arc;
 /// }
 /// ```
 ///
-/// [`BitReadSized`]: trait.BitReadSized.html
-/// [read_sized]: struct.BitStream.html#method.read_sized
-/// [read]: struct.BitStream.html#method.read
+/// [read_sized]: BitReadStream::read_sized
+/// [read]: BitReadStream::read
 pub trait BitRead<'a, E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitReadStream<'a, E>) -> Result<Self>;
@@ -454,9 +453,8 @@ impl<'a, E: Endianness, T: BitRead<'a, E>, const N: usize> BitRead<'a, E> for [T
 /// }
 /// ```
 ///
-/// [`BitRead`]: trait.BitRead.html
-/// [read_sized]: struct.BitStream.html#method.read_sized
-/// [read]: struct.BitStream.html#method.read
+/// [read_sized]: BitReadStream::read_sized
+/// [read]: BitReadStream::read
 pub trait BitReadSized<'a, E: Endianness>: Sized {
     /// Read the type from stream
     fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self>;

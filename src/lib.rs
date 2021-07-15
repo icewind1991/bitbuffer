@@ -1,6 +1,6 @@
-//! Tools for reading data types of arbitrary bit length and might not be byte-aligned in the source data
+//! Tools for reading and writing data types of arbitrary bit length and might not be byte-aligned in the source data
 //!
-//! The main way of handling with the binary data is to first create a [`BitReadBuffer`]
+//! The main way of reading the binary data is to first create a [`BitReadBuffer`]
 //! ,wrap it into a [`BitReadStream`] and then read from the stream.
 //!
 //! Once you have a BitStream, there are 2 different approaches of reading data
@@ -12,13 +12,22 @@
 //!
 //! The [`BitRead`] and [`BitReadSized`] traits can be used with `#[derive]` if all fields implement [`BitRead`] or [`BitReadSized`].
 //!
+//! For writing the data you wrap the output `Vec` into a [`BitWriteStream`] which can then be used in a manner similar to the [`BitReadStream`]
+//!
+//! - write primitives, Strings and byte arrays, using [`write_bool`], [`write_int`], [`write_float`], [`write_bytes`] and [`write_string`]
+//! - write any type implementing the  [`BitWrite`] or [`BitWriteSized`] traits using [`write`] and [`write_sized`]
+//!   - [`BitWrite`] is for types that can be written without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+//!   - [`BitWriteSized`] is for types that require external sizing information to be written (fixed length strings, arbitrary length integers
+//!
+//! Just like the read counterparts, [`BitWrite`] and [`BitWriteSized`] traits can be used with `#[derive]` if all fields implement [`BitWrite`] or [`BitWriteSized`].
+//!
 //! # Examples
 //!
 //! ```
 //! # use bitbuffer::Result;
-//! use bitbuffer::{BitReadBuffer, LittleEndian, BitReadStream, BitRead};
+//! use bitbuffer::{BitReadBuffer, LittleEndian, BitReadStream, BitRead, BitWrite, BitWriteStream};
 //!
-//! #[derive(BitRead)]
+//! #[derive(BitRead, BitWrite)]
 //! struct ComplexType {
 //!     first: u8,
 //!     #[size = 15]
@@ -35,22 +44,34 @@
 //! let mut stream = BitReadStream::new(buffer);
 //! let value: u8 = stream.read_int(7)?;
 //! let complex: ComplexType = stream.read()?;
+//!
+//! let mut write_bytes = vec![];
+//! let mut write_stream = BitWriteStream::new(&mut write_bytes, LittleEndian);
+//! write_stream.write_int(12, 7)?;
+//! write_stream.write(&ComplexType {
+//!     first: 55,
+//!     second: 12,
+//!     third: true
+//! })?;
 //! #
 //! #     Ok(())
 //! # }
 //! ```
 //!
-//! [`BitReadBuffer`]: struct.BitReadBuffer.html
-//! [`BitReadStream`]: struct.BitReadStream.html
-//! [`read_bool`]: struct.BitStream.html#method.read_bool
-//! [`read_int`]: struct.BitStream.html#method.read_int
-//! [`read_float`]: struct.BitStream.html#method.read_float
-//! [`read_bytes`]: struct.BitStream.html#method.read_bytes
-//! [`read_string`]: struct.BitStream.html#method.read_string
-//! [`read`]: struct.BitStream.html#method.read
-//! [`read_sized`]: struct.BitStream.html#method.read_sized
-//! [`BitRead`]: trait.BitRead.html
-//! [`BitReadSized`]: trait.BitReadSized.html
+//! [`read_bool`]: BitReadStream::read_bool
+//! [`read_int`]: BitReadStream::read_int
+//! [`read_float`]: BitReadStream::read_float
+//! [`read_bytes`]: BitReadStream::read_bytes
+//! [`read_string`]: BitReadStream::read_string
+//! [`read`]: BitReadStream::read
+//! [`read_sized`]: BitReadStream::read_sized
+//! [`write_bool`]: BitWriteStream::write_bool
+//! [`write_int`]: BitWriteStream::write_int
+//! [`write_float`]: BitWriteStream::write_float
+//! [`write_bytes`]: BitWriteStream::write_bytes
+//! [`write_string`]: BitWriteStream::write_string
+//! [`write`]: BitWriteStream::write
+//! [`write_sized`]: BitWriteStream::write_sized
 
 #![warn(missing_docs)]
 
@@ -75,7 +96,7 @@ mod write;
 mod writebuffer;
 mod writestream;
 
-/// Errors that can be returned when trying to read from a buffer
+/// Errors that can be returned when trying to read from or write to a buffer
 #[derive(Debug, Error)]
 pub enum BitError {
     /// Too many bits requested to fit in the requested data type
@@ -149,16 +170,20 @@ impl From<FromUtf8Error> for BitError {
     }
 }
 
-/// Either the read bits in the requested format or a [`ReadError`](enum.ReadError.html)
+/// Either the read bits in the requested format or a [`BitError`]
 pub type Result<T> = std::result::Result<T, BitError>;
 
 /// Get the number of bits required to read a type from stream
+///
+/// If the number of bits needed can not be determined beforehand `None` is returned
 #[inline(always)]
 pub fn bit_size_of<'a, T: BitRead<'a, LittleEndian>>() -> Option<usize> {
     T::bit_size()
 }
 
-/// Get the number of bits required to read a type from stream
+/// Get the number of bits required to read a type from stream given an input size
+///
+/// If the number of bits needed can not be determined beforehand `None` is returned
 #[inline(always)]
 pub fn bit_size_of_sized<'a, T: BitReadSized<'a, LittleEndian>>(size: usize) -> Option<usize> {
     T::bit_size_sized(size)

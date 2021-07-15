@@ -4,6 +4,81 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 /// Trait for types that can be written to a stream without requiring the size to be configured
+///
+/// The `BitWrite` trait can be used with `#[derive]` on structs and enums
+///
+/// # Structs
+///
+/// The implementation can be derived for a struct as long as every field in the struct implements `BitWrite` or [`BitWriteSized`]
+///
+/// The struct is written field by field in the order they are defined in, if the size for a field is set [`stream.write_sized()`][write_sized]
+/// will be used, otherwise [`write_read()`][write] will be used.
+///
+/// The size for a field can be set using 3 different methods
+///  - set the size as an integer using the `size` attribute,
+///  - use a previously defined field as the size using the `size` attribute
+///
+/// ## Examples
+///
+/// ```
+/// # use bitbuffer::BitWrite;
+/// #
+/// #[derive(BitWrite)]
+/// struct TestStruct {
+///     foo: u8,
+///     str: String,
+///     #[size = 2] // when `size` is set, the attributed will be read using `read_sized`
+///     truncated: String,
+///     bar: u16,
+///     float: f32,
+///     #[size = 3]
+///     asd: u8,
+///     #[size = "asd"] // use a previously defined field as size
+///     previous_field: u8,
+/// }
+/// ```
+///
+/// # Enums
+///
+/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements `BitWrite` or [`BitWriteSized`]
+///
+/// The enum is written by first writing a set number of bits as the discriminant of the enum, then the variant written.
+///
+/// For details about setting the input size for fields implementing [`BitWriteSized`] see the block about size in the `Structs` section above.
+///
+/// The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
+/// You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
+///
+/// ## Examples
+///
+/// ```
+/// # use bitbuffer::BitWrite;
+/// #
+/// #[derive(BitWrite)]
+/// #[discriminant_bits = 2]
+/// enum TestBareEnum {
+///     Foo,
+///     Bar,
+///     Asd = 3, // manually set the discriminant value for a field
+/// }
+/// ```
+///
+/// ```
+/// # use bitbuffer::BitWrite;
+/// #
+/// #[derive(BitWrite)]
+/// #[discriminant_bits = 2]
+/// enum TestUnnamedFieldEnum {
+///     #[size = 5]
+///     Foo(i8),
+///     Bar(bool),
+///     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
+///     Asd(u8),
+/// }
+/// ```
+///
+/// [write_sized]: BitWriteStream::write_sized
+/// [write]: BitWriteStream::write
 pub trait BitWrite<E: Endianness> {
     /// Write the type to stream
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()>;
@@ -121,6 +196,67 @@ impl_write_tuple!(0: T1, 1: T2, 2: T3);
 impl_write_tuple!(0: T1, 1: T2, 2: T3, 3: T4);
 
 /// Trait for types that can be written to a stream, requiring the size to be configured
+///
+/// The meaning of the set sized depends on the type being written (e.g, number of bits for integers,
+/// number of bytes for strings, number of items for Vec's, etc)
+///
+/// The `BitReadSized` trait can be used with `#[derive]` on structs
+///
+/// The implementation can be derived for a struct as long as every field in the struct implements [`BitWrite`] or `BitWriteSized`
+///
+/// The struct is written field by field in the order they are defined in, if the size for a field is set [`stream.write_sized()`][write_sized]
+/// will be used, otherwise [`stream.write()`][write] will be used.
+///
+/// The size for a field can be set using 4 different methods
+///  - set the size as an integer using the `size` attribute,
+///  - use a previously defined field as the size using the `size` attribute
+///  - based on the input size by setting `size` attribute to `"input_size"`
+///
+/// ## Examples
+///
+/// ```
+/// # use bitbuffer::BitWriteSized;
+/// #
+/// #[derive(BitWriteSized, PartialEq, Debug)]
+/// struct TestStructSized {
+///     foo: u8,
+///     #[size = "input_size"]
+///     string: String,
+///     #[size = "input_size"]
+///     int: u8,
+/// }
+/// ```
+///
+/// # Enums
+///
+/// The implementation can be derived for an enum as long as every variant of the enum either has no field, or an unnamed field that implements [`BitWrite`] or `BitWriteSized`
+///
+/// The enum is written by first writing a set number of bits as the discriminant of the enum, then the variant is written.
+///
+/// For details about setting the input size for fields implementing `BitWriteSized` see the block about size in the `Structs` section above.
+///
+/// The discriminant for the variants defaults to incrementing by one for every field, starting with `0`.
+/// You can overwrite the discriminant for a field, which will also change the discriminant for every following field.
+///
+/// ## Examples
+///
+/// ```
+/// # use bitbuffer::BitWriteSized;
+/// #
+/// #[derive(BitWriteSized)]
+/// #[discriminant_bits = 2]
+/// enum TestUnnamedFieldEnum {
+///     #[size = 5]
+///     Foo(i8),
+///     Bar(bool),
+///     #[discriminant = 3] // since rust only allows setting the discriminant on field-less enums, you can use an attribute instead
+///     #[size = "input_size"]
+///     Asd(u8),
+/// }
+/// ```
+///
+/// [write_sized]: BitReadStream::write_sized
+/// [write]: BitReadStream::write
 pub trait BitWriteSized<E: Endianness> {
     /// Write the type to stream
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()>;
