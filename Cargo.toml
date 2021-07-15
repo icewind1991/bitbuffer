@@ -9,11 +9,11 @@ repository = "https://github.com/icewind1991/bitbuffer"
 
 [dependencies]
 num-traits = "0.2"
-err-derive = "0.2.2"
+err-derive = "0.3"
 bitbuffer_derive = { version = "0.9", path = "bitbuffer_derive" }
-memchr = "2.2"
+memchr = "2"
 
 [dev-dependencies]
-maplit = "1.0.1"
+maplit = "1"
 
 [workspace]
