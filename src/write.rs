@@ -1,5 +1,7 @@
 use crate::{BitReadStream, BitWriteStream, Endianness, Result};
 use std::mem::size_of;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// Trait for types that can be written to a stream without requiring the size to be configured
 pub trait BitWrite<E: Endianness> {
@@ -81,6 +83,27 @@ impl<E: Endianness, T: BitWrite<E>, const N: usize> BitWrite<E> for [T; N] {
     }
 }
 
+impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Box<T> {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        stream.write(self)
+    }
+}
+
+impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Rc<T> {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        stream.write(self)
+    }
+}
+
+impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Arc<T> {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        stream.write(self)
+    }
+}
+
 macro_rules! impl_write_tuple {
     ($($i:tt: $type:ident),*) => {
         impl<'a, E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
@@ -133,11 +156,13 @@ impl_write_sized_int!(u16);
 impl_write_sized_int!(u32);
 impl_write_sized_int!(u64);
 impl_write_sized_int!(u128);
+impl_write_sized_int!(usize);
 impl_write_sized_int!(i8);
 impl_write_sized_int!(i16);
 impl_write_sized_int!(i32);
 impl_write_sized_int!(i64);
 impl_write_sized_int!(i128);
+impl_write_sized_int!(isize);
 
 impl<E: Endianness> BitWriteSized<E> for BitReadStream<'_, E> {
     #[inline]
@@ -154,5 +179,26 @@ impl<E: Endianness, T: BitWriteSized<E>, const N: usize> BitWriteSized<E> for [T
             stream.write_sized(element, len)?;
         }
         Ok(())
+    }
+}
+
+impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Box<T> {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        stream.write_sized(self, len)
+    }
+}
+
+impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Rc<T> {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        stream.write_sized(self, len)
+    }
+}
+
+impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Arc<T> {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        stream.write_sized(self, len)
     }
 }
