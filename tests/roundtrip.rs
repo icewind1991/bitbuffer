@@ -15,18 +15,22 @@ fn roundtrip<
 ) {
     {
         let mut data = Vec::new();
-        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
-        stream.write(&val).unwrap();
-        let size = stream.bit_len();
+        let size = {
+            let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+            stream.write(&val).unwrap();
+            stream.bit_len()
+        };
         let mut read = BitReadStream::new(BitReadBuffer::new_owned(data, LittleEndian));
         assert_eq!(val, read.read().unwrap());
         assert_eq!(size, read.pos());
     }
     {
         let mut data = Vec::new();
-        let mut stream = BitWriteStream::new(&mut data, BigEndian);
-        stream.write(&val).unwrap();
-        let size = stream.bit_len();
+        let size = {
+            let mut stream = BitWriteStream::new(&mut data, BigEndian);
+            stream.write(&val).unwrap();
+            stream.bit_len()
+        };
         let mut read = BitReadStream::new(BitReadBuffer::new_owned(data, BigEndian));
         assert_eq!(val, read.read().unwrap());
         assert_eq!(size, read.pos());

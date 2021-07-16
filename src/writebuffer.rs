@@ -101,6 +101,15 @@ struct ExpandWriteBuffer<'a, E: Endianness> {
     bytes: *mut Vec<u8>,
     endianness: PhantomData<E>,
     lifetime: PhantomData<&'a u8>,
+    parent_bit_len: Option<&'a mut usize>,
+}
+
+impl<'a, E: Endianness> Drop for ExpandWriteBuffer<'a, E> {
+    fn drop(&mut self) {
+        if let Some(parent_bit_len) = self.parent_bit_len.take() {
+            *parent_bit_len = self.bit_len;
+        }
+    }
 }
 
 impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
@@ -110,6 +119,7 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
             bytes: bytes as *mut _,
             endianness: PhantomData,
             lifetime: PhantomData,
+            parent_bit_len: None,
         }
     }
 
@@ -177,6 +187,7 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
                 bytes: self.bytes,
                 endianness: PhantomData,
                 lifetime: PhantomData,
+                parent_bit_len: Some(&mut self.bit_len),
             },
         )
     }
@@ -187,11 +198,13 @@ fn test_push_expand_be() {
     use crate::BigEndian;
 
     let mut buffer = vec![];
-    let mut write = ExpandWriteBuffer::new(&mut buffer, BigEndian);
-    write.push_bits(0b1101, 4);
-    write.push_bits(0b1, 1);
-    write.push_bits(0b0, 1);
-    write.push_bits(0b101_01010, 8);
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, BigEndian);
+        write.push_bits(0b1101, 4);
+        write.push_bits(0b1, 1);
+        write.push_bits(0b0, 1);
+        write.push_bits(0b101_01010, 8);
+    }
 
     assert_eq!(vec![0b1101_1_0_10, 0b101010_00], buffer)
 }
@@ -201,11 +214,13 @@ fn test_push_expand_le() {
     use crate::LittleEndian;
 
     let mut buffer = vec![];
-    let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
-    write.push_bits(0b1101, 4);
-    write.push_bits(0b1, 1);
-    write.push_bits(0b0, 1);
-    write.push_bits(0b101_01010, 8);
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
+        write.push_bits(0b1101, 4);
+        write.push_bits(0b1, 1);
+        write.push_bits(0b0, 1);
+        write.push_bits(0b101_01010, 8);
+    }
 
     assert_eq!(vec![0b10_0_1_1101, 0b00101010], buffer)
 }
@@ -215,14 +230,16 @@ fn test_push_expand_reserve_be() {
     use crate::BigEndian;
 
     let mut buffer = vec![];
-    let mut write = ExpandWriteBuffer::new(&mut buffer, BigEndian);
-    write.push_bits(0b1101, 4);
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, BigEndian);
+        write.push_bits(0b1101, 4);
 
-    let (mut reserved, mut rest) = write.reserve(2);
-    rest.push_bits(0b101_01010, 8);
+        let (mut reserved, mut rest) = write.reserve(2);
+        rest.push_bits(0b101_01010, 8);
 
-    reserved.push_bits(0b1, 1);
-    reserved.push_bits(0b0, 1);
+        reserved.push_bits(0b1, 1);
+        reserved.push_bits(0b0, 1);
+    }
 
     assert_eq!(vec![0b1101_1_0_10, 0b101010_00], buffer)
 }
@@ -232,14 +249,16 @@ fn test_push_expand_reserve_le() {
     use crate::LittleEndian;
 
     let mut buffer = vec![];
-    let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
-    write.push_bits(0b1101, 4);
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
+        write.push_bits(0b1101, 4);
 
-    let (mut reserved, mut rest) = write.reserve(2);
-    rest.push_bits(0b101_01010, 8);
+        let (mut reserved, mut rest) = write.reserve(2);
+        rest.push_bits(0b101_01010, 8);
 
-    reserved.push_bits(0b1, 1);
-    reserved.push_bits(0b0, 1);
+        reserved.push_bits(0b1, 1);
+        reserved.push_bits(0b0, 1);
+    }
 
     assert_eq!(vec![0b10_0_1_1101, 0b00101010], buffer)
 }
@@ -249,20 +268,21 @@ fn test_push_expand_reserve_resize() {
     use crate::LittleEndian;
 
     let mut buffer = Vec::with_capacity(1);
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
+        write.push_bits(0b1101, 4);
 
-    let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
-    write.push_bits(0b1101, 4);
+        let (mut reserved, mut rest) = write.reserve(2);
+        rest.push_bits(0b10, 2);
 
-    let (mut reserved, mut rest) = write.reserve(2);
-    rest.push_bits(0b10, 2);
+        // trigger a resize/reallocation
+        for _ in 0..128 {
+            rest.push_bits(0x55, 8);
+        }
 
-    // trigger a resize/reallocation
-    for _ in 0..128 {
-        rest.push_bits(0x55, 8);
+        reserved.push_bits(0b1, 1);
+        reserved.push_bits(0b0, 1);
     }
-
-    reserved.push_bits(0b1, 1);
-    reserved.push_bits(0b0, 1);
 
     assert_eq!([0b10_0_1_1101, 0x55], buffer[0..2])
 }

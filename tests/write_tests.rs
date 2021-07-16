@@ -3,12 +3,14 @@ use bitbuffer::{BigEndian, BitReadBuffer, BitReadStream, BitWriteStream, LittleE
 #[test]
 fn test_write_bool_le() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_bool(true).unwrap();
-    stream.write_bool(false).unwrap();
-    stream.write_bool(true).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_bool(false).unwrap();
+        stream.write_bool(true).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
@@ -24,12 +26,14 @@ fn test_write_bool_le() {
 #[test]
 fn test_write_bool_be() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, BigEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_bool(true).unwrap();
-    stream.write_bool(false).unwrap();
-    stream.write_bool(true).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_bool(false).unwrap();
+        stream.write_bool(true).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
@@ -45,11 +49,13 @@ fn test_write_bool_be() {
 #[test]
 fn test_write_bool_number_le() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_int(3253u16, 16).unwrap();
-    stream.write_int(13253u64, 64).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_int(3253u16, 16).unwrap();
+        stream.write_int(13253u64, 64).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
@@ -64,11 +70,13 @@ fn test_write_bool_number_le() {
 #[test]
 fn test_write_bool_number_be() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, BigEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_int(3253u16, 16).unwrap();
-    stream.write_int(13253u64, 64).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_int(3253u16, 16).unwrap();
+        stream.write_int(13253u64, 64).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
@@ -83,10 +91,12 @@ fn test_write_bool_number_be() {
 #[test]
 fn test_write_float_le() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_float(3253.12f32).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_float(3253.12f32).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
@@ -100,10 +110,12 @@ fn test_write_float_le() {
 #[test]
 fn test_write_float_be() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, BigEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_float(3253.12f32).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_float(3253.12f32).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
@@ -117,11 +129,13 @@ fn test_write_float_be() {
 #[test]
 fn test_write_string_le() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_string("null terminated", None).unwrap();
-    stream.write_string("fixed length1", Some(16)).unwrap();
-    stream.write_string("fixed length2", Some(16)).unwrap();
+        stream.write_string("null terminated", None).unwrap();
+        stream.write_string("fixed length1", Some(16)).unwrap();
+        stream.write_string("fixed length2", Some(16)).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
@@ -133,12 +147,14 @@ fn test_write_string_le() {
 #[test]
 fn test_write_string_le_unaligned() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_string("null terminated", None).unwrap();
-    stream.write_string("fixed length1", Some(16)).unwrap();
-    stream.write_string("fixed length2", Some(16)).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_string("null terminated", None).unwrap();
+        stream.write_string("fixed length1", Some(16)).unwrap();
+        stream.write_string("fixed length2", Some(16)).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
@@ -154,11 +170,13 @@ fn test_write_string_le_unaligned() {
 #[test]
 fn test_write_signed() {
     let mut data = Vec::new();
-    let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
 
-    stream.write_bool(true).unwrap();
-    stream.write_int(-17i32, 32).unwrap();
-    stream.write_int(-9i32, 8).unwrap();
+        stream.write_bool(true).unwrap();
+        stream.write_int(-17i32, 32).unwrap();
+        stream.write_int(-9i32, 8).unwrap();
+    }
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
