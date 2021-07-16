@@ -3,6 +3,7 @@ use std::cmp::min;
 use std::iter::{once, repeat};
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::ops::Range;
 
 const USIZE_BITS: usize = size_of::<usize>() * 8;
 
@@ -97,16 +98,18 @@ impl<'a, E: Endianness> CowWriteBuffer<'a, E> {
 
 struct ExpandWriteBuffer<'a, E: Endianness> {
     bit_len: usize,
-    bytes: &'a mut Vec<u8>,
+    bytes: *mut Vec<u8>,
     endianness: PhantomData<E>,
+    lifetime: PhantomData<&'a u8>,
 }
 
 impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
     fn new(bytes: &'a mut Vec<u8>, _endianness: E) -> Self {
         ExpandWriteBuffer {
             bit_len: 0,
-            bytes,
+            bytes: bytes as *mut _,
             endianness: PhantomData,
+            lifetime: PhantomData,
         }
     }
 
@@ -119,12 +122,14 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
     fn push_bits(&mut self, bits: usize, count: usize) {
         debug_assert!(count < USIZE_BITS - 8);
 
+        let bytes = unsafe { self.bytes.as_mut().unwrap() };
+
         // ensure there are no stray bits
         let bits = bits & (usize::MAX >> (USIZE_BITS - count));
 
         let bit_offset = self.bit_len & 7;
         let last_written_byte = if bit_offset > 0 {
-            self.bytes.pop().unwrap_or(0)
+            bytes.pop().unwrap_or(0)
         } else {
             0
         };
@@ -132,13 +137,11 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
 
         if E::is_le() {
             let merged = last_written_byte as usize | bits << bit_offset;
-            self.bytes
-                .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
+            bytes.extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
             let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
                 | (bits << (USIZE_BITS - bit_offset - count));
-            self.bytes
-                .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
+            bytes.extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
         }
         self.bit_len += count;
     }
@@ -154,23 +157,26 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
 
         let end_byte = byte_index + byte_count;
 
-        self.bytes.resize(end_byte, 0);
+        {
+            let bytes = unsafe { self.bytes.as_mut().unwrap() };
+            bytes.resize(end_byte, 0);
+        }
         self.bit_len += length;
-
-        // take a mut slice without telling the borrow checker
-        // this is safe because
-        // 1. the buffers are append only, meaning that the "expand" part can't mess with the reserved bits
-        // 2. the underlying vec can only be used again after both parts have been dropped
-        let bytes = unsafe {
-            let ptr = self.bytes[byte_index..end_byte].as_mut_ptr();
-            std::slice::from_raw_parts_mut(ptr, byte_count)
-        };
         (
-            FixedWriteBuffer::new(bytes, bit_offset, length + bit_offset, E::endianness()),
+            unsafe {
+                FixedWriteBuffer::new(
+                    self.bytes,
+                    byte_index..end_byte,
+                    bit_offset,
+                    length + bit_offset,
+                    E::endianness(),
+                )
+            },
             ExpandWriteBuffer {
                 bit_len: self.bit_len,
                 bytes: self.bytes,
                 endianness: PhantomData,
+                lifetime: PhantomData,
             },
         )
     }
@@ -238,21 +244,60 @@ fn test_push_expand_reserve_le() {
     assert_eq!(vec![0b10_0_1_1101, 0b00101010], buffer)
 }
 
+#[test]
+fn test_push_expand_reserve_resize() {
+    use crate::LittleEndian;
+
+    let mut buffer = Vec::with_capacity(1);
+
+    let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
+    write.push_bits(0b1101, 4);
+
+    let (mut reserved, mut rest) = write.reserve(2);
+    rest.push_bits(0b10, 2);
+
+    // trigger a resize/reallocation
+    for _ in 0..128 {
+        rest.push_bits(0x55, 8);
+    }
+
+    reserved.push_bits(0b1, 1);
+    reserved.push_bits(0b0, 1);
+
+    assert_eq!([0b10_0_1_1101, 0x55], buffer[0..2])
+}
+
 struct FixedWriteBuffer<'a, E: Endianness> {
     bit_start: usize,
     bit_len: usize,
-    bytes: &'a mut [u8],
+    bytes: *mut Vec<u8>,
+    byte_range: Range<usize>,
     endianness: PhantomData<E>,
+    lifetime: PhantomData<&'a u8>,
     bit_size: usize,
 }
 
 impl<'a, E: Endianness> FixedWriteBuffer<'a, E> {
-    fn new(bytes: &'a mut [u8], bit_start: usize, bit_size: usize, _endianness: E) -> Self {
+    /// Safety: ensure that nobody else writes the bits
+    ///
+    /// from byte_range.start * 8 + bit_start
+    /// to byte_range.start * 8 + bit_size
+    ///
+    /// or reads from those bits before this is dropped
+    unsafe fn new(
+        bytes: *mut Vec<u8>,
+        byte_range: Range<usize>,
+        bit_start: usize,
+        bit_size: usize,
+        _endianness: E,
+    ) -> Self {
         FixedWriteBuffer {
             bit_start,
             bit_len: bit_start,
             bytes,
+            byte_range,
             endianness: PhantomData,
+            lifetime: PhantomData,
             bit_size,
         }
     }
@@ -272,17 +317,28 @@ impl<'a, E: Endianness> FixedWriteBuffer<'a, E> {
 
         let bit_offset = self.bit_len & 7;
         let byte_index = self.bit_len / 8;
-        let last_written_byte = self.bytes[byte_index];
         let merged_byte_count = (count + bit_offset + 7) / 8;
+
+        // get a mut slice from our ptr
+        // this is safe because
+        //
+        // 1. the other half of the `reserve` output can't write to our reserved bits
+        // 2. the underlying vec can only be used again after both parts have been dropped
+        let bytes = unsafe {
+            let bytes = self.bytes.as_mut().unwrap();
+            let ptr = bytes[self.byte_range.clone()].as_ptr() as *mut u8;
+            std::slice::from_raw_parts_mut(ptr, self.byte_range.len())
+        };
+        let last_written_byte = bytes[byte_index];
 
         if E::is_le() {
             let merged = last_written_byte as usize | bits << bit_offset;
-            self.bytes[byte_index..byte_index + merged_byte_count]
+            bytes[byte_index..byte_index + merged_byte_count]
                 .copy_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
             let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
                 | (bits << (USIZE_BITS - bit_offset - count));
-            self.bytes[byte_index..byte_index + merged_byte_count]
+            bytes[byte_index..byte_index + merged_byte_count]
                 .copy_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
         }
         self.bit_len += count;
@@ -297,18 +353,25 @@ impl<'a, E: Endianness> FixedWriteBuffer<'a, E> {
 
         self.bit_len += length;
 
-        // take a mut slice without telling the borrow checker
-        // this is safe because
-        // 1. the buffers are append only, meaning that the last part can't mess with the reserved bits
-        // 2. the underlying vec can only be used again after both parts have been dropped
-        let bytes = unsafe {
-            let ptr = self.bytes[byte_index..byte_count + byte_count].as_mut_ptr();
-            std::slice::from_raw_parts_mut(ptr, byte_count)
-        };
-        (
-            FixedWriteBuffer::new(bytes, bit_offset, length + bit_offset, E::endianness()),
-            FixedWriteBuffer::new(self.bytes, self.bit_len, self.bit_size, E::endianness()),
-        )
+        unsafe {
+            (
+                FixedWriteBuffer::new(
+                    self.bytes,
+                    self.byte_range.start + byte_index
+                        ..self.byte_range.start + byte_index + byte_count,
+                    bit_offset,
+                    length + bit_offset,
+                    E::endianness(),
+                ),
+                FixedWriteBuffer::new(
+                    self.bytes,
+                    self.byte_range.clone(),
+                    self.bit_len,
+                    self.bit_size,
+                    E::endianness(),
+                ),
+            )
+        }
     }
 }
 
@@ -317,7 +380,7 @@ fn test_push_fixed_be() {
     use crate::BigEndian;
 
     let mut buffer = vec![0; 2];
-    let mut write = FixedWriteBuffer::new(&mut buffer, 0, 16, BigEndian);
+    let mut write = unsafe { FixedWriteBuffer::new(&mut buffer, 0..2, 0, 16, BigEndian) };
     write.push_bits(0b1101, 4);
     assert_eq!(4, write.bit_len());
     write.push_bits(0b1, 1);
@@ -334,7 +397,7 @@ fn test_push_fixed_le() {
     use crate::LittleEndian;
 
     let mut buffer = vec![0; 2];
-    let mut write = FixedWriteBuffer::new(&mut buffer, 0, 16, LittleEndian);
+    let mut write = unsafe { FixedWriteBuffer::new(&mut buffer, 0..2, 0, 16, LittleEndian) };
     write.push_bits(0b1101, 4);
     assert_eq!(4, write.bit_len());
     write.push_bits(0b1, 1);
@@ -351,7 +414,7 @@ fn test_push_fixed_reserve_be() {
     use crate::BigEndian;
 
     let mut buffer = vec![0; 2];
-    let mut write = FixedWriteBuffer::new(&mut buffer, 0, 16, BigEndian);
+    let mut write = unsafe { FixedWriteBuffer::new(&mut buffer, 0..2, 0, 16, BigEndian) };
     write.push_bits(0b1101, 4);
 
     let (mut reserved, mut rest) = write.reserve(2);
@@ -368,7 +431,7 @@ fn test_push_fixed_reserve_le() {
     use crate::LittleEndian;
 
     let mut buffer = vec![0; 2];
-    let mut write = FixedWriteBuffer::new(&mut buffer, 0, 16, LittleEndian);
+    let mut write = unsafe { FixedWriteBuffer::new(&mut buffer, 0..2, 0, 16, LittleEndian) };
     write.push_bits(0b1101, 4);
 
     let (mut reserved, mut rest) = write.reserve(2);
