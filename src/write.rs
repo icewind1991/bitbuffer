@@ -161,21 +161,21 @@ impl<E: Endianness, T: BitWrite<E>, const N: usize> BitWrite<E> for [T; N] {
 impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Box<T> {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
-        stream.write(self)
+        stream.write(self.as_ref())
     }
 }
 
 impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Rc<T> {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
-        stream.write(self)
+        stream.write(self.as_ref())
     }
 }
 
 impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Arc<T> {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
-        stream.write(self)
+        stream.write(self.as_ref())
     }
 }
 
@@ -318,23 +318,23 @@ impl<E: Endianness, T: BitWriteSized<E>, const N: usize> BitWriteSized<E> for [T
     }
 }
 
-impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Box<T> {
+impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Box<T> {
     #[inline]
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
-        stream.write_sized(self, len)
+        stream.write_sized(self.as_ref(), len)
     }
 }
 
-impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Rc<T> {
+impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Rc<T> {
     #[inline]
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
-        stream.write_sized(self, len)
+        stream.write_sized(self.as_ref(), len)
     }
 }
 
-impl<T: BitWrite<E>, E: Endianness> BitWriteSized<E> for Arc<T> {
+impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Arc<T> {
     #[inline]
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
-        stream.write_sized(self, len)
+        stream.write_sized(self.as_ref(), len)
     }
 }

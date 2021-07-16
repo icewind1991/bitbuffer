@@ -1,4 +1,6 @@
 use bitbuffer::{BigEndian, BitReadBuffer, BitReadStream, BitWriteStream, LittleEndian};
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[test]
 fn test_write_bool_le() {
@@ -183,4 +185,22 @@ fn test_write_signed() {
     assert_eq!(true, read.read_bool().unwrap());
     assert_eq!(-17i32, read.read_int(32).unwrap());
     assert_eq!(-9i32, read.read_int(8).unwrap());
+}
+
+#[test]
+fn test_write_container() {
+    let mut data = Vec::new();
+    {
+        let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+
+        stream.write(&Box::new(true)).unwrap();
+        stream.write(&Rc::new(true)).unwrap();
+        stream.write(&Arc::new(true)).unwrap();
+    }
+
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
+
+    assert_eq!(Box::new(true), read.read().unwrap());
+    assert_eq!(Rc::new(true), read.read().unwrap());
+    assert_eq!(Arc::new(true), read.read().unwrap());
 }
