@@ -329,6 +329,9 @@ impl<'a, E: Endianness> FixedWriteBuffer<'a, E> {
 
     /// Push up to an usize worth of bits
     fn push_bits(&mut self, bits: usize, count: usize) {
+        if count == 0 {
+            return;
+        }
         debug_assert!(count < USIZE_BITS - 8);
         assert!(self.bit_len + count <= self.bit_size);
 

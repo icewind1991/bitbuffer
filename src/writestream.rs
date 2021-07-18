@@ -305,6 +305,27 @@ where
         let start = tail.bit_len();
         body_fn(&mut tail)?;
         let end = tail.bit_len();
-        head.write_sized(&(end - start), length_bit_size)
+        let bit_len = end - start;
+        head.write_sized(&bit_len, length_bit_size)
+    }
+
+    /// Write the length in bytes of a section before the section, the section will be 0 padded to an even byte length
+    pub fn reserve_byte_length<F: Fn(&mut BitWriteStream<E>) -> Result<()>>(
+        &mut self,
+        length_bit_size: usize,
+        body_fn: F,
+    ) -> Result<()> {
+        let (mut head, mut tail) = self.reserve(length_bit_size);
+        let start = tail.bit_len();
+        body_fn(&mut tail)?;
+        let end = tail.bit_len();
+        let bit_len = end - start;
+
+        let pad_len = (8 - (bit_len & 7)) & 7;
+        tail.push_bits(0, pad_len);
+
+        let byte_len = (bit_len + pad_len) / 8;
+
+        head.write_sized(&byte_len, length_bit_size)
     }
 }
