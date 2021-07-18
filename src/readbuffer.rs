@@ -293,8 +293,7 @@ where
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
-        if position < self.bit_len() {
-            let byte = self.slice[byte_index];
+        if let Some(byte) = self.slice.get(byte_index) {
             if E::is_le() {
                 let shifted = byte >> bit_offset as u8;
                 Ok(shifted & 1u8 == 1)
@@ -305,7 +304,7 @@ where
         } else {
             Err(BitError::NotEnoughData {
                 requested: 1,
-                bits_left: self.bit_len().saturating_sub(position),
+                bits_left: 0,
             })
         }
     }
