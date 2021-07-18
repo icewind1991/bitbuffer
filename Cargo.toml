@@ -15,5 +15,10 @@ memchr = "2"
 
 [dev-dependencies]
 maplit = "1"
+iai = "0.1"
+
+[[bench]]
+name = "bench"
+harness = false
 
 [workspace]

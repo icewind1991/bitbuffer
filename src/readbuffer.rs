@@ -362,7 +362,7 @@ where
             });
         }
 
-        if position + count + USIZE_BIT_SIZE > self.bit_len() {
+        if position + USIZE_BIT_SIZE > self.bit_len() {
             if position + count > self.bit_len() {
                 return if position > self.bit_len() {
                     Err(BitError::IndexOutOfBounds {
@@ -712,7 +712,7 @@ where
         T: Float + UncheckedPrimitiveFloat,
     {
         let type_bit_size = size_of::<T>() * 8;
-        if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
+        if position + USIZE_BIT_SIZE > self.bit_len() {
             if position + type_bit_size > self.bit_len() {
                 if position > self.bit_len() {
                     return Err(BitError::IndexOutOfBounds {
