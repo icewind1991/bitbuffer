@@ -262,6 +262,24 @@ fn test_push_expand_reserve_le() {
 }
 
 #[test]
+fn test_push_expand_reserve_byte_wrap_le() {
+    use crate::LittleEndian;
+
+    let mut buffer = vec![];
+    {
+        let mut write = ExpandWriteBuffer::new(&mut buffer, LittleEndian);
+        write.push_bits(0b0101101, 7);
+
+        let (mut reserved, mut rest) = write.reserve(20);
+        rest.push_bits(0b101_01010, 5);
+
+        reserved.push_bits(40, 20);
+    }
+
+    assert_eq!(vec![0b0_0101101, 0b0001010_0, 0, 80], buffer)
+}
+
+#[test]
 fn test_push_expand_reserve_resize() {
     use crate::LittleEndian;
 
@@ -350,14 +368,17 @@ impl<'a, E: Endianness> FixedWriteBuffer<'a, E> {
             let ptr = bytes[self.byte_range.clone()].as_ptr() as *mut u8;
             std::slice::from_raw_parts_mut(ptr, self.byte_range.len())
         };
-        let last_written_byte = bytes[byte_index];
+        let mut source = [0; USIZE_BITS / 8];
+        source[0..merged_byte_count]
+            .copy_from_slice(&bytes[byte_index..byte_index + merged_byte_count]);
+        let last_written = usize::from_le_bytes(source);
 
         if E::is_le() {
-            let merged = last_written_byte as usize | bits << bit_offset;
+            let merged = last_written as usize | bits << bit_offset;
             bytes[byte_index..byte_index + merged_byte_count]
                 .copy_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
-            let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
+            let merged = ((last_written as usize) << (USIZE_BITS - 8))
                 | (bits << (USIZE_BITS - bit_offset - count));
             bytes[byte_index..byte_index + merged_byte_count]
                 .copy_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
