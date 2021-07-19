@@ -160,12 +160,10 @@ impl<'a, E: Endianness> ExpandWriteBuffer<'a, E> {
     ///
     /// One fixed size part and one expanding part
     fn reserve(&mut self, length: usize) -> (FixedWriteBuffer<E>, ExpandWriteBuffer<E>) {
-        let byte_count = (length + 7) / 8;
-
         let bit_offset = self.bit_len & 7;
         let byte_index = self.bit_len / 8;
 
-        let end_byte = byte_index + byte_count;
+        let end_byte = (self.bit_len + length + 7) / 8;
 
         {
             let bytes = unsafe { self.bytes.as_mut().unwrap() };
