@@ -83,7 +83,9 @@ where
 
     /// Push up to an usize worth of bits
     fn push_bits(&mut self, bits: usize, count: usize) {
-        self.buffer.push_bits(bits, count)
+        if count > 0 {
+            self.buffer.push_bits(bits, count)
+        }
     }
 
     /// Write a boolean into the buffer
