@@ -1,4 +1,5 @@
 use num_traits::{Float, PrimInt};
+use std::cmp::min;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
 
@@ -215,8 +216,9 @@ where
         let mut bits = bits.clone();
         let bit_offset = self.bit_len() % 8;
         if bit_offset > 0 {
-            let start = bits.read_int::<u8>(8 - bit_offset)?;
-            self.push_bits(start as usize, 8 - bit_offset);
+            let bit_count = min(8 - bit_offset, bits.bits_left());
+            let start = bits.read_int::<u8>(bit_count)?;
+            self.push_bits(start as usize, bit_count);
         }
 
         while bits.bits_left() > 32 {
