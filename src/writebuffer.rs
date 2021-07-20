@@ -44,7 +44,9 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
 
     /// Push up to an usize worth of bits
     pub fn push_bits(&mut self, bits: usize, count: usize) {
-        self.0.push_bits(bits, count)
+        if count > 0 {
+            self.0.push_bits(bits, count)
+        }
     }
 
     pub fn reserve(&mut self, length: usize) -> (WriteBuffer<E>, WriteBuffer<E>) {
