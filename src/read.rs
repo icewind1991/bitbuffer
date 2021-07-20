@@ -685,7 +685,7 @@ impl<'a, E: Endianness, K: BitRead<'a, E> + Eq + Hash, T: BitRead<'a, E>> BitRea
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Struct that lazily reads it's contents from the stream
 pub struct LazyBitRead<'a, T: BitRead<'a, E>, E: Endianness> {
     source: BitReadStream<'a, E>,
