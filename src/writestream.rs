@@ -306,11 +306,11 @@ where
     }
 
     /// Write the length of a section before the section
-    pub fn reserve_length<F: Fn(&mut BitWriteStream<E>) -> Result<()>>(
+    pub fn reserve_length<Err: From<BitError>, F: Fn(&mut BitWriteStream<E>) -> Result<(), Err>>(
         &mut self,
         length_bit_size: usize,
         body_fn: F,
-    ) -> Result<()> {
+    ) -> Result<(), Err> {
         let (head, tail) = self.buffer.reserve(length_bit_size);
         let mut head = BitWriteStream { buffer: head };
         let mut tail = BitWriteStream { buffer: tail };
@@ -319,15 +319,19 @@ where
         body_fn(&mut tail)?;
         let end = tail.bit_len();
         let bit_len = end - start;
-        head.write_sized(&bit_len, length_bit_size)
+        head.write_sized(&bit_len, length_bit_size)?;
+        Ok(())
     }
 
     /// Write the length in bytes of a section before the section, the section will be 0 padded to an even byte length
-    pub fn reserve_byte_length<F: Fn(&mut BitWriteStream<E>) -> Result<()>>(
+    pub fn reserve_byte_length<
+        Err: From<BitError>,
+        F: Fn(&mut BitWriteStream<E>) -> Result<(), Err>,
+    >(
         &mut self,
         length_bit_size: usize,
         body_fn: F,
-    ) -> Result<()> {
+    ) -> Result<(), Err> {
         let (head, tail) = self.buffer.reserve(length_bit_size);
         let mut head = BitWriteStream { buffer: head };
         let mut tail = BitWriteStream { buffer: tail };
@@ -342,6 +346,7 @@ where
 
         let byte_len = (bit_len + pad_len) / 8;
 
-        head.write_sized(&byte_len, length_bit_size)
+        head.write_sized(&byte_len, length_bit_size)?;
+        Ok(())
     }
 }
