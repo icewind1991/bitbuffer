@@ -291,12 +291,18 @@ where
     /// Reserve some bits to be written later by splitting of two parts
     ///
     /// This allows skipping a few bits to write later
-    fn reserve(&mut self, count: usize) -> (BitWriteStream<E>, BitWriteStream<E>) {
+    pub fn reserve<
+        Err,
+        F: Fn(&mut BitWriteStream<E>, &mut BitWriteStream<E>) -> Result<(), Err>,
+    >(
+        &mut self,
+        count: usize,
+        body_fn: F,
+    ) -> Result<(), Err> {
         let (head, tail) = self.buffer.reserve(count);
-        (
-            BitWriteStream { buffer: head },
-            BitWriteStream { buffer: tail },
-        )
+        let mut head = BitWriteStream { buffer: head };
+        let mut tail = BitWriteStream { buffer: tail };
+        body_fn(&mut head, &mut tail)
     }
 
     /// Write the length of a section before the section
@@ -305,7 +311,10 @@ where
         length_bit_size: usize,
         body_fn: F,
     ) -> Result<()> {
-        let (mut head, mut tail) = self.reserve(length_bit_size);
+        let (head, tail) = self.buffer.reserve(length_bit_size);
+        let mut head = BitWriteStream { buffer: head };
+        let mut tail = BitWriteStream { buffer: tail };
+
         let start = tail.bit_len();
         body_fn(&mut tail)?;
         let end = tail.bit_len();
@@ -319,7 +328,10 @@ where
         length_bit_size: usize,
         body_fn: F,
     ) -> Result<()> {
-        let (mut head, mut tail) = self.reserve(length_bit_size);
+        let (head, tail) = self.buffer.reserve(length_bit_size);
+        let mut head = BitWriteStream { buffer: head };
+        let mut tail = BitWriteStream { buffer: tail };
+
         let start = tail.bit_len();
         body_fn(&mut tail)?;
         let end = tail.bit_len();

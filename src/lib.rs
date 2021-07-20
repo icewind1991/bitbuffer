@@ -171,7 +171,7 @@ impl From<FromUtf8Error> for BitError {
 }
 
 /// Either the read bits in the requested format or a [`BitError`]
-pub type Result<T> = std::result::Result<T, BitError>;
+pub type Result<T, E = BitError> = std::result::Result<T, E>;
 
 /// Get the number of bits required to read a type from stream
 ///
