@@ -177,15 +177,7 @@ where
             let bytes = value.to_bytes::<E>();
             self.buffer.extends_from_slice(bytes.as_ref());
         } else {
-            if size_of::<T>() == 4 {
-                if size_of::<T>() < USIZE_SIZE {
-                    self.push_bits(value.to_f32().unwrap().to_bits() as usize, 32);
-                } else {
-                    self.push_non_fit_bits(value.to_f32().unwrap().to_bits().into_bytes(), 32)
-                };
-            } else {
-                self.push_non_fit_bits(value.to_f64().unwrap().to_bits().into_bytes(), 64)
-            }
+            self.write_int(value.to_int(), size_of::<T>() * 8)?;
         }
 
         Ok(())

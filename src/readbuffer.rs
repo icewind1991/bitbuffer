@@ -744,17 +744,8 @@ where
                 .unwrap();
             T::from_bytes::<E>(bytes)
         } else {
-            if size_of::<T>() == 4 {
-                let int = if size_of::<T>() < USIZE_SIZE {
-                    self.read_fit_usize::<u32>(position, 32, end)
-                } else {
-                    self.read_no_fit_usize::<u32>(position, 32, end)
-                };
-                T::from_f32_unchecked(f32::from_bits(int))
-            } else {
-                let int = self.read_no_fit_usize::<u64>(position, 64, end);
-                T::from_f64_unchecked(f64::from_bits(int))
-            }
+            let int = self.read_int_unchecked(position, size_of::<T>() * 8, end);
+            T::from_int(int)
         }
     }
 
