@@ -1,11 +1,11 @@
 use crate::discriminant::Discriminant;
-use crate::size;
+use crate::{repr_for_bits, size};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, GenericParam, Ident, Index, Lit, Member, Path, Type,
+    Fields, GenericParam, Ident, Index, Lit, LitInt, Member, Path, Type,
 };
 use syn_util::get_attribute_value;
 
@@ -182,17 +182,20 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
 
                 let discriminant_token: TokenStream = match Discriminant::from(variant) {
                     Discriminant::Int(discriminant) => {
+                        let lit = LitInt::new(&format!("{}", discriminant), span);
                         last_discriminant = discriminant as isize;
-                        quote_spanned! { span => #discriminant }
+                        quote_spanned! { span => #lit }
                     }
                     Discriminant::Wildcard => {
                         let free_discriminant = max_discriminant + 1;
-                        quote_spanned! { span => #free_discriminant }
+                        let lit = LitInt::new(&format!("{}", free_discriminant), span);
+                        quote_spanned! { span => #lit }
                     }
                     Discriminant::Default => {
                         let new_discriminant = (last_discriminant + 1) as usize;
+                        let lit = LitInt::new(&format!("{}", new_discriminant), span);
                         last_discriminant += 1;
-                        quote_spanned! { span => #new_discriminant }
+                        quote_spanned! { span => #lit }
                     }
                 };
 
@@ -240,12 +243,13 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
             });
 
             let span = data.enum_token.span();
+            let repr = repr_for_bits(discriminant_bits);
 
             quote_spanned! {span=>
-                let discriminant = match &self {
+                let discriminant:#repr = match &self {
                     #(#discriminant_value),*
                 };
-                __target__stream.write_int(discriminant as usize, #discriminant_bits as usize)?;
+                __target__stream.write_int(discriminant, #discriminant_bits as usize)?;
                 match &self {
                     #(#write_inner)*
                 }

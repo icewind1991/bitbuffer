@@ -142,7 +142,7 @@ where
             });
         }
 
-        if type_bit_size < USIZE_BITS {
+        if type_bit_size < USIZE_BITS || count < USIZE_BITS {
             self.push_bits(value.into_usize_unchecked(), count);
         } else {
             self.push_non_fit_bits(value.into_bytes(), count)

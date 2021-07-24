@@ -144,7 +144,7 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Fields, GenericParam, Ident, Lit, LitStr, Path,
+    Fields, GenericParam, Ident, Lit, LitInt, LitStr, Path,
 };
 use syn_util::get_attribute_value;
 
@@ -414,14 +414,16 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
 
                 let discriminant_token: TokenStream = match Discriminant::from(variant) {
                     Discriminant::Int(discriminant) => {
+                        let lit = LitInt::new(&format!("{}", discriminant), span);
                         last_discriminant = discriminant as isize;
-                        quote_spanned! { span => #discriminant }
+                        quote_spanned! { span => #lit }
                     }
                     Discriminant::Wildcard => quote_spanned! { span => _ },
                     Discriminant::Default => {
                         let new_discriminant = (last_discriminant + 1) as usize;
+                        let lit = LitInt::new(&format!("{}", new_discriminant), span);
                         last_discriminant += 1;
-                        quote_spanned! { span => #new_discriminant }
+                        quote_spanned! { span => #lit }
                     }
                 };
                 quote_spanned! {span=>
@@ -431,13 +433,15 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
 
             let span = data.enum_token.span();
 
+            let repr = repr_for_bits(discriminant_bits);
+
             let enum_name = Lit::Str(LitStr::new(&struct_name.to_string(), struct_name.span()));
             quote_spanned! {span=>
-                let discriminant:usize = stream.read_int(#discriminant_bits as usize)?;
+                let discriminant:#repr = stream.read_int(#discriminant_bits as usize)?;
                 Ok(match discriminant {
                     #(#match_arms)*
                     _ => {
-                        return Err(::bitbuffer::BitError::UnmatchedDiscriminant{discriminant, enum_name: #enum_name.to_string()})
+                        return Err(::bitbuffer::BitError::UnmatchedDiscriminant{discriminant: discriminant as usize, enum_name: #enum_name.to_string()})
                     }
                 })
             }
@@ -554,4 +558,16 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
                 }
             })
         })
+}
+
+fn repr_for_bits(discriminant_bits: u64) -> TokenStream {
+    if discriminant_bits <= 8 {
+        quote!(u8)
+    } else if discriminant_bits <= 16 {
+        quote!(u16)
+    } else if discriminant_bits <= 32 {
+        quote!(u32)
+    } else {
+        quote!(usize)
+    }
 }

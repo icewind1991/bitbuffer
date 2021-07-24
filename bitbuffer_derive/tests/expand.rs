@@ -3,11 +3,13 @@
 #![allow(unused_imports)]
 
 use bitbuffer::{BitReadStream, Endianness};
-use bitbuffer_derive::{BitWrite, BitWriteSized};
+use bitbuffer_derive::{BitRead, BitWrite, BitWriteSized};
 
 #[derive(BitWrite)]
-struct TestSizeExpression {
-    size: u8,
-    #[size = "size + 2"]
-    str: String,
+#[discriminant_bits = 4]
+enum TestEnumRest {
+    Foo,
+    Bar,
+    #[discriminant = "_"]
+    Asd,
 }
