@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer_derive"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -18,4 +18,4 @@ proc-macro2 = "1.0"
 syn_util = "0.4"
 
 [dev-dependencies]
-bitbuffer = { version = "0.9", path = ".." }
+bitbuffer = { version = "0.10", path = ".." }
