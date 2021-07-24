@@ -189,6 +189,17 @@ impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Vec<T> {
     }
 }
 
+impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Option<T> {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        self.is_some().write(stream)?;
+        if let Some(val) = self {
+            val.write(stream)?;
+        }
+        Ok(())
+    }
+}
+
 macro_rules! impl_write_tuple {
     ($($i:tt: $type:ident),*) => {
         impl<'a, E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
@@ -346,5 +357,16 @@ impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Arc<T> {
     #[inline]
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
         stream.write_sized(self.as_ref(), len)
+    }
+}
+
+impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Option<T> {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        self.is_some().write(stream)?;
+        if let Some(val) = self {
+            val.write_sized(stream, len)?;
+        }
+        Ok(())
     }
 }
