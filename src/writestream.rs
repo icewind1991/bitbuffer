@@ -173,14 +173,19 @@ where
     where
         T: Float + UncheckedPrimitiveFloat,
     {
-        if size_of::<T>() == 4 {
-            if size_of::<T>() < USIZE_SIZE {
-                self.push_bits(value.to_f32().unwrap().to_bits() as usize, 32);
-            } else {
-                self.push_non_fit_bits(value.to_f32().unwrap().to_bits().into_bytes(), 32)
-            };
+        if self.buffer.bit_len() & 7 == 0 {
+            let bytes = value.to_bytes::<E>();
+            self.buffer.extends_from_slice(bytes.as_ref());
         } else {
-            self.push_non_fit_bits(value.to_f64().unwrap().to_bits().into_bytes(), 64)
+            if size_of::<T>() == 4 {
+                if size_of::<T>() < USIZE_SIZE {
+                    self.push_bits(value.to_f32().unwrap().to_bits() as usize, 32);
+                } else {
+                    self.push_non_fit_bits(value.to_f32().unwrap().to_bits().into_bytes(), 32)
+                };
+            } else {
+                self.push_non_fit_bits(value.to_f64().unwrap().to_bits().into_bytes(), 64)
+            }
         }
 
         Ok(())
@@ -205,10 +210,14 @@ where
     /// ```
     #[inline]
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
-        bytes
-            .iter()
-            .copied()
-            .for_each(|chunk| self.push_bits(chunk as usize, 8));
+        if self.buffer.bit_len() & 7 == 0 {
+            self.buffer.extends_from_slice(bytes);
+        } else {
+            bytes
+                .iter()
+                .copied()
+                .for_each(|chunk| self.push_bits(chunk as usize, 8));
+        }
         Ok(())
     }
 

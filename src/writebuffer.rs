@@ -93,4 +93,10 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
         let merged = merged.to_le_bytes();
         self.bytes[byte_pos..byte_pos + byte_count].copy_from_slice(&merged[0..byte_count]);
     }
+
+    pub fn extends_from_slice(&mut self, slice: &[u8]) {
+        debug_assert_eq!(0, self.bit_len & 7);
+        self.bytes.extend_from_slice(slice);
+        self.bit_len += slice.len() * 8
+    }
 }

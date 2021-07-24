@@ -3,6 +3,7 @@ use bitbuffer::{
 };
 use std::fmt::Debug;
 
+#[track_caller]
 fn roundtrip<
     T: BitRead<'static, BigEndian>
         + BitWrite<BigEndian>

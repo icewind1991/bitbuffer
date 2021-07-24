@@ -1,12 +1,21 @@
+use crate::Endianness;
+use std::array::TryFromSliceError;
+use std::convert::TryFrom;
+
 /// some extra number traits
 
 /// Allow casting floats unchecked
 pub trait UncheckedPrimitiveFloat: Sized {
+    type BYTES: AsRef<[u8]> + for<'a> TryFrom<&'a [u8], Error = TryFromSliceError>;
+
     fn from_f32_unchecked(n: f32) -> Self;
     fn from_f64_unchecked(n: f64) -> Self;
+    fn to_bytes<E: Endianness>(self) -> Self::BYTES;
+    fn from_bytes<E: Endianness>(bytes: Self::BYTES) -> Self;
 }
 
 impl UncheckedPrimitiveFloat for f32 {
+    type BYTES = [u8; 4];
     #[inline(always)]
     fn from_f32_unchecked(n: f32) -> Self {
         n
@@ -15,9 +24,24 @@ impl UncheckedPrimitiveFloat for f32 {
     fn from_f64_unchecked(n: f64) -> Self {
         n as f32
     }
+    fn to_bytes<E: Endianness>(self) -> Self::BYTES {
+        if E::is_le() {
+            self.to_le_bytes()
+        } else {
+            self.to_be_bytes()
+        }
+    }
+    fn from_bytes<E: Endianness>(bytes: Self::BYTES) -> Self {
+        if E::is_le() {
+            Self::from_le_bytes(bytes)
+        } else {
+            Self::from_be_bytes(bytes)
+        }
+    }
 }
 
 impl UncheckedPrimitiveFloat for f64 {
+    type BYTES = [u8; 8];
     #[inline(always)]
     fn from_f32_unchecked(n: f32) -> Self {
         n as f64
@@ -25,6 +49,20 @@ impl UncheckedPrimitiveFloat for f64 {
     #[inline(always)]
     fn from_f64_unchecked(n: f64) -> Self {
         n
+    }
+    fn to_bytes<E: Endianness>(self) -> Self::BYTES {
+        if E::is_le() {
+            self.to_le_bytes()
+        } else {
+            self.to_be_bytes()
+        }
+    }
+    fn from_bytes<E: Endianness>(bytes: Self::BYTES) -> Self {
+        if E::is_le() {
+            Self::from_le_bytes(bytes)
+        } else {
+            Self::from_be_bytes(bytes)
+        }
     }
 }
 
