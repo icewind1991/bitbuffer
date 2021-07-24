@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer"
-version = "0.9.8"
+version = "0.9.9"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -19,6 +19,10 @@ iai = "0.1"
 
 [[bench]]
 name = "bench"
+harness = false
+
+[[bench]]
+name = "write"
 harness = false
 
 [workspace]

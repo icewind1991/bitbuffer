@@ -349,4 +349,19 @@ where
         head.write_sized(&byte_len, length_bit_size)?;
         Ok(())
     }
+
+    /// Reserve the length to write an integer
+    pub fn reserve_int<Err: From<BitError>, F: Fn(&mut BitWriteStream<E>) -> Result<u64, Err>>(
+        &mut self,
+        length_bit_size: usize,
+        body_fn: F,
+    ) -> Result<(), Err> {
+        let (head, tail) = self.buffer.reserve(length_bit_size);
+        let mut head = BitWriteStream { buffer: head };
+        let mut tail = BitWriteStream { buffer: tail };
+
+        let head_int = body_fn(&mut tail)?;
+        head.write_sized(&head_int, length_bit_size)?;
+        Ok(())
+    }
 }
