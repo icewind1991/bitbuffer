@@ -815,7 +815,21 @@ impl<E: Endianness> Debug for BitReadBuffer<'_, E> {
 
 impl<'a, E: Endianness> PartialEq for BitReadBuffer<'a, E> {
     fn eq(&self, other: &Self) -> bool {
-        self.bit_len == other.bit_len && self.slice == other.slice
+        if self.bit_len != other.bit_len {
+            return false;
+        }
+        if self.bit_len % 8 == 0 {
+            self.slice == other.slice
+        } else {
+            let bytes = self.bit_len / 8;
+            let bits_left = self.bit_len % 8;
+            if self.slice[0..bytes] != other.slice[0..bytes] {
+                return false;
+            }
+            let rest_self = self.read_int::<u8>(bytes * 8, bits_left).unwrap();
+            let rest_other = other.read_int::<u8>(bytes * 8, bits_left).unwrap();
+            rest_self == rest_other
+        }
     }
 }
 
@@ -839,4 +853,62 @@ fn contains_zero_byte_non_top(x: usize) -> bool {
     const HI_USIZE: usize = 0x0080_8080;
 
     x.wrapping_sub(LO_USIZE) & !x & HI_USIZE != 0
+}
+
+#[cfg(feature = "serde")]
+use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+
+#[cfg(feature = "serde")]
+impl<'a, E: Endianness> Serialize for BitReadBuffer<'a, E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut data = self.read_bytes(0, self.bit_len() / 8).unwrap().to_vec();
+        let bits_left = self.bit_len() % 8;
+        if bits_left > 0 {
+            data.push(self.read_int((self.bit_len() / 8) * 8, bits_left).unwrap());
+        }
+
+        let mut s = serializer.serialize_struct("BitReadBuffer", 3)?;
+        s.serialize_field("data", &data)?;
+        s.serialize_field("bit_length", &self.bit_len())?;
+        s.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Endianness> Deserialize<'de> for BitReadBuffer<'static, E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct BitData {
+            data: Vec<u8>,
+            bit_length: usize,
+        }
+
+        let data = BitData::deserialize(deserializer)?;
+        let mut buffer = BitReadBuffer::new_owned(data.data, E::endianness());
+        buffer
+            .truncate(data.bit_length)
+            .map_err(de::Error::custom)?;
+        Ok(buffer)
+    }
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_serde_roundtrip() {
+    use crate::LittleEndian;
+
+    let mut buffer = BitReadBuffer::new_owned(vec![55; 8], LittleEndian);
+    buffer.truncate(61).unwrap();
+
+    let json = serde_json::to_string(&buffer).unwrap();
+
+    let result: BitReadBuffer<LittleEndian> = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(result, buffer);
 }
