@@ -803,3 +803,20 @@ fn test_serde_roundtrip() {
 
     assert_eq!(result, stream);
 }
+
+#[cfg(feature = "schemars")]
+impl<'a, E: Endianness> schemars::JsonSchema for BitReadStream<'a, E> {
+    fn schema_name() -> String {
+        "BitReadStream".into()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        #[derive(schemars::JsonSchema)]
+        #[allow(dead_code)]
+        struct StreamSchema {
+            data: Vec<u8>,
+            bit_length: usize,
+        }
+        StreamSchema::json_schema(gen)
+    }
+}
