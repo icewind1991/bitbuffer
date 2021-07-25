@@ -743,3 +743,122 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadStream<'a, E> {
         BitReadStream::new(BitReadBuffer::from(bytes))
     }
 }
+
+#[cfg(feature = "serde")]
+use serde::{
+    de::{self, MapAccess, SeqAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Deserializer, Serialize, Serializer,
+};
+
+#[cfg(feature = "serde")]
+impl<'a, E: Endianness> Serialize for BitReadStream<'a, E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut stream = self.clone();
+        let mut data = stream.read_bytes(self.bits_left() / 8).unwrap().to_vec();
+        if stream.bits_left() > 0 {
+            data.push(stream.read_sized(stream.bits_left()).unwrap());
+        }
+
+        let mut s = serializer.serialize_struct("BitReadStream", 3)?;
+        s.serialize_field("data", &data)?;
+        s.serialize_field("bit_length", &self.bit_len())?;
+        s.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Endianness> Deserialize<'de> for BitReadStream<'static, E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            Data,
+            BitLength,
+        }
+
+        use std::marker::PhantomData;
+        struct ReadStreamVisitor<E>(PhantomData<E>);
+
+        impl<'de, E: Endianness> Visitor<'de> for ReadStreamVisitor<E> {
+            type Value = BitReadStream<'static, E>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct BitReadStream")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let data = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let bit_length = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let mut buffer = BitReadBuffer::new_owned(data, E::endianness());
+                buffer.truncate(bit_length).map_err(de::Error::custom)?;
+                Ok(BitReadStream::new(buffer))
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut data = None;
+                let mut bit_length = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Data => {
+                            if data.is_some() {
+                                return Err(de::Error::duplicate_field("secs"));
+                            }
+                            data = Some(map.next_value()?);
+                        }
+                        Field::BitLength => {
+                            if bit_length.is_some() {
+                                return Err(de::Error::duplicate_field("nanos"));
+                            }
+                            bit_length = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
+                let bit_length =
+                    bit_length.ok_or_else(|| de::Error::missing_field("bit_length"))?;
+                let mut buffer = BitReadBuffer::new_owned(data, E::endianness());
+                buffer.truncate(bit_length).map_err(de::Error::custom)?;
+                Ok(BitReadStream::new(buffer))
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["data", "bit_length"];
+        deserializer.deserialize_struct("BitReadStream", FIELDS, ReadStreamVisitor(PhantomData))
+    }
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_serde_roundtrip() {
+    use crate::LittleEndian;
+
+    let mut buffer = BitReadBuffer::new_owned(vec![55; 8], LittleEndian);
+    buffer.truncate(61).unwrap();
+    let stream = BitReadStream::new(buffer);
+    assert_eq!(61, stream.bit_len());
+
+    let json = serde_json::to_string(&stream).unwrap();
+
+    dbg!(&json);
+
+    let result: BitReadStream<LittleEndian> = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(result, stream);
+}

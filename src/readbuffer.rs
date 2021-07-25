@@ -764,6 +764,19 @@ where
             slice: self.slice,
         })
     }
+
+    /// Truncate the buffer to a given bit length
+    pub fn truncate(&mut self, bit_len: usize) -> Result<()> {
+        if bit_len > self.bit_len() {
+            return Err(BitError::NotEnoughData {
+                requested: bit_len,
+                bits_left: self.bit_len(),
+            });
+        }
+
+        self.bit_len = bit_len;
+        Ok(())
+    }
 }
 
 impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {

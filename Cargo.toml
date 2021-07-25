@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -12,10 +12,12 @@ num-traits = "0.2"
 err-derive = "0.3"
 bitbuffer_derive = { version = "0.10", path = "bitbuffer_derive" }
 memchr = "2"
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 maplit = "1"
 iai = "0.1"
+serde_json = "1"
 
 [[bench]]
 name = "bench"

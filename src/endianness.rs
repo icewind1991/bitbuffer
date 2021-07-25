@@ -19,10 +19,12 @@ pub trait Endianness: private::Sealed {
 
 /// Marks the buffer or stream as big endian
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BigEndian;
 
 /// Marks the buffer or stream as little endian
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LittleEndian;
 
 macro_rules! impl_endianness {
