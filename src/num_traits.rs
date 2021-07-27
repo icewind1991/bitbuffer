@@ -293,23 +293,13 @@ macro_rules! impl_into_bytes {
 
             #[inline(always)]
             fn into_u16(self) -> Self::U16Iter {
-                use std::convert::TryInto;
-                use std::mem::align_of;
-
                 let bytes = self.to_le_bytes();
-                if align_of::<Self>() >= align_of::<u16>() {
-                    let (head, aligned, tail) = unsafe { bytes[..].align_to::<u16>() };
-                    debug_assert_eq!(0, head.len());
-                    debug_assert_eq!(0, tail.len());
-                    Self::U16Iter::new(aligned.try_into().unwrap())
-                } else {
-                    let mut shorts = [0; $shorts];
-                    let mut chunks = bytes.chunks(2).zip(shorts.iter_mut());
-                    while let Some((&[a, b], short)) = chunks.next() {
-                        *short = (b as u16) << 8 | a as u16;
-                    }
-                    Self::U16Iter::new(shorts)
+                let mut shorts = [0; $shorts];
+                let mut chunks = bytes.chunks(2).zip(shorts.iter_mut());
+                while let Some((&[a, b], short)) = chunks.next() {
+                    *short = (b as u16) << 8 | a as u16;
                 }
+                Self::U16Iter::new(shorts)
             }
         }
     };
