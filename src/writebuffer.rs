@@ -1,6 +1,5 @@
 use crate::Endianness;
 use std::cmp::min;
-use std::iter::{once, repeat};
 use std::marker::PhantomData;
 use std::mem::size_of;
 
@@ -29,22 +28,15 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
     pub fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
     where
         I: ExactSizeIterator,
-        I: DoubleEndedIterator<Item = u16>,
+        I: DoubleEndedIterator<Item = (usize, u8)>,
     {
-        let chunk_bits = u16::BITS as usize;
-        let full_bytes = min(bits.len() - 1, count / chunk_bits);
-
-        let counts = repeat(chunk_bits)
-            .take(full_bytes)
-            .chain(once(count - full_bytes * chunk_bits));
-        if E::is_le() {
-            bits.zip(counts)
-                .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
-        } else {
-            bits.take(count / 8 + 1)
-                .rev()
-                .zip(counts)
-                .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
+        let mut remaining = count;
+        for (chunk, chunk_size) in bits {
+            if remaining > 0 {
+                let bits = min(remaining, chunk_size as usize);
+                self.push_bits(chunk, bits);
+                remaining -= bits
+            }
         }
     }
 

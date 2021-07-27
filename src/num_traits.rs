@@ -10,7 +10,13 @@ use std::ops::{BitOrAssign, BitXor};
 /// Allow casting floats unchecked
 pub trait UncheckedPrimitiveFloat: Sized {
     type BYTES: AsRef<[u8]> + for<'a> TryFrom<&'a [u8], Error = TryFromSliceError>;
-    type INT: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + Debug + IntoBytes;
+    type INT: PrimInt
+        + BitOrAssign
+        + IsSigned
+        + UncheckedPrimitiveInt
+        + BitXor
+        + Debug
+        + SplitFitUsize;
 
     fn from_f32_unchecked(n: f32) -> Self;
     fn from_f64_unchecked(n: f64) -> Self;
@@ -255,56 +261,6 @@ macro_rules! impl_is_signed {
     };
 }
 
-pub trait IntoBytes: Sized {
-    type BytesIter: DoubleEndedIterator<Item = u8> + ExactSizeIterator;
-    type U16Iter: DoubleEndedIterator<Item = u16> + ExactSizeIterator;
-
-    fn into_bytes(self) -> Self::BytesIter;
-
-    fn into_u16(self) -> Self::U16Iter;
-}
-
-macro_rules! impl_into_bytes {
-    ($type:ty, $bytes:expr, 1 ) => {
-        impl IntoBytes for $type {
-            type BytesIter = std::array::IntoIter<u8, $bytes>;
-            type U16Iter = std::array::IntoIter<u16, 1>;
-
-            #[inline(always)]
-            fn into_bytes(self) -> Self::BytesIter {
-                Self::BytesIter::new(self.to_le_bytes())
-            }
-
-            #[inline(always)]
-            fn into_u16(self) -> Self::U16Iter {
-                Self::U16Iter::new([self as u16])
-            }
-        }
-    };
-    ($type:ty, $bytes:expr, $shorts:expr ) => {
-        impl IntoBytes for $type {
-            type BytesIter = std::array::IntoIter<u8, $bytes>;
-            type U16Iter = std::array::IntoIter<u16, { $shorts }>;
-
-            #[inline(always)]
-            fn into_bytes(self) -> Self::BytesIter {
-                Self::BytesIter::new(self.to_le_bytes())
-            }
-
-            #[inline(always)]
-            fn into_u16(self) -> Self::U16Iter {
-                let bytes = self.to_le_bytes();
-                let mut shorts = [0; $shorts];
-                let mut chunks = bytes.chunks(2).zip(shorts.iter_mut());
-                while let Some((&[a, b], short)) = chunks.next() {
-                    *short = (b as u16) << 8 | a as u16;
-                }
-                Self::U16Iter::new(shorts)
-            }
-        }
-    };
-}
-
 impl_is_signed!(u8, false);
 impl_is_signed!(u16, false);
 impl_is_signed!(u32, false);
@@ -318,24 +274,142 @@ impl_is_signed!(i64, true);
 impl_is_signed!(i128, true);
 impl_is_signed!(isize, true);
 
-impl_into_bytes!(u8, 1, 1);
-impl_into_bytes!(u16, 2, 1);
-impl_into_bytes!(u32, 4, 2);
-impl_into_bytes!(u64, 8, 4);
-impl_into_bytes!(u128, 16, 8);
+pub trait SplitFitUsize {
+    type Iter: Iterator<Item = (usize, u8)> + ExactSizeIterator + DoubleEndedIterator;
 
+    fn split_fit_usize<E: Endianness>(self) -> Self::Iter;
+}
+
+use std::array;
+use std::mem::size_of;
+
+macro_rules! impl_split_fit {
+    ($type:ty) => {
+        impl SplitFitUsize for $type {
+            type Iter = array::IntoIter<(usize, u8), 1>;
+
+            fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+                assert!(size_of::<Self>() < size_of::<usize>());
+                Self::Iter::new([(self as usize, size_of::<Self>() as u8 * 8)])
+            }
+        }
+    };
+}
+
+macro_rules! impl_split_fit_signed {
+    ($signed_type:ty, $unsigned_type:ty) => {
+        impl SplitFitUsize for $signed_type {
+            type Iter = <$unsigned_type as SplitFitUsize>::Iter;
+
+            fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+                let unsigned = <$unsigned_type>::from_ne_bytes(self.to_ne_bytes());
+                unsigned.split_fit_usize::<E>()
+            }
+        }
+    };
+}
+
+impl_split_fit!(u8);
+impl_split_fit!(u16);
+impl_split_fit!(i8);
+impl_split_fit!(i16);
 #[cfg(target_pointer_width = "64")]
-impl_into_bytes!(usize, 8, 4);
-#[cfg(target_pointer_width = "32")]
-impl_into_bytes!(usize, 4, 2);
+impl_split_fit!(u32);
 
-impl_into_bytes!(i8, 1, 1);
-impl_into_bytes!(i16, 2, 1);
-impl_into_bytes!(i32, 4, 2);
-impl_into_bytes!(i64, 8, 4);
-impl_into_bytes!(i128, 16, 8);
-
-#[cfg(target_pointer_width = "64")]
-impl_into_bytes!(isize, 8, 4);
 #[cfg(target_pointer_width = "32")]
-impl_into_bytes!(isize, 4, 2);
+impl SplitFitUsize for u32 {
+    type Iter = array::IntoIter<(usize, u8), 2>;
+
+    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+        Self::Iter::new(if E::is_le() {
+            [
+                ((self & (Self::MAX >> 8)) as usize, 24),
+                ((self >> 24) as usize, 8),
+            ]
+        } else {
+            [
+                ((self >> 24) as usize, 8),
+                ((self & (Self::MAX >> 8)) as usize, 24),
+            ]
+        })
+    }
+}
+
+impl_split_fit_signed!(i32, u32);
+
+impl SplitFitUsize for u64 {
+    type Iter = array::IntoIter<(usize, u8), 3>;
+
+    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+        Self::Iter::new(if E::is_le() {
+            [
+                ((self & (Self::MAX >> 40)) as usize, 24),
+                ((self >> 24 & (Self::MAX >> 16)) as usize, 24),
+                ((self >> 48) as usize, 16),
+            ]
+        } else {
+            [
+                ((self >> 48) as usize, 16),
+                ((self >> 24 & (Self::MAX >> 16)) as usize, 24),
+                ((self & (Self::MAX >> 40)) as usize, 24),
+            ]
+        })
+    }
+}
+
+impl_split_fit_signed!(i64, u64);
+
+impl SplitFitUsize for u128 {
+    type Iter = array::IntoIter<(usize, u8), 6>;
+
+    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+        Self::Iter::new(if E::is_le() {
+            [
+                ((self & (Self::MAX >> 104)) as usize, 24),
+                ((self >> 24 & (Self::MAX >> 80)) as usize, 24),
+                ((self >> 48 & (Self::MAX >> 56)) as usize, 24),
+                ((self >> 72 & (Self::MAX >> 32)) as usize, 24),
+                ((self >> 96 & (Self::MAX >> 8)) as usize, 24),
+                ((self >> 120) as usize, 8),
+            ]
+        } else {
+            [
+                ((self >> 120) as usize, 8),
+                ((self >> 96 & (Self::MAX >> 8)) as usize, 24),
+                ((self >> 72 & (Self::MAX >> 32)) as usize, 24),
+                ((self >> 48 & (Self::MAX >> 56)) as usize, 24),
+                ((self >> 24 & (Self::MAX >> 80)) as usize, 24),
+                ((self & (Self::MAX >> 104)) as usize, 24),
+            ]
+        })
+    }
+}
+
+impl_split_fit_signed!(i128, u128);
+
+impl SplitFitUsize for usize {
+    type Iter = array::IntoIter<(usize, u8), 2>;
+
+    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+        const USIZE_BITS: usize = size_of::<usize>() * 8;
+        Self::Iter::new(if E::is_le() {
+            [
+                (
+                    (self & (Self::MAX >> (USIZE_BITS - 8))) as usize,
+                    USIZE_BITS as u8 - 8,
+                ),
+                ((self >> (USIZE_BITS - 8)) as usize, 8),
+            ]
+        } else {
+            [
+                ((self >> (USIZE_BITS - 8)) as usize, 8),
+                (
+                    (self & (Self::MAX >> (USIZE_BITS - 8))) as usize,
+                    USIZE_BITS as u8 - 8,
+                ),
+            ]
+        })
+    }
+}
+
+impl_split_fit_signed!(isize, usize);

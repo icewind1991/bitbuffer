@@ -4,7 +4,7 @@ use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
 
 use crate::endianness::Endianness;
-use crate::num_traits::{IntoBytes, IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
+use crate::num_traits::{IsSigned, SplitFitUsize, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
 use crate::writebuffer::WriteBuffer;
 use crate::{BitError, BitReadStream, BitWrite, BitWriteSized, Result};
 use std::fmt::Debug;
@@ -76,7 +76,7 @@ where
     fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
     where
         I: ExactSizeIterator,
-        I: DoubleEndedIterator<Item = u16>,
+        I: DoubleEndedIterator<Item = (usize, u8)>,
     {
         self.buffer.push_non_fit_bits(bits, count)
     }
@@ -131,7 +131,13 @@ where
     #[inline]
     pub fn write_int<T>(&mut self, value: T, count: usize) -> Result<()>
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + IntoBytes + Debug,
+        T: PrimInt
+            + BitOrAssign
+            + IsSigned
+            + UncheckedPrimitiveInt
+            + BitXor
+            + Debug
+            + SplitFitUsize,
     {
         let type_bit_size = size_of::<T>() * 8;
 
@@ -145,7 +151,7 @@ where
         if type_bit_size < USIZE_BITS || count <= (USIZE_BITS - (self.bit_len() % 8)) {
             self.push_bits(value.into_usize_unchecked(), count);
         } else {
-            self.push_non_fit_bits(value.into_u16(), count)
+            self.push_non_fit_bits(value.split_fit_usize::<E>(), count)
         }
 
         Ok(())
