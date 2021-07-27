@@ -107,7 +107,7 @@ where
     /// ```
     #[inline]
     pub fn write_bool(&mut self, value: bool) -> Result<()> {
-        self.push_bits(value as usize, 1);
+        self.buffer.push_bool(value);
         Ok(())
     }
 
