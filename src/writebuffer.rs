@@ -106,18 +106,15 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
     pub fn push_bool(&mut self, val: bool) {
         let val = val as u8;
         let bit_offset = self.bit_len() % 8;
-        if E::is_le() {
-            if bit_offset == 0 {
-                self.bytes.push(val);
-            } else {
-                *self.bytes.last_mut().unwrap() |= val << bit_offset;
-            }
+        let shift = if E::is_le() {
+            bit_offset
         } else {
-            if bit_offset == 0 {
-                self.bytes.push(val << 7);
-            } else {
-                *self.bytes.last_mut().unwrap() |= val << (7 - bit_offset);
-            }
+            7 - bit_offset
+        };
+        if bit_offset == 0 {
+            self.bytes.push(val << shift);
+        } else {
+            *self.bytes.last_mut().unwrap() |= val << shift;
         }
         self.bit_len += 1;
     }
