@@ -76,7 +76,7 @@ where
     fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
     where
         I: ExactSizeIterator,
-        I: DoubleEndedIterator<Item = u8>,
+        I: DoubleEndedIterator<Item = u16>,
     {
         self.buffer.push_non_fit_bits(bits, count)
     }
@@ -142,10 +142,10 @@ where
             });
         }
 
-        if type_bit_size < USIZE_BITS || count < USIZE_BITS {
+        if type_bit_size < USIZE_BITS || count <= (USIZE_BITS - (self.bit_len() % 8)) {
             self.push_bits(value.into_usize_unchecked(), count);
         } else {
-            self.push_non_fit_bits(value.into_bytes(), count)
+            self.push_non_fit_bits(value.into_u16(), count)
         }
 
         Ok(())

@@ -29,13 +29,14 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
     pub fn push_non_fit_bits<I>(&mut self, bits: I, count: usize)
     where
         I: ExactSizeIterator,
-        I: DoubleEndedIterator<Item = u8>,
+        I: DoubleEndedIterator<Item = u16>,
     {
-        let full_bytes = min(bits.len() - 1, count / 8);
+        let chunk_bits = u16::BITS as usize;
+        let full_bytes = min(bits.len() - 1, count / chunk_bits);
 
-        let counts = repeat(8)
+        let counts = repeat(chunk_bits)
             .take(full_bytes)
-            .chain(once(count - full_bytes * 8));
+            .chain(once(count - full_bytes * chunk_bits));
         if E::is_le() {
             bits.zip(counts)
                 .for_each(|(chunk, count)| self.push_bits(chunk as usize, count))
@@ -52,12 +53,14 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
         if count == 0 {
             return;
         }
-        debug_assert!(count < USIZE_BITS - 8);
 
         // ensure there are no stray bits
         let bits = bits & (usize::MAX >> (USIZE_BITS - count));
 
         let bit_offset = self.bit_len & 7;
+
+        debug_assert!(count <= USIZE_BITS - bit_offset);
+
         let last_written_byte = if bit_offset > 0 {
             self.bytes.pop().unwrap_or(0)
         } else {

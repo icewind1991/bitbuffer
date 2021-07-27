@@ -256,19 +256,50 @@ macro_rules! impl_is_signed {
 }
 
 pub trait IntoBytes: Sized {
-    type Iter: DoubleEndedIterator<Item = u8> + ExactSizeIterator;
+    type BytesIter: DoubleEndedIterator<Item = u8> + ExactSizeIterator;
+    type U16Iter: DoubleEndedIterator<Item = u16> + ExactSizeIterator;
 
-    fn into_bytes(self) -> Self::Iter;
+    fn into_bytes(self) -> Self::BytesIter;
+
+    fn into_u16(self) -> Self::U16Iter;
 }
 
 macro_rules! impl_into_bytes {
-    ($type:ty, $bytes:expr) => {
+    ($type:ty, $bytes:expr, 1 ) => {
         impl IntoBytes for $type {
-            type Iter = std::array::IntoIter<u8, $bytes>;
+            type BytesIter = std::array::IntoIter<u8, $bytes>;
+            type U16Iter = std::array::IntoIter<u16, 1>;
 
             #[inline(always)]
-            fn into_bytes(self) -> Self::Iter {
-                Self::Iter::new(self.to_le_bytes())
+            fn into_bytes(self) -> Self::BytesIter {
+                Self::BytesIter::new(self.to_le_bytes())
+            }
+
+            #[inline(always)]
+            fn into_u16(self) -> Self::U16Iter {
+                Self::U16Iter::new([self as u16])
+            }
+        }
+    };
+    ($type:ty, $bytes:expr, $shorts:expr ) => {
+        impl IntoBytes for $type {
+            type BytesIter = std::array::IntoIter<u8, $bytes>;
+            type U16Iter = std::array::IntoIter<u16, { $shorts }>;
+
+            #[inline(always)]
+            fn into_bytes(self) -> Self::BytesIter {
+                Self::BytesIter::new(self.to_le_bytes())
+            }
+
+            #[inline(always)]
+            fn into_u16(self) -> Self::U16Iter {
+                use std::convert::TryInto;
+
+                let bytes = self.to_le_bytes();
+                let (head, aligned, tail) = unsafe { bytes[..].align_to::<u16>() };
+                debug_assert_eq!(0, head.len());
+                debug_assert_eq!(0, tail.len());
+                Self::U16Iter::new(aligned.try_into().unwrap())
             }
         }
     };
@@ -287,24 +318,24 @@ impl_is_signed!(i64, true);
 impl_is_signed!(i128, true);
 impl_is_signed!(isize, true);
 
-impl_into_bytes!(u8, 1);
-impl_into_bytes!(u16, 2);
-impl_into_bytes!(u32, 4);
-impl_into_bytes!(u64, 8);
-impl_into_bytes!(u128, 16);
+impl_into_bytes!(u8, 1, 1);
+impl_into_bytes!(u16, 2, 1);
+impl_into_bytes!(u32, 4, 2);
+impl_into_bytes!(u64, 8, 4);
+impl_into_bytes!(u128, 16, 8);
 
 #[cfg(target_pointer_width = "64")]
-impl_into_bytes!(usize, 8);
+impl_into_bytes!(usize, 8, 4);
 #[cfg(target_pointer_width = "32")]
-impl_into_bytes!(usize, 4);
+impl_into_bytes!(usize, 4, 2);
 
-impl_into_bytes!(i8, 1);
-impl_into_bytes!(i16, 2);
-impl_into_bytes!(i32, 4);
-impl_into_bytes!(i64, 8);
-impl_into_bytes!(i128, 16);
+impl_into_bytes!(i8, 1, 1);
+impl_into_bytes!(i16, 2, 1);
+impl_into_bytes!(i32, 4, 2);
+impl_into_bytes!(i64, 8, 4);
+impl_into_bytes!(i128, 16, 8);
 
 #[cfg(target_pointer_width = "64")]
-impl_into_bytes!(isize, 8);
+impl_into_bytes!(isize, 8, 4);
 #[cfg(target_pointer_width = "32")]
-impl_into_bytes!(isize, 4);
+impl_into_bytes!(isize, 4, 2);
