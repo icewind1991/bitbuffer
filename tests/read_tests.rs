@@ -343,7 +343,7 @@ fn read_sized_trait() {
     );
     stream.set_pos(0).unwrap();
     let mut result: BitReadStream<BigEndian> = stream.read_sized(4).unwrap();
-    assert_eq!(0b10u8, result.read_int(2).unwrap());
+    assert_eq!(0b10u8, result.read_int::<u8>(2).unwrap());
 }
 
 #[test]
@@ -374,7 +374,7 @@ fn read_sized_trait_unchecked() {
         );
         stream.set_pos(0).unwrap();
         let mut result: BitReadStream<BigEndian> = stream.read_sized_unchecked(4, true).unwrap();
-        assert_eq!(0b10u8, result.read_int(2).unwrap());
+        assert_eq!(0b10u8, result.read_int::<u8>(2).unwrap());
     }
 }
 

@@ -62,8 +62,8 @@ fn test_write_bool_number_le() {
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(3253u16, read.read().unwrap());
-    assert_eq!(13253u64, read.read().unwrap());
+    assert_eq!(3253u16, read.read::<u16>().unwrap());
+    assert_eq!(13253u64, read.read::<u64>().unwrap());
 
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
@@ -82,9 +82,9 @@ fn test_write_bool_number_be() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
-    assert_eq!(1u8, read.read_int(1).unwrap());
-    assert_eq!(3253u16, read.read().unwrap());
-    assert_eq!(13253u64, read.read().unwrap());
+    assert_eq!(1u8, read.read_int::<u8>(1).unwrap());
+    assert_eq!(3253u16, read.read::<u16>().unwrap());
+    assert_eq!(13253u64, read.read::<u64>().unwrap());
 
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
@@ -103,7 +103,7 @@ fn test_write_float_le() {
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(3253.12f32, read.read().unwrap());
+    assert_eq!(3253.12f32, read.read::<f32>().unwrap());
 
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
@@ -121,8 +121,8 @@ fn test_write_float_be() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
-    assert_eq!(1u8, read.read_int(1).unwrap());
-    assert_eq!(3253.12f32, read.read().unwrap());
+    assert_eq!(1u8, read.read_int::<u8>(1).unwrap());
+    assert_eq!(3253.12f32, read.read::<f32>().unwrap());
 
     // 0 padded
     assert_eq!(false, read.read_bool().unwrap());
@@ -183,8 +183,8 @@ fn test_write_signed() {
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
     assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(-17i32, read.read_int(32).unwrap());
-    assert_eq!(-9i32, read.read_int(8).unwrap());
+    assert_eq!(-17i32, read.read_int::<i32>(32).unwrap());
+    assert_eq!(-9i32, read.read_int::<i32>(8).unwrap());
 }
 
 #[test]
