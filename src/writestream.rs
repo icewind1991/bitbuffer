@@ -2,6 +2,7 @@ use num_traits::{Float, PrimInt};
 use std::cmp::min;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor};
+use std::rc::Rc;
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, SplitFitUsize, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
@@ -36,6 +37,7 @@ where
     E: Endianness,
 {
     buffer: WriteBuffer<'a, E>,
+    slice: Option<Rc<Vec<u8>>>,
 }
 
 impl<'a, E> BitWriteStream<'a, E>
@@ -55,6 +57,33 @@ where
     pub fn new(data: &'a mut Vec<u8>, endianness: E) -> Self {
         BitWriteStream {
             buffer: WriteBuffer::new(data, endianness),
+            slice: None,
+        }
+    }
+    /// Create a new write stream
+    ///
+    /// must assert data.len() is enough
+    pub unsafe fn from_slice(data: &'a mut [u8], endianness: E) -> Self {
+        let p = data.as_mut_ptr();
+        let cap = data.len();
+        let slice = Rc::new(Vec::from_raw_parts(p, 0, cap));
+        let data = &mut *(Rc::as_ptr(&slice) as *mut Vec<u8>);
+        BitWriteStream {
+            buffer: WriteBuffer::new(data, endianness),
+            slice: Some(slice),
+        }
+    }
+}
+
+impl<'a, E> Drop for BitWriteStream<'a, E>
+where
+    E: Endianness,
+{
+    fn drop(&mut self) {
+        if let Some(slice) = self.slice.take() {
+            let slice = Rc::try_unwrap(slice).unwrap();
+            // don't memory free
+            core::mem::forget(slice);
         }
     }
 }
