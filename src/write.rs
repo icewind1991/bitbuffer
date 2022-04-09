@@ -1,6 +1,5 @@
 use crate::{BitReadStream, BitWriteStream, Endianness, Result};
 use std::borrow::Cow;
-use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -90,7 +89,7 @@ macro_rules! impl_write_int {
         impl<E: Endianness> BitWrite<E> for $type {
             #[inline]
             fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
-                stream.write_int::<$type>(*self, size_of::<$type>() * 8)
+                stream.write_int::<$type>(*self, <$type>::BITS as usize)
             }
         }
     };

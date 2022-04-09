@@ -393,21 +393,20 @@ impl SplitFitUsize for usize {
     type Iter = array::IntoIter<(usize, u8), 2>;
 
     fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
-        const USIZE_BITS: usize = size_of::<usize>() * 8;
         (if E::is_le() {
             [
                 (
-                    (self & (Self::MAX >> (USIZE_BITS - 8))) as usize,
-                    USIZE_BITS as u8 - 8,
+                    (self & (Self::MAX >> (usize::BITS - 8))) as usize,
+                    usize::BITS as u8 - 8,
                 ),
-                ((self >> (USIZE_BITS - 8)) as usize, 8),
+                ((self >> (usize::BITS - 8)) as usize, 8),
             ]
         } else {
             [
-                ((self >> (USIZE_BITS - 8)) as usize, 8),
+                ((self >> (usize::BITS - 8)) as usize, 8),
                 (
-                    (self & (Self::MAX >> (USIZE_BITS - 8))) as usize,
-                    USIZE_BITS as u8 - 8,
+                    (self & (Self::MAX >> (usize::BITS - 8))) as usize,
+                    usize::BITS as u8 - 8,
                 ),
             ]
         })

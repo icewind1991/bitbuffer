@@ -270,13 +270,13 @@ where
                         requested_length: length,
                     });
                 }
-                self.write_bytes(&string.as_bytes())?;
+                self.write_bytes(string.as_bytes())?;
                 for _ in 0..(length - string.len()) {
                     self.push_bits(0, 8)
                 }
             }
             None => {
-                self.write_bytes(&string.as_bytes())?;
+                self.write_bytes(string.as_bytes())?;
                 self.push_bits(0, 8)
             }
         }

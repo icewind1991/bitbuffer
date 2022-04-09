@@ -1,9 +1,6 @@
 use crate::Endianness;
 use std::cmp::min;
 use std::marker::PhantomData;
-use std::mem::size_of;
-
-const USIZE_BITS: usize = size_of::<usize>() * 8;
 
 pub struct WriteBuffer<'a, E: Endianness> {
     bit_len: usize,
@@ -47,11 +44,11 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
         }
 
         // ensure there are no stray bits
-        let bits = bits & (usize::MAX >> (USIZE_BITS - count));
+        let bits = bits & (usize::MAX >> (usize::BITS as usize - count));
 
         let bit_offset = self.bit_len & 7;
 
-        debug_assert!(count <= USIZE_BITS - bit_offset);
+        debug_assert!(count <= usize::BITS as usize - bit_offset);
 
         let last_written_byte = if bit_offset > 0 {
             self.bytes.pop().unwrap_or(0)
@@ -65,8 +62,8 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
             self.bytes
                 .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {
-            let merged = ((last_written_byte as usize) << (USIZE_BITS - 8))
-                | (bits << (USIZE_BITS - bit_offset - count));
+            let merged = ((last_written_byte as usize) << (usize::BITS as usize - 8))
+                | (bits << (usize::BITS as usize - bit_offset - count));
             self.bytes
                 .extend_from_slice(&merged.to_be_bytes()[0..merged_byte_count]);
         }

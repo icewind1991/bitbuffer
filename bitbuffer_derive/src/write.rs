@@ -44,12 +44,12 @@ pub fn derive_bitwrite_trait(
 
     let _size = size(
         input.data.clone(),
-        &name,
+        name,
         &input.attrs,
         extra_param.is_some(),
     );
-    let parsed = write(input.data.clone(), &name, &input.attrs);
-    let _parsed_unchecked = write(input.data.clone(), &name, &input.attrs);
+    let parsed = write(input.data.clone(), name, &input.attrs);
+    let _parsed_unchecked = write(input.data.clone(), name, &input.attrs);
 
     let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
     let trait_def_str = format!("::bitbuffer::{}<{}>", trait_name, &endianness_placeholder);

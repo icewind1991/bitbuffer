@@ -227,12 +227,12 @@ fn derive_bitread_trait(
 
     let size = size(
         input.data.clone(),
-        &name,
+        name,
         &input.attrs,
         extra_param.is_some(),
     );
-    let parsed = parse(input.data.clone(), &name, &input.attrs, false);
-    let parsed_unchecked = parse(input.data.clone(), &name, &input.attrs, true);
+    let parsed = parse(input.data.clone(), name, &input.attrs, false);
+    let parsed_unchecked = parse(input.data.clone(), name, &input.attrs, true);
 
     let endianness_placeholder = endianness.unwrap_or_else(|| "_E".to_owned());
     let trait_def_str = format!(

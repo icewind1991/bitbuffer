@@ -197,14 +197,12 @@ pub(crate) fn get_bits_from_usize<E: Endianness>(
     bit_offset: usize,
     count: usize,
 ) -> usize {
-    let usize_bit_size = size_of::<usize>() * 8;
-
     let shifted = if E::is_le() {
         val >> bit_offset
     } else {
-        val >> (usize_bit_size - bit_offset - count)
+        val >> (usize::BITS as usize - bit_offset - count)
     };
-    let mask = !(std::usize::MAX << count);
+    let mask = !(usize::MAX << count);
     shifted & mask
 }
 
@@ -388,11 +386,10 @@ where
         T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
     {
         let type_bit_size = size_of::<T>() * 8;
-        let usize_bit_size = size_of::<usize>() * 8;
 
         let bit_offset = position & 7;
 
-        let fit_usize = count + bit_offset < usize_bit_size;
+        let fit_usize = count + bit_offset < usize::BITS as usize;
         let value = if fit_usize {
             self.read_fit_usize(position, count, end)
         } else {

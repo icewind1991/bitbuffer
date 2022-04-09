@@ -126,17 +126,17 @@ macro_rules! impl_read_int {
         impl<E: Endianness> BitRead<'_, E> for $type {
             #[inline]
             fn read(stream: &mut BitReadStream<E>) -> Result<$type> {
-                stream.read_int::<$type>(size_of::<$type>() * 8)
+                stream.read_int::<$type>(<$type>::BITS as usize)
             }
 
             #[inline]
             unsafe fn read_unchecked(stream: &mut BitReadStream<E>, end: bool) -> Result<$type> {
-                Ok(stream.read_int_unchecked::<$type>(size_of::<$type>() * 8, end))
+                Ok(stream.read_int_unchecked::<$type>(<$type>::BITS as usize, end))
             }
 
             #[inline]
             fn bit_size() -> Option<usize> {
-                Some(size_of::<$type>() * 8)
+                Some(<$type>::BITS as usize)
             }
         }
     };
