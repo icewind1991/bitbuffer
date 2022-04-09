@@ -200,7 +200,7 @@ impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Option<T> {
     }
 }
 
-impl<'a, T: BitWrite<E> + ToOwned, E: Endianness> BitWrite<E> for Cow<'a, T> {
+impl<'a, T: BitWrite<E> + ToOwned + ?Sized, E: Endianness> BitWrite<E> for Cow<'a, T> {
     #[inline]
     fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
         self.as_ref().write(stream)
@@ -378,7 +378,7 @@ impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Option<T> {
     }
 }
 
-impl<'a, T: BitWriteSized<E> + ToOwned, E: Endianness> BitWriteSized<E> for Cow<'a, T> {
+impl<'a, T: BitWriteSized<E> + ToOwned + ?Sized, E: Endianness> BitWriteSized<E> for Cow<'a, T> {
     #[inline]
     fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
         self.as_ref().write_sized(stream, len)
