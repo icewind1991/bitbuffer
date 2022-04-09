@@ -1,4 +1,5 @@
 use crate::{BitReadStream, BitWriteStream, Endianness, Result};
+use std::borrow::Cow;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -200,6 +201,13 @@ impl<T: BitWrite<E>, E: Endianness> BitWrite<E> for Option<T> {
     }
 }
 
+impl<'a, T: BitWrite<E> + ToOwned, E: Endianness> BitWrite<E> for Cow<'a, T> {
+    #[inline]
+    fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
+        self.as_ref().write(stream)
+    }
+}
+
 macro_rules! impl_write_tuple {
     ($($i:tt: $type:ident),*) => {
         impl<'a, E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
@@ -368,5 +376,12 @@ impl<T: BitWriteSized<E>, E: Endianness> BitWriteSized<E> for Option<T> {
             val.write_sized(stream, len)?;
         }
         Ok(())
+    }
+}
+
+impl<'a, T: BitWriteSized<E> + ToOwned, E: Endianness> BitWriteSized<E> for Cow<'a, T> {
+    #[inline]
+    fn write_sized(&self, stream: &mut BitWriteStream<E>, len: usize) -> Result<()> {
+        self.as_ref().write_sized(stream, len)
     }
 }
