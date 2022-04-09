@@ -290,7 +290,7 @@ macro_rules! impl_split_fit {
 
             fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
                 assert!(size_of::<Self>() < size_of::<usize>());
-                Self::Iter::new([(self as usize, size_of::<Self>() as u8 * 8)])
+                [(self as usize, size_of::<Self>() as u8 * 8)].into_iter()
             }
         }
     };
@@ -341,7 +341,7 @@ impl SplitFitUsize for u64 {
     type Iter = array::IntoIter<(usize, u8), 3>;
 
     fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
-        Self::Iter::new(if E::is_le() {
+        (if E::is_le() {
             [
                 ((self & (Self::MAX >> 40)) as usize, 24),
                 ((self >> 24 & (Self::MAX >> 16)) as usize, 24),
@@ -354,6 +354,7 @@ impl SplitFitUsize for u64 {
                 ((self & (Self::MAX >> 40)) as usize, 24),
             ]
         })
+        .into_iter()
     }
 }
 
@@ -363,7 +364,7 @@ impl SplitFitUsize for u128 {
     type Iter = array::IntoIter<(usize, u8), 6>;
 
     fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
-        Self::Iter::new(if E::is_le() {
+        (if E::is_le() {
             [
                 ((self & (Self::MAX >> 104)) as usize, 24),
                 ((self >> 24 & (Self::MAX >> 80)) as usize, 24),
@@ -382,6 +383,7 @@ impl SplitFitUsize for u128 {
                 ((self & (Self::MAX >> 104)) as usize, 24),
             ]
         })
+        .into_iter()
     }
 }
 
@@ -392,7 +394,7 @@ impl SplitFitUsize for usize {
 
     fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
         const USIZE_BITS: usize = size_of::<usize>() * 8;
-        Self::Iter::new(if E::is_le() {
+        (if E::is_le() {
             [
                 (
                     (self & (Self::MAX >> (USIZE_BITS - 8))) as usize,
@@ -409,6 +411,7 @@ impl SplitFitUsize for usize {
                 ),
             ]
         })
+        .into_iter()
     }
 }
 
