@@ -314,8 +314,13 @@ where
         let bit_offset = position & 7;
 
         let byte = self.slice.get_unchecked(byte_index);
-        let shifted = byte >> bit_offset;
-        shifted & 1u8 == 1
+        if E::is_le() {
+            let shifted = byte >> bit_offset;
+            shifted & 1u8 == 1
+        } else {
+            let shifted = byte << bit_offset;
+            shifted & 0b1000_0000u8 == 0b1000_0000u8
+        }
     }
 
     /// Read a sequence of bits from the buffer as integer
