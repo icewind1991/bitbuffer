@@ -204,3 +204,26 @@ fn test_write_container() {
     assert_eq!(Rc::new(true), read.read().unwrap());
     assert_eq!(Arc::new(true), read.read().unwrap());
 }
+
+#[test]
+fn test_write_to_slice() {
+    let mut data = [0; 32];
+    {
+        let mut stream = BitWriteStream::from_slice(&mut data[..], LittleEndian);
+
+        stream.write_bool(true).unwrap();
+        stream.write_int(3253u16, 16).unwrap();
+        stream.write_int(13253u64, 64).unwrap();
+    }
+
+    dbg!(&data);
+
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
+
+    assert_eq!(true, read.read_bool().unwrap());
+    assert_eq!(3253u16, read.read::<u16>().unwrap());
+    assert_eq!(13253u64, read.read::<u64>().unwrap());
+
+    // 0 padded
+    assert_eq!(false, read.read_bool().unwrap());
+}

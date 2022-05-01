@@ -1,10 +1,99 @@
 use crate::Endianness;
 use std::cmp::min;
 use std::marker::PhantomData;
+use std::ops::{Index, IndexMut, Range};
+
+enum WriteData<'a> {
+    Vec(&'a mut Vec<u8>),
+    Slice { data: &'a mut [u8], length: usize },
+}
+
+impl<'a> WriteData<'a> {
+    fn pop(&mut self) -> Option<u8> {
+        match self {
+            WriteData::Vec(vec) => vec.pop(),
+            WriteData::Slice { data, length } if *length > 0 => {
+                *length -= 1;
+                Some(data[*length])
+            }
+            _ => None,
+        }
+    }
+
+    fn extend_from_slice(&mut self, other: &[u8]) {
+        match self {
+            WriteData::Vec(vec) => vec.extend_from_slice(other),
+            WriteData::Slice { data, length } => {
+                let end = *length + other.len();
+                let target = &mut data[*length..end];
+                target.copy_from_slice(other);
+                *length += other.len();
+            }
+        }
+    }
+
+    fn push(&mut self, byte: u8) {
+        match self {
+            WriteData::Vec(vec) => vec.push(byte),
+            WriteData::Slice { data, length } => {
+                data[*length] = byte;
+                *length += 1;
+            }
+        }
+    }
+
+    fn last_mut(&mut self) -> Option<&mut u8> {
+        match self {
+            WriteData::Vec(vec) => vec.last_mut(),
+            WriteData::Slice { data, length } if *length > 0 => Some(&mut data[*length]),
+            _ => None,
+        }
+    }
+}
+
+impl<'a> Index<usize> for WriteData<'a> {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            WriteData::Vec(vec) => &vec[index],
+            WriteData::Slice { data, .. } => &data[index],
+        }
+    }
+}
+
+impl<'a> IndexMut<usize> for WriteData<'a> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match self {
+            WriteData::Vec(vec) => &mut vec[index],
+            WriteData::Slice { data, .. } => &mut data[index],
+        }
+    }
+}
+
+impl<'a> Index<Range<usize>> for WriteData<'a> {
+    type Output = [u8];
+
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        match self {
+            WriteData::Vec(vec) => &vec[index],
+            WriteData::Slice { data, .. } => &data[index],
+        }
+    }
+}
+
+impl<'a> IndexMut<Range<usize>> for WriteData<'a> {
+    fn index_mut(&mut self, index: Range<usize>) -> &mut Self::Output {
+        match self {
+            WriteData::Vec(vec) => &mut vec[index],
+            WriteData::Slice { data, .. } => &mut data[index],
+        }
+    }
+}
 
 pub struct WriteBuffer<'a, E: Endianness> {
     bit_len: usize,
-    bytes: &'a mut Vec<u8>,
+    bytes: WriteData<'a>,
     endianness: PhantomData<E>,
 }
 
@@ -12,7 +101,17 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
     pub fn new(bytes: &'a mut Vec<u8>, _endianness: E) -> Self {
         WriteBuffer {
             bit_len: 0,
-            bytes,
+            bytes: WriteData::Vec(bytes),
+            endianness: PhantomData,
+        }
+    }
+    pub fn for_slice(bytes: &'a mut [u8], _endianness: E) -> Self {
+        WriteBuffer {
+            bit_len: 0,
+            bytes: WriteData::Slice {
+                data: bytes,
+                length: 0,
+            },
             endianness: PhantomData,
         }
     }

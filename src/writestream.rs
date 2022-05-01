@@ -57,6 +57,16 @@ where
             buffer: WriteBuffer::new(data, endianness),
         }
     }
+
+    /// Create a new write stream
+    ///
+    /// Note that the resulting stream will panic when trying to write more data then fits
+    /// in the provided slice.
+    pub fn from_slice(data: &'a mut [u8], endianness: E) -> Self {
+        BitWriteStream {
+            buffer: WriteBuffer::for_slice(data, endianness),
+        }
+    }
 }
 
 impl<'a, E> BitWriteStream<'a, E>
