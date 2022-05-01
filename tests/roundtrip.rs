@@ -83,11 +83,7 @@ fn test_bare_enum() {
 #[test]
 fn test_field_enum() {
     #[derive(Debug, PartialEq, BitRead, BitWrite)]
-    struct CompoundVariant(
-        #[size = 15]
-        u16,
-        bool,
-    );
+    struct CompoundVariant(#[size = 15] u16, bool);
 
     #[derive(Debug, PartialEq, BitRead, BitWrite)]
     #[discriminant_bits = 4]
