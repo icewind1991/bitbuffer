@@ -83,17 +83,26 @@ fn test_bare_enum() {
 #[test]
 fn test_field_enum() {
     #[derive(Debug, PartialEq, BitRead, BitWrite)]
+    struct CompoundVariant(
+        #[size = 15]
+        u16,
+        bool,
+    );
+
+    #[derive(Debug, PartialEq, BitRead, BitWrite)]
     #[discriminant_bits = 4]
     enum Enum {
         A,
         B(String),
         C(f32),
         D(#[size = 15] i64),
+        E(CompoundVariant),
     }
     roundtrip(Enum::A);
     roundtrip(Enum::B("foobar".into()));
     roundtrip(Enum::C(12.0));
     roundtrip(Enum::D(-12345));
+    roundtrip(Enum::E(CompoundVariant(6789, true)));
 }
 
 #[test]
