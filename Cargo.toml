@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer"
-version = "0.10.7"
+version = "0.10.8"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2021"
 description = "Reading bit sequences from a byte slice"
