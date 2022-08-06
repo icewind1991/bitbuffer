@@ -304,16 +304,20 @@ where
     pub fn read_string(&mut self, byte_len: Option<usize>) -> Result<Cow<'a, str>> {
         let max_length = self.bits_left() / 8;
 
-        let result = self.buffer.read_string(self.pos, byte_len).map_err(|err| {
-            // still advance the stream on malformed utf8
-            if let BitError::Utf8Error(_, len) = &err {
-                self.pos += match byte_len {
-                    Some(len) => len * 8,
-                    None => min((len + 1) * 8, max_length * 8),
-                };
-            }
-            err
-        })?;
+        let result = self
+            .buffer
+            .read_string(self.pos, byte_len)
+            .map_err(|mut err| {
+                // still advance the stream on malformed utf8
+                if let BitError::Utf8Error(_, len) = &mut err {
+                    self.pos += match byte_len {
+                        Some(len) => len * 8,
+                        None => min((*len + 1) * 8, max_length * 8),
+                    };
+                    *len = (*len).min(max_length);
+                }
+                err
+            })?;
         let read = match byte_len {
             Some(len) => len * 8,
             None => (result.len() + 1) * 8,
