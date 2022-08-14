@@ -88,7 +88,7 @@ pub use write::{BitWrite, BitWriteSized};
 pub use writestream::BitWriteStream;
 
 mod endianness;
-mod num_traits;
+pub mod num_traits;
 mod read;
 mod readbuffer;
 mod readstream;
