@@ -88,6 +88,7 @@ pub use write::{BitWrite, BitWriteSized};
 pub use writestream::BitWriteStream;
 
 mod endianness;
+#[allow(missing_docs)]
 pub mod num_traits;
 mod read;
 mod readbuffer;

@@ -230,16 +230,16 @@ fn test_write_to_slice() {
 
 #[test]
 fn test_write_last_slice() {
-  let mut data = [0; 1];
-  {
-    let mut stream = BitWriteStream::from_slice(&mut data[..], LittleEndian);
+    let mut data = [0; 1];
+    {
+        let mut stream = BitWriteStream::from_slice(&mut data[..], LittleEndian);
 
-    stream.write_int::<u8>(0b1000, 4).unwrap();
-    stream.write_bool(true).unwrap();
-  }
+        stream.write_int::<u8>(0b1000, 4).unwrap();
+        stream.write_bool(true).unwrap();
+    }
 
-  let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
+    let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
 
-  assert_eq!(0b1000, read.read_int::<u8>(4).unwrap());
-  assert_eq!(true, read.read_bool().unwrap());
+    assert_eq!(0b1000, read.read_int::<u8>(4).unwrap());
+    assert_eq!(true, read.read_bool().unwrap());
 }
