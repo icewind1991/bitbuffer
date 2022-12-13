@@ -291,6 +291,13 @@ where
         let byte_index = position / 8;
         let bit_offset = position & 7;
 
+        // `slice` isn't limited by any sub-buffer size, so we need to manually check
+        if position >= self.bit_len() {
+            return Err(BitError::NotEnoughData {
+                requested: 1,
+                bits_left: 0,
+            });
+        }
         if let Some(byte) = self.slice.get(byte_index) {
             if E::is_le() {
                 let shifted = byte >> bit_offset as u8;

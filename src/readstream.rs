@@ -314,6 +314,7 @@ where
                         Some(len) => len * 8,
                         None => min((*len + 1) * 8, max_length * 8),
                     };
+
                     *len = (*len).min(max_length);
                 }
                 err
@@ -328,7 +329,7 @@ where
         // thus we trim the resulting string to make sure it fits in the source stream
         if read > self.bits_left() {
             // find the maximum well-formed utf8 string that fits in max_len
-            let mut acc = String::new();
+            let mut acc = String::with_capacity(max_length);
             for c in result.chars() {
                 if acc.len() + c.len_utf8() > max_length {
                     break;
