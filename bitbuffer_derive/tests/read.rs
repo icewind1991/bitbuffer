@@ -335,3 +335,79 @@ fn test_bit_size_sized() {
         Some(8 + 8 * 16 + 1)
     );
 }
+
+#[derive(BitRead, PartialEq, Debug)]
+#[align]
+struct AlignStruct(u8);
+
+#[test]
+fn test_align() {
+    let bytes = vec![0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
+    stream.read_bool().unwrap();
+    assert_eq!(AlignStruct(0x80), stream.read().unwrap());
+    assert_eq!(16, stream.pos());
+    assert_eq!(None, bit_size_of::<AlignStruct>());
+}
+
+#[derive(BitRead, PartialEq, Debug)]
+#[align]
+struct AlignFieldStruct {
+    #[size = 1]
+    foo: u8,
+    #[align]
+    bar: u8,
+}
+
+#[test]
+fn test_align_field() {
+    let bytes = vec![0, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
+    assert_eq!(
+        AlignFieldStruct { foo: 0, bar: 0x80 },
+        stream.read().unwrap()
+    );
+    assert_eq!(16, stream.pos());
+    assert_eq!(None, bit_size_of::<AlignStruct>());
+}
+
+#[derive(BitRead, PartialEq, Debug)]
+#[discriminant_bits = 4]
+#[align]
+enum AlignEnum {
+    Foo,
+    Bar(u8),
+}
+
+#[test]
+fn test_align_enum() {
+    let bytes = vec![0x00, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
+    stream.read_bool().unwrap();
+    assert_eq!(AlignEnum::Bar(0x80), stream.read().unwrap());
+    assert_eq!(20, stream.pos());
+    assert_eq!(None, bit_size_of::<AlignEnum>());
+}
+
+#[derive(BitRead, PartialEq, Debug)]
+#[discriminant_bits = 4]
+#[align]
+enum AlignEnumField {
+    Foo,
+    #[align]
+    Bar(u8),
+}
+
+#[test]
+fn test_align_enum_field() {
+    let bytes = vec![0x00, 0x10, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut stream = BitReadStream::from(buffer);
+    stream.read_bool().unwrap();
+    assert_eq!(AlignEnumField::Bar(0x80), stream.read().unwrap());
+    assert_eq!(24, stream.pos());
+    assert_eq!(None, bit_size_of::<AlignEnum>());
+}
