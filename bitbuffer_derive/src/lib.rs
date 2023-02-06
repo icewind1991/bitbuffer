@@ -103,6 +103,38 @@
 //! }
 //! ```
 //!
+//! # Alignment
+//!
+//! You can request alignment for a struct, enum or a field using #[align] attribute.
+//!
+//! ```
+//! # use bitbuffer::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[align] // align the reader before starting to read the struct
+//! struct TestAlignStruct {
+//!    #[size = 1]
+//!    foo: u8,
+//!    #[align] // align the reader before reading the field
+//!    bar: u8,
+//! }
+//! ```
+//!
+//! It can also be applied to non-unit enum variants:
+//!
+//! ```
+//! # use bitbuffer::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[align] // align the reader before starting to read the enum
+//! #[discriminant_bits = 2]
+//! enum TestAlignEnum {
+//!     Foo(u8),
+//!     #[align] // align the reader before reading the variant (but after reading the discriminant)
+//!     Bar(u8),
+//! }
+//! ```
+//!
 //! # Endianness
 //!
 //! If the struct that `BitRead` or `BitReadSized` is derived for requires a Endianness type parameter, you need to tell the derive macro the name of the type parameter used
