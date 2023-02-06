@@ -72,6 +72,7 @@ pub fn derive_bitwrite_trait(
     let write_method = Ident::new(&write_method_name, span);
 
     let expanded = quote! {
+        #[allow(unused_braces)]
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
             fn #write_method(&self, __target__stream: &mut ::bitbuffer::BitWriteStream<#endianness_ident>#extra_param) -> ::bitbuffer::Result<()> {
                 #parsed

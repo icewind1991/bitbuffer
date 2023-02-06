@@ -298,6 +298,7 @@ fn derive_bitread_trait(
 
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
+            #[allow(unused_braces)]
             fn read(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
@@ -313,6 +314,7 @@ fn derive_bitread_trait(
                 }
             }
 
+            #[allow(unused_braces)]
             unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param, end: bool) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
