@@ -289,3 +289,76 @@ fn test_read_size_expression() {
     stream.write(&val).unwrap();
     assert_eq!(bytes, data);
 }
+
+#[derive(BitWrite, PartialEq, Debug)]
+#[align]
+struct AlignStruct(u8);
+
+#[test]
+fn test_align() {
+    let bytes = vec![0, 0x80];
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    stream.write_bool(false).unwrap();
+    let val = AlignStruct(0x80);
+    stream.write(&val).unwrap();
+    assert_eq!(bytes, data);
+}
+
+#[derive(BitWrite, PartialEq, Debug)]
+#[align]
+struct AlignFieldStruct {
+    #[size = 1]
+    foo: u8,
+    #[align]
+    bar: u8,
+}
+
+#[test]
+fn test_align_field() {
+    let bytes = vec![0, 0x80];
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    let val = AlignFieldStruct { foo: 0, bar: 0x80 };
+    stream.write(&val).unwrap();
+    assert_eq!(bytes, data);
+}
+
+#[derive(BitWrite, PartialEq, Debug)]
+#[discriminant_bits = 4]
+#[align]
+enum AlignEnum {
+    Foo,
+    Bar(u8),
+}
+
+#[test]
+fn test_align_enum() {
+    let bytes = vec![0x00, 0x18, 0];
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    stream.write_bool(false).unwrap();
+    let val = AlignEnum::Bar(0x80);
+    stream.write(&val).unwrap();
+    assert_eq!(bytes, data);
+}
+
+#[derive(BitWrite, PartialEq, Debug)]
+#[discriminant_bits = 4]
+#[align]
+enum AlignEnumField {
+    Foo,
+    #[align]
+    Bar(u8),
+}
+
+#[test]
+fn test_align_enum_field() {
+    let bytes = vec![0x00, 0x10, 0x80];
+    let mut data = Vec::new();
+    let mut stream = BitWriteStream::new(&mut data, BigEndian);
+    stream.write_bool(false).unwrap();
+    let val = AlignEnumField::Bar(0x80);
+    stream.write(&val).unwrap();
+    assert_eq!(bytes, data);
+}

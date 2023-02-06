@@ -7,7 +7,7 @@ use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
     Fields, GenericParam, Ident, Index, Lit, LitInt, Member, Path, Type,
 };
-use syn_util::get_attribute_value;
+use syn_util::{contains_attribute, get_attribute_value};
 
 pub fn derive_bitwrite_trait(
     input: proc_macro::TokenStream,
@@ -87,6 +87,8 @@ pub fn derive_bitwrite_trait(
 fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
     let span = struct_name.span();
 
+    let align = get_align(attrs);
+
     match data {
         Data::Struct(DataStruct { fields, .. }) => {
             let expand = fields.iter().enumerate().map(|(i, field)| {
@@ -114,6 +116,7 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
             let writes = fields.iter().enumerate().map(|(i, f)| {
                 // Get attributes `#[..]` on each field
                 let size = get_field_size(&f.attrs, f.span());
+                let align = get_align(&f.attrs);
                 let span = f.span();
                 let member = f.ident.clone().map(Member::Named).unwrap_or_else(|| {
                     Member::Unnamed(Index {
@@ -125,6 +128,7 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                     Some(size) => {
                         quote_spanned! { span =>
                             {
+                                #align;
                                 let _size: usize = #size;
                                 __target__stream.write_sized(&self.#member, _size)?;
                             }
@@ -132,13 +136,17 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                     }
                     None => {
                         quote_spanned! { span => {
-                            __target__stream.write(&self.#member)?;
+                            {
+                                #align;
+                                __target__stream.write(&self.#member)?;
+                            }
                         }}
                     }
                 }
             });
 
             quote_spanned! {span=>
+                #align;
                 #(#expand)*
                 #(#writes)*
                 Ok(())
@@ -217,15 +225,24 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                 let variant_name = &variant.ident;
 
                 match &variant.fields {
-                    Fields::Unit => quote_spanned! {span =>
-                        #struct_name::#variant_name => {},
-                    },
+                    Fields::Unit => {
+                        if contains_attribute(&variant.attrs, &["align"]) {
+                            return quote_spanned! { span =>
+                                compile_error!("'align' attribute is not allowed on unit variants");
+                            };
+                        }
+                        quote_spanned! {span =>
+                            #struct_name::#variant_name => {},
+                        }
+                    }
                     Fields::Unnamed(f) => {
                         let size = get_field_size(&variant.attrs, f.span());
+                        let align = get_align(&variant.attrs);
                         match size {
                             Some(size) => {
                                 quote_spanned! { span =>
                                     #struct_name::#variant_name(inner) => {
+                                        #align;
                                         let size:usize = #size;
                                         __target__stream.write_sized(inner, size)?;
                                     }
@@ -233,7 +250,10 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                             }
                             None => {
                                 quote_spanned! { span =>
-                                    #struct_name::#variant_name(inner) => { __target__stream.write(inner)?; }
+                                    #struct_name::#variant_name(inner) => {
+                                        #align;
+                                        __target__stream.write(inner)?;
+                                    }
                                 }
                             }
                         }
@@ -246,6 +266,7 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
             let repr = repr_for_bits(discriminant_bits);
 
             quote_spanned! {span=>
+                #align;
                 let discriminant:#repr = match &self {
                     #(#discriminant_value),*
                 };
@@ -298,5 +319,15 @@ fn type_is_int(ty: &Type) -> bool {
         }
     } else {
         false
+    }
+}
+
+fn get_align(attrs: &[Attribute]) -> TokenStream {
+    if contains_attribute(attrs, &["align"]) {
+        quote! {
+            __target__stream.align()
+        }
+    } else {
+        quote! { () }
     }
 }
