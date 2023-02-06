@@ -98,6 +98,38 @@ where
         }
     }
 
+    /// Align the stream on the next byte by writing zero bits and returns the amount of bits written
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitReadBuffer, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # use bitbuffer::{BitWriteStream, LittleEndian};
+    ///
+    /// let mut data = Vec::new();
+    /// let mut stream = BitWriteStream::new(&mut data, LittleEndian);
+    /// stream.write_bool(true)?;
+    /// stream.align();
+    /// assert_eq!(stream.bit_len(), 8);
+    /// assert_eq!(data, [0b0000_0001]);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    pub fn align(&mut self) -> usize {
+        match self.bit_len() % 8 {
+            0 => 0,
+            n => {
+                self.push_bits(0, 8 - n);
+                8 - n
+            }
+        }
+    }
+
     /// Write a boolean into the buffer
     ///
     /// # Examples
