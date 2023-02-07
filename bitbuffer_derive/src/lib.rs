@@ -103,6 +103,38 @@
 //! }
 //! ```
 //!
+//! # Alignment
+//!
+//! You can request alignment for a struct, enum or a field using #[align] attribute.
+//!
+//! ```
+//! # use bitbuffer::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[align] // align the reader before starting to read the struct
+//! struct TestAlignStruct {
+//!    #[size = 1]
+//!    foo: u8,
+//!    #[align] // align the reader before reading the field
+//!    bar: u8,
+//! }
+//! ```
+//!
+//! It can also be applied to non-unit enum variants:
+//!
+//! ```
+//! # use bitbuffer::BitRead;
+//! #
+//! #[derive(BitRead)]
+//! #[align] // align the reader before starting to read the enum
+//! #[discriminant_bits = 2]
+//! enum TestAlignEnum {
+//!     Foo(u8),
+//!     #[align] // align the reader before reading the variant (but after reading the discriminant)
+//!     Bar(u8),
+//! }
+//! ```
+//!
 //! # Endianness
 //!
 //! If the struct that `BitRead` or `BitReadSized` is derived for requires a Endianness type parameter, you need to tell the derive macro the name of the type parameter used
@@ -146,12 +178,12 @@ use syn::{
     parse_macro_input, parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
     Fields, GenericParam, Ident, Lit, LitInt, LitStr, Path,
 };
-use syn_util::get_attribute_value;
+use syn_util::{contains_attribute, get_attribute_value};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitRead,
-    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness, align)
 )]
 pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     derive_bitread_trait(input, "BitRead".to_owned(), None)
@@ -161,7 +193,7 @@ pub fn derive_bitread(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitReadSized,
-    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness, align)
 )]
 pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
@@ -171,7 +203,7 @@ pub fn derive_bitread_sized(input: proc_macro::TokenStream) -> proc_macro::Token
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitWrite,
-    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness, align)
 )]
 pub fn derive_bitwrite(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     derive_bitwrite_trait(input, "BitWrite".into(), "write".into(), None)
@@ -181,7 +213,7 @@ pub fn derive_bitwrite(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// See the [crate documentation](index.html) for details
 #[proc_macro_derive(
     BitWriteSized,
-    attributes(size, size_bits, discriminant_bits, discriminant, endianness)
+    attributes(size, size_bits, discriminant_bits, discriminant, endianness, align)
 )]
 pub fn derive_bitwrite_sized(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let extra_param = parse_str::<TokenStream>(", input_size: usize").unwrap();
@@ -266,6 +298,7 @@ fn derive_bitread_trait(
 
     let expanded = quote! {
         impl #impl_generics #trait_def for #name #ty_generics #where_clause {
+            #[allow(unused_braces)]
             fn read(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param) -> ::bitbuffer::Result<Self> {
                 // if the read has a predicable size, we can do the bounds check in one go
                 match <Self as #trait_def>::#size_method_name(#extra_param_call) {
@@ -281,6 +314,7 @@ fn derive_bitread_trait(
                 }
             }
 
+            #[allow(unused_braces)]
             unsafe fn read_unchecked(stream: &mut ::bitbuffer::BitReadStream<#lifetime, #endianness_ident>#extra_param, end: bool) -> ::bitbuffer::Result<Self> {
                 #parsed_unchecked
             }
@@ -299,11 +333,14 @@ fn derive_bitread_trait(
 fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) -> TokenStream {
     let span = struct_name.span();
 
+    let align = get_align(attrs);
+
     match data {
         Data::Struct(DataStruct { fields, .. }) => {
             let values = fields.iter().map(|f| {
                 // Get attributes `#[..]` on each field
                 let size = get_field_size(&f.attrs, f.span());
+                let align = get_align(attrs);
                 let field_type = &f.ty;
                 let span = f.span();
                 if unchecked {
@@ -311,6 +348,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         Some(size) => {
                             quote_spanned! { span =>
                                 {
+                                    #align;
                                     let _size: usize = #size;
                                     stream.read_sized_unchecked::<#field_type>(_size, end)?
                                 }
@@ -318,7 +356,10 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         }
                         None => {
                             quote_spanned! { span =>
-                                stream.read_unchecked::<#field_type>(end)?
+                                {
+                                    #align;
+                                    stream.read_unchecked::<#field_type>(end)?
+                                }
                             }
                         }
                     }
@@ -327,6 +368,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         Some(size) => {
                             quote_spanned! { span =>
                                 {
+                                    #align;
                                     let _size: usize = #size;
                                     stream.read_sized::<#field_type>(_size)?
                                 }
@@ -334,7 +376,10 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         }
                         None => {
                             quote_spanned! { span =>
-                                stream.read::<#field_type>()?
+                                {
+                                    #align;
+                                    stream.read::<#field_type>()?
+                                }
                             }
                         }
                     }
@@ -356,6 +401,8 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                         }
                     });
                     quote_spanned! { span =>
+                        #align;
+
                         #(#definitions)*
 
                         Ok(#struct_name {
@@ -364,11 +411,15 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                     }
                 }
                 Fields::Unnamed(_) => quote_spanned! { span =>
+                    #align;
+
                     Ok(#struct_name(
                         #(#values ,)*
                     ))
                 },
-                Fields::Unit => quote_spanned! {span=>
+                Fields::Unit => quote_spanned! { span=>
+                    #align;
+
                     Ok(#struct_name)
                 },
             }
@@ -377,7 +428,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
             let discriminant_bits: u64 = match get_attribute_value(attrs, &["discriminant_bits"]) {
                 Some(attr) => attr,
                 None => {
-                    return quote! {span=>
+                    return quote_spanned! { span=>
                         compile_error!("'discriminant_bits' attribute is required when deriving `BinRead` for enums");
                     }
                 }
@@ -388,15 +439,24 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                 let span = variant.span();
                 let variant_name = &variant.ident;
                 let read_fields = match &variant.fields {
-                    Fields::Unit => quote_spanned! {span=>
-                        #struct_name::#variant_name
-                    },
+                    Fields::Unit => {
+                        if contains_attribute(&variant.attrs, &["align"]) {
+                            return quote_spanned! { span =>
+                                compile_error!("'align' attribute is not allowed on unit variants");
+                            };
+                        }
+                        quote_spanned! { span=>
+                            #struct_name::#variant_name
+                        }
+                    }
                     Fields::Unnamed(f) => {
                         let size = get_field_size(&variant.attrs, f.span());
+                        let align = get_align(&variant.attrs);
                         match size {
                             Some(size) => {
                                 quote_spanned! { span =>
                                     #struct_name::#variant_name({
+                                        #align;
                                         let _size:usize = #size;
                                         stream.read_sized(_size)?
                                     })
@@ -404,7 +464,10 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
                             }
                             None => {
                                 quote_spanned! { span =>
-                                    #struct_name::#variant_name(stream.read()?)
+                                    {
+                                        #align;
+                                        #struct_name::#variant_name(stream.read()?)
+                                    }
                                 }
                             }
                         }
@@ -437,6 +500,7 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
 
             let enum_name = Lit::Str(LitStr::new(&struct_name.to_string(), struct_name.span()));
             quote_spanned! {span=>
+                #align;
                 let discriminant:#repr = stream.read_int(#discriminant_bits as usize)?;
                 Ok(match discriminant {
                     #(#match_arms)*
@@ -452,6 +516,12 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
 
 fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bool) -> TokenStream {
     let span = struct_name.span();
+
+    if contains_attribute(attrs, &["align"]) {
+        return quote_spanned! { span =>
+            None
+        };
+    }
 
     match data {
         Data::Struct(DataStruct { fields, .. }) => {
@@ -503,6 +573,7 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
                 }
             };
 
+            // Unit variants having "align" attributes are not allowed, so we can just check if all variants are unit
             let is_unit = data
                 .variants
                 .iter()
@@ -524,6 +595,9 @@ fn size(data: Data, struct_name: &Ident, attrs: &[Attribute], has_input_size: bo
 
 fn is_const_size(attrs: &[Attribute], has_input_size: bool) -> bool {
     if get_attribute_value::<Lit>(attrs, &["size_bits"]).is_some() {
+        return false;
+    }
+    if contains_attribute(attrs, &["align"]) {
         return false;
     }
     get_attribute_value(attrs, &["size"])
@@ -569,5 +643,15 @@ fn repr_for_bits(discriminant_bits: u64) -> TokenStream {
         quote!(u32)
     } else {
         quote!(usize)
+    }
+}
+
+fn get_align(attrs: &[Attribute]) -> TokenStream {
+    if contains_attribute(attrs, &["align"]) {
+        quote! {
+            stream.align()?
+        }
+    } else {
+        quote! { () }
     }
 }

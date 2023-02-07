@@ -423,6 +423,45 @@ where
         }
     }
 
+    /// Align the stream on the next byte and returns the amount of bits read
+    ///
+    /// # Errors
+    ///
+    /// - [`ReadError::NotEnoughData`]: not enough bits available in the stream to skip
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use bitbuffer::{BitReadBuffer, BitReadStream, LittleEndian, Result};
+    /// #
+    /// # fn main() -> Result<()> {
+    /// # let bytes = vec![
+    /// #     0b1011_0101, 0b0110_1010, 0b1010_1100, 0b1001_1001,
+    /// #     0b1001_1001, 0b1001_1001, 0b1001_1001, 0b1110_0111
+    /// # ];
+    /// # let buffer = BitReadBuffer::new(&bytes, LittleEndian);
+    /// # let mut stream = BitReadStream::new(buffer);
+    /// stream.align()?;
+    /// assert_eq!(stream.pos(), 0);
+    ///
+    /// stream.skip_bits(3)?;
+    /// assert_eq!(stream.pos(), 3);
+    /// stream.align();
+    /// assert_eq!(stream.pos(), 8);
+    /// assert_eq!(stream.read_int::<u8>(4)?, 0b1010);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`ReadError::NotEnoughData`]: enum.ReadError.html#variant.NotEnoughData
+    pub fn align(&mut self) -> Result<usize> {
+        match self.pos % 8 {
+            0 => Ok(0),
+            n => self.skip_bits(8 - n).map(|_| 8 - n),
+        }
+    }
+
     /// Set the position of the stream
     ///
     /// # Errors
