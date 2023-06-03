@@ -501,10 +501,12 @@ fn parse(data: Data, struct_name: &Ident, attrs: &[Attribute], unchecked: bool) 
             let enum_name = Lit::Str(LitStr::new(&struct_name.to_string(), struct_name.span()));
             quote_spanned! {span=>
                 #align;
+                #[allow(clippy::unnecessary_cast)]
                 let discriminant:#repr = stream.read_int(#discriminant_bits as usize)?;
                 Ok(match discriminant {
                     #(#match_arms)*
                     _ => {
+                        #[allow(clippy::unnecessary_cast)]
                         return Err(::bitbuffer::BitError::UnmatchedDiscriminant{discriminant: discriminant as usize, enum_name: #enum_name.to_string()})
                     }
                 })
@@ -619,8 +621,11 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).unwrap();
-                quote_spanned! {span =>
-                    (#size) as usize
+                quote_spanned! {span => {
+                        #[allow(clippy::unnecessary_cast)]
+                        let __size = (#size) as usize;
+                        __size
+                    }
                 }
             }
             _ => panic!("Unsupported value for size attribute"),

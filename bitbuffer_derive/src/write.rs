@@ -271,6 +271,7 @@ fn write(data: Data, struct_name: &Ident, attrs: &[Attribute]) -> TokenStream {
                 let discriminant:#repr = match &self {
                     #(#discriminant_value),*
                 };
+                #[allow(clippy::unnecessary_cast)]
                 __target__stream.write_int(discriminant, #discriminant_bits as usize)?;
                 match &self {
                     #(#write_inner)*
@@ -292,8 +293,11 @@ fn get_field_size(attrs: &[Attribute], span: Span) -> Option<TokenStream> {
             }
             Lit::Str(size_field) => {
                 let size = parse_str::<Expr>(&size_field.value()).expect("size");
-                quote_spanned! {span =>
-                    (#size) as usize
+                quote_spanned! {span => {
+                        #[allow(clippy::unnecessary_cast)]
+                        let __size = (#size) as usize;
+                        __size
+                    }
                 }
             }
             _ => panic!("Unsupported value for size attribute"),
