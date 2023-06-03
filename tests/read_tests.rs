@@ -5,7 +5,7 @@ use maplit::hashmap;
 
 use bitbuffer::{BigEndian, BitError, BitRead, BitReadBuffer, BitReadStream, LittleEndian};
 
-const BYTES: &'static [u8] = &[
+const BYTES: &[u8] = &[
     0b1011_0101,
     0b0110_1010,
     0b1010_1100,
@@ -30,7 +30,7 @@ fn read_u8_le() {
     assert_eq!(buffer.read_bool(1).unwrap(), false);
     assert_eq!(buffer.read_int::<u8>(2, 2).unwrap(), 0b01);
     assert_eq!(buffer.read_int::<u8>(0, 3).unwrap(), 0b101);
-    assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1010_1);
+    assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1_0101);
     assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b010_10);
     assert_eq!(buffer.read_int::<u8>(12, 5).unwrap(), 0b0_0110);
 }
@@ -43,8 +43,8 @@ fn read_u8_be() {
     assert_eq!(buffer.read_int::<u8>(1, 1).unwrap(), 0b0);
     assert_eq!(buffer.read_int::<u8>(2, 2).unwrap(), 0b11);
     assert_eq!(buffer.read_int::<u8>(0, 3).unwrap(), 0b101);
-    assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1011_0);
-    assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b01_011);
+    assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1_0110);
+    assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b0_1011);
 
     assert_eq!(buffer.read_bool(0).unwrap(), true);
     assert_eq!(buffer.read_bool(8).unwrap(), false);
@@ -154,7 +154,7 @@ fn read_i16_be() {
     let buffer = BitReadBuffer::new(BYTES, BigEndian);
 
     assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b1_0110_1010_10);
-    assert_eq!(buffer.read_int::<i16>(7, 12).unwrap(), -0b1001_0101_011);
+    assert_eq!(buffer.read_int::<i16>(7, 12).unwrap(), -0b100_1010_1011);
 }
 
 #[test]
@@ -261,8 +261,8 @@ fn test_read_str_no_null_termination_be() {
 #[test]
 fn test_read_str_le() {
     let bytes = vec![
-        'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, ' ' as u8, 'w' as u8, 'o' as u8,
-        'r' as u8, 'l' as u8, 'd' as u8, 0, 'f' as u8, 'o' as u8, 'o' as u8, 0, 0, 0, 0, 0,
+        b'h', b'e', b'l', b'l', b'o', b' ', b'w', b'o',
+        b'r', b'l', b'd', 0, b'f', b'o', b'o', 0, 0, 0, 0, 0,
     ];
     let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     assert_eq!(buffer.read_string(0, Some(3)).unwrap(), "hel".to_owned());
@@ -292,7 +292,7 @@ fn read_trait() {
     assert_eq!(None, e);
     stream.set_pos(0).unwrap();
     let f: Option<u8> = stream.read().unwrap();
-    assert_eq!(Some(0b011_0101_0), f);
+    assert_eq!(Some(0b0110_1010), f);
 }
 
 #[test]
@@ -312,7 +312,7 @@ fn read_trait_unchecked() {
         assert_eq!(None, e);
         stream.set_pos(0).unwrap();
         let f: Option<u8> = stream.read_unchecked(true).unwrap();
-        assert_eq!(Some(0b011_0101_0), f);
+        assert_eq!(Some(0b0110_1010), f);
     }
 }
 
@@ -399,15 +399,15 @@ fn test_read_struct() {
     let float: [u8; 4] = 12.5f32.to_bits().to_le_bytes();
     let bytes = vec![
         12,
-        'h' as u8,
-        'e' as u8,
-        'l' as u8,
-        'l' as u8,
-        'o' as u8,
+        b'h',
+        b'e',
+        b'l',
+        b'l',
+        b'o',
         0,
-        'f' as u8,
-        'o' as u8,
-        'o' as u8,
+        b'f',
+        b'o',
+        b'o',
         0,
         float[0],
         float[1],
@@ -427,7 +427,7 @@ fn test_read_struct() {
             float: 12.5,
             asd: 0b101,
             dynamic: 0b10,
-            previous_field: 0b1010_0,
+            previous_field: 0b1_0100,
         },
         stream.read().unwrap()
     );
