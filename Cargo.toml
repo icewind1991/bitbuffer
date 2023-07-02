@@ -6,6 +6,7 @@ edition = "2021"
 description = "Reading bit sequences from a byte slice"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/icewind1991/bitbuffer"
+rust-version = "1.56.0"
 
 [dependencies]
 num-traits = "0.2"
