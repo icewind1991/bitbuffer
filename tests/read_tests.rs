@@ -261,8 +261,8 @@ fn test_read_str_no_null_termination_be() {
 #[test]
 fn test_read_str_le() {
     let bytes = vec![
-        b'h', b'e', b'l', b'l', b'o', b' ', b'w', b'o',
-        b'r', b'l', b'd', 0, b'f', b'o', b'o', 0, 0, 0, 0, 0,
+        b'h', b'e', b'l', b'l', b'o', b' ', b'w', b'o', b'r', b'l', b'd', 0, b'f', b'o', b'o', 0,
+        0, 0, 0, 0,
     ];
     let buffer = BitReadBuffer::new(&bytes, LittleEndian);
     assert_eq!(buffer.read_string(0, Some(3)).unwrap(), "hel".to_owned());
