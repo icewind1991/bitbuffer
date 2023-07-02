@@ -26,7 +26,7 @@ pub(crate) enum Data<'a> {
 impl<'a> Data<'a> {
     pub fn as_slice(&self) -> &[u8] {
         match self {
-            Data::Borrowed(bytes) => *bytes,
+            Data::Borrowed(bytes) => bytes,
             Data::Owned(bytes) => bytes.borrow(),
         }
     }
@@ -71,7 +71,7 @@ impl<'a> Index<usize> for Data<'a> {
 impl<'a> Clone for Data<'a> {
     fn clone(&self) -> Self {
         match self {
-            Data::Borrowed(bytes) => Data::Borrowed(*bytes),
+            Data::Borrowed(bytes) => Data::Borrowed(bytes),
             Data::Owned(bytes) => Data::Owned(Rc::clone(bytes)),
         }
     }

@@ -396,16 +396,16 @@ impl SplitFitUsize for usize {
         (if E::is_le() {
             [
                 (
-                    (self & (Self::MAX >> (usize::BITS - 8))) as usize,
+                    self & (Self::MAX >> (usize::BITS - 8)),
                     usize::BITS as u8 - 8,
                 ),
-                ((self >> (usize::BITS - 8)) as usize, 8),
+                (self >> (usize::BITS - 8), 8),
             ]
         } else {
             [
-                ((self >> (usize::BITS - 8)) as usize, 8),
+                (self >> (usize::BITS - 8), 8),
                 (
-                    (self & (Self::MAX >> (usize::BITS - 8))) as usize,
+                    self & (Self::MAX >> (usize::BITS - 8)),
                     usize::BITS as u8 - 8,
                 ),
             ]
