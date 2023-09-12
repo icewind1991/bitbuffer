@@ -73,7 +73,19 @@
       ];
 
       devShells = let
-        tools = with pkgs; [bacon cargo-edit cargo-outdated];
+        tools = with pkgs; [
+          bacon
+          cargo-edit
+          cargo-outdated
+          (writeShellApplication {
+            name = "cargo-expand";
+            runtimeInputs = [cargo-expand toolchain];
+            text = ''
+              # shellcheck disable=SC2068
+              RUSTC_BOOTSTRAP=1 cargo-expand $@
+            '';
+          })
+        ];
       in {
         default = mkShell {
           nativeBuildInputs = [toolchain] ++ tools;

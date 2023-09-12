@@ -3,13 +3,8 @@
 #![allow(unused_imports)]
 
 use bitbuffer::{BitReadStream, Endianness};
-use bitbuffer_derive::{BitRead, BitWrite, BitWriteSized};
+use bitbuffer_derive::{BitRead, BitReadSized, BitWrite, BitWriteSized};
 
-#[derive(BitWrite)]
-#[discriminant_bits = 4]
-enum TestEnumRest {
-    Foo,
-    Bar,
-    #[discriminant = "_"]
-    Asd,
-}
+#[derive(BitWrite, PartialEq, Debug)]
+#[align]
+struct AlignStruct(u8);
