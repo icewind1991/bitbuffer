@@ -75,7 +75,7 @@
 
 #![warn(missing_docs)]
 
-use err_derive::Error;
+use thiserror::Error;
 
 pub use bitbuffer_derive::{BitRead, BitReadSized, BitWrite, BitWriteSized};
 pub use endianness::*;
@@ -101,7 +101,7 @@ mod writestream;
 pub enum BitError {
     /// Too many bits requested to fit in the requested data type
     #[error(
-        display = "Too many bits requested to fit in the requested data type, requested to read {} bits while only {} fit in the datatype",
+        "Too many bits requested to fit in the requested data type, requested to read {} bits while only {} fit in the datatype",
         requested,
         max
     )]
@@ -113,7 +113,7 @@ pub enum BitError {
     },
     /// Not enough data in the buffer to read all requested bits
     #[error(
-        display = "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left",
+        "Not enough data in the buffer to read all requested bits, requested to read {} bits while only {} bits are left",
         requested,
         bits_left
     )]
@@ -125,7 +125,7 @@ pub enum BitError {
     },
     /// The requested position is outside the bounds of the stream or buffer
     #[error(
-        display = "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long",
+        "The requested position is outside the bounds of the stream, requested position {} while the stream or buffer is only {} bits long",
         pos,
         size
     )]
@@ -137,7 +137,7 @@ pub enum BitError {
     },
     /// Unmatched discriminant found while trying to read an enum
     #[error(
-        display = "Unmatched discriminant '{}' found while trying to read enum '{}'",
+        "Unmatched discriminant '{}' found while trying to read enum '{}'",
         discriminant,
         enum_name
     )]
@@ -148,11 +148,11 @@ pub enum BitError {
         enum_name: String,
     },
     /// The read slice of bytes are not valid utf8
-    #[error(display = "The read slice of bytes are not valid utf8: {}", _0)]
+    #[error("The read slice of bytes are not valid utf8: {}", _0)]
     Utf8Error(Utf8Error, usize),
     /// The string that was requested to be written does not fit in the specified fixed length
     #[error(
-        display = "The string that was requested to be written does not fit in the specified fixed length, string is {} bytes long, while a size of {} has been specified",
+        "The string that was requested to be written does not fit in the specified fixed length, string is {} bytes long, while a size of {} has been specified",
         string_length,
         requested_length
     )]

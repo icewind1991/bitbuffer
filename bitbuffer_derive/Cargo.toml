@@ -1,6 +1,6 @@
 [package]
 name = "bitbuffer_derive"
-version = "0.10.1"
+version = "0.11.0"
 authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Reading bit sequences from a byte slice"
@@ -12,11 +12,11 @@ name = "bitbuffer_derive"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0.22", features = ["extra-traits"] }
-quote = "1.0.29"
-proc-macro2 = "1.0.63"
+syn = { version = "2.0.38", features = ["extra-traits"] }
+quote = "1.0.33"
+proc-macro2 = "1.0.69"
 structmeta = "0.2.0"
 merge = "0.1.0"
 
 [dev-dependencies]
-bitbuffer = { version = "0.10", path = ".." }
+bitbuffer = { version = "0.11", path = ".." }
