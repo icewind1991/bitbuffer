@@ -296,6 +296,20 @@ fn read_trait() {
 }
 
 #[test]
+fn peek_trait() {
+    let buffer = BitReadBuffer::new(BYTES, BigEndian);
+    let mut stream = BitReadStream::new(buffer);
+    let a: u8 = stream.read().unwrap();
+    assert_eq!(0b1011_0101, a);
+    assert_eq!(8, stream.pos());
+    let b: i8 = stream.peek().unwrap();
+    assert_eq!(8, stream.pos());
+    assert_eq!(0b110_1010, b);
+    let b: i8 = stream.read().unwrap();
+    assert_eq!(0b110_1010, b);
+}
+
+#[test]
 fn read_trait_unchecked() {
     unsafe {
         let buffer = BitReadBuffer::new(BYTES, BigEndian);
@@ -344,6 +358,15 @@ fn read_sized_trait() {
     stream.set_pos(0).unwrap();
     let mut result: BitReadStream<BigEndian> = stream.read_sized(4).unwrap();
     assert_eq!(0b10u8, result.read_int::<u8>(2).unwrap());
+}
+
+#[test]
+fn peek_sized_trait() {
+    let buffer = BitReadBuffer::new(BYTES, BigEndian);
+    let mut stream = BitReadStream::new(buffer);
+    let a: u8 = stream.peek_sized(4).unwrap();
+    assert_eq!(0b1011, a);
+    assert_eq!(0, stream.pos());
 }
 
 #[test]

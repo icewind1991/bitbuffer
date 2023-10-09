@@ -680,6 +680,24 @@ where
         T::read(self, size)
     }
 
+    /// Read a value based on the provided type without advancing the stream
+    #[inline]
+    pub fn peek<T: BitRead<'a, E>>(&mut self) -> Result<T> {
+        let pos = self.pos;
+        let result = T::read(self);
+        self.pos = pos;
+        result
+    }
+
+    /// Read a value based on the provided type and size without advancing the stream
+    #[inline]
+    pub fn peek_sized<T: BitReadSized<'a, E>>(&mut self, size: usize) -> Result<T> {
+        let pos = self.pos;
+        let result = T::read(self, size);
+        self.pos = pos;
+        result
+    }
+
     #[doc(hidden)]
     #[inline]
     pub unsafe fn read_sized_unchecked<T: BitReadSized<'a, E>>(
