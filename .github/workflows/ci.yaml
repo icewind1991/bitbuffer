@@ -15,6 +15,19 @@ jobs:
           authToken: '${{ secrets.ATTIC_TOKEN }}'
       - run: nix build .#check
 
+  msrv:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
+      - uses: icewind1991/attic-action@v1
+        with:
+          name: ci
+          instance: https://cache.icewind.me
+          authToken: '${{ secrets.ATTIC_TOKEN }}'
+      - run: nix build .#msrv
+
   clippy:
     runs-on: ubuntu-latest
     needs: check
@@ -78,3 +91,11 @@ jobs:
           instance: https://cache.icewind.me
           authToken: '${{ secrets.ATTIC_TOKEN }}'
       - run: nix develop .#miri -c cargo miri test --target ${{ matrix.target }}
+
+  semver:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
