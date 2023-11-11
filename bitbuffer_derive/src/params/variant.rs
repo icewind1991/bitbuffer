@@ -114,17 +114,11 @@ impl VariantParam {
                 .collect::<Result<Vec<FieldParam>>>()?;
 
             // align and size attributes on the variant go to the first field
-            match (fields.first_mut(), align) {
-                (Some(field), Alignment::Auto) => {
-                    field.align = align;
-                }
-                _ => {}
+            if let (Some(field), Alignment::Auto) = (fields.first_mut(), align) {
+                field.align = align;
             }
-            match (fields.first_mut(), size) {
-                (Some(field), Some(size)) => {
-                    field.size = Some(size);
-                }
-                _ => {}
+            if let (Some(field), Some(size)) = (fields.first_mut(), size) {
+                field.size = Some(size);
             }
             VariantBody::Fields(fields)
         };

@@ -68,7 +68,7 @@ impl ToTokens for Size {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Size::Expression(expr, span) => {
-                let span = span.clone();
+                let span = *span;
                 tokens.append_all(quote_spanned! {span => {
                         #[allow(clippy::unnecessary_cast)]
                         let __size = (#expr) as usize;
@@ -77,7 +77,7 @@ impl ToTokens for Size {
                 });
             }
             Size::Bits(bits, span) => {
-                let span = span.clone();
+                let span = *span;
                 tokens.append_all(quote_spanned! {span => {
                         __stream.read_int::<usize>(#bits)?
                     }
@@ -236,9 +236,7 @@ impl InputParams {
         }
     }
 
-    pub fn generics_for_impl<'a>(
-        &'a self,
-    ) -> (ImplGenerics<'a>, TypeGenerics<'a>, Option<&'a WhereClause>) {
+    pub fn generics_for_impl(&self) -> (ImplGenerics, TypeGenerics, Option<&WhereClause>) {
         // we need these separate generics to only add out Endianness param to the 'impl'
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
         let (impl_generics, _, _) = self.generics_with_endianness.split_for_impl();
@@ -247,14 +245,11 @@ impl InputParams {
     }
 
     pub fn endianness(&self) -> Ident {
-        Ident::new(
-            self.endianness.as_deref().unwrap_or_else(|| "_E"),
-            self.span,
-        )
+        Ident::new(self.endianness.as_deref().unwrap_or("_E"), self.span)
     }
 }
 
-const BARE_ATTRS: &'static [&'static str] = &[
+const BARE_ATTRS: &[&str] = &[
     "size",
     "size_bits",
     "discriminant_bits",
@@ -279,8 +274,8 @@ fn parse_attrs<T: Parse + Default + Merge>(attrs: &[Attribute]) -> Result<T> {
             });
             let wrapped = Attribute {
                 pound_token: attr.pound_token,
-                style: attr.style.clone(),
-                bracket_token: attr.bracket_token.clone(),
+                style: attr.style,
+                bracket_token: attr.bracket_token,
                 meta: wrapped_meta,
             };
             wrapped.parse_args()

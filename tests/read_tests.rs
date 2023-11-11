@@ -25,13 +25,13 @@ fn read_u8_le() {
     let buffer = BitReadBuffer::new(BYTES, LittleEndian);
 
     assert_eq!(buffer.read_int::<u8>(0, 1).unwrap(), 0b1);
-    assert_eq!(buffer.read_bool(0).unwrap(), true);
+    assert!(buffer.read_bool(0).unwrap());
     assert_eq!(buffer.read_int::<u8>(1, 1).unwrap(), 0b0);
-    assert_eq!(buffer.read_bool(1).unwrap(), false);
+    assert!(!buffer.read_bool(1).unwrap());
     assert_eq!(buffer.read_int::<u8>(2, 2).unwrap(), 0b01);
     assert_eq!(buffer.read_int::<u8>(0, 3).unwrap(), 0b101);
     assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1_0101);
-    assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b010_10);
+    assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b0_1010);
     assert_eq!(buffer.read_int::<u8>(12, 5).unwrap(), 0b0_0110);
 }
 
@@ -46,22 +46,22 @@ fn read_u8_be() {
     assert_eq!(buffer.read_int::<u8>(7, 5).unwrap(), 0b1_0110);
     assert_eq!(buffer.read_int::<u8>(6, 5).unwrap(), 0b0_1011);
 
-    assert_eq!(buffer.read_bool(0).unwrap(), true);
-    assert_eq!(buffer.read_bool(8).unwrap(), false);
+    assert!(buffer.read_bool(0).unwrap());
+    assert!(!buffer.read_bool(8).unwrap());
 }
 
 #[test]
 fn read_u16_le() {
     let buffer = BitReadBuffer::new(BYTES, LittleEndian);
 
-    assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b00_0110_1010_10);
+    assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b0001_1010_1010);
 }
 
 #[test]
 fn read_u16_be() {
     let buffer = BitReadBuffer::new(BYTES, BigEndian);
 
-    assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b01_0110_1010_10);
+    assert_eq!(buffer.read_int::<u16>(6, 12).unwrap(), 0b0101_1010_1010);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn read_u32_le() {
 
     assert_eq!(
         buffer.read_int::<u32>(6, 24).unwrap(),
-        0b01_1001_1010_1100_0110_1010_10
+        0b0110_0110_1011_0001_1010_1010
     );
 }
 
@@ -80,7 +80,7 @@ fn read_u32_be() {
 
     assert_eq!(
         buffer.read_int::<u32>(6, 24).unwrap(),
-        0b01_0110_1010_1010_1100_1001_10
+        0b0101_1010_1010_1011_0010_0110
     );
 }
 
@@ -90,15 +90,15 @@ fn read_u64_le() {
 
     assert_eq!(
         buffer.read_int::<u64>(6, 34).unwrap(),
-        0b1001_1001_1001_1001_1010_1100_0110_1010_10
+        0b10_0110_0110_0110_0110_1011_0001_1010_1010
     );
     assert_eq!(
         buffer.read_int::<u64>(6, 60).unwrap(),
-        0b01_1110_0111_1001_1001_1001_1001_1001_1001_1001_1001_1010_1100_0110_1010_10
+        0b0111_1001_1110_0110_0110_0110_0110_0110_0110_0110_0110_1011_0001_1010_1010
     );
     assert_eq!(
         buffer.read_int::<u64>(6, 64).unwrap(),
-        0b01_1001_1110_0111_1001_1001_1001_1001_1001_1001_1001_1001_1010_1100_0110_1010_10
+        0b0110_0111_1001_1110_0110_0110_0110_0110_0110_0110_0110_0110_1011_0001_1010_1010
     );
     assert_eq!(
         buffer.read_int::<u64>(8, 62).unwrap(),
@@ -116,11 +116,11 @@ fn read_u64_be() {
     );
     assert_eq!(
         buffer.read_int::<u64>(6, 60).unwrap(),
-        0b01_0110_1010_1010_1100_1001_1001_1001_1001_1001_1001_1001_1001_1110_0111_10
+        0b0101_1010_1010_1011_0010_0110_0110_0110_0110_0110_0110_0110_0111_1001_1110
     );
     assert_eq!(
         buffer.read_int::<u64>(6, 64).unwrap(),
-        0b01_0110_1010_1010_1100_1001_1001_1001_1001_1001_1001_1001_1001_1110_0111_1001_10
+        0b0101_1010_1010_1011_0010_0110_0110_0110_0110_0110_0110_0110_0111_1001_1110_0110
     );
 }
 
@@ -145,15 +145,15 @@ fn read_i8_be() {
 fn read_i16_le() {
     let buffer = BitReadBuffer::new(BYTES, LittleEndian);
 
-    assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b0_0110_1010_10);
-    assert_eq!(buffer.read_int::<i16>(6, 13).unwrap(), -0b11_1001_0101_10);
+    assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b001_1010_1010);
+    assert_eq!(buffer.read_int::<i16>(6, 13).unwrap(), -0b1110_0101_0110);
 }
 
 #[test]
 fn read_i16_be() {
     let buffer = BitReadBuffer::new(BYTES, BigEndian);
 
-    assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b1_0110_1010_10);
+    assert_eq!(buffer.read_int::<i16>(6, 12).unwrap(), 0b101_1010_1010);
     assert_eq!(buffer.read_int::<i16>(7, 12).unwrap(), -0b100_1010_1011);
 }
 
@@ -163,7 +163,7 @@ fn read_i32_le() {
 
     assert_eq!(
         buffer.read_int::<i32>(6, 24).unwrap(),
-        0b1_1001_1010_1100_0110_1010_10
+        0b110_0110_1011_0001_1010_1010
     );
     assert_eq!(buffer.read_int::<i32>(6, 26).unwrap(), -26824278);
 }
@@ -287,7 +287,7 @@ fn read_trait() {
     let c: i16 = stream.read().unwrap();
     assert_eq!(-0b101_0011_0110_0111, c);
     let d: bool = stream.read().unwrap();
-    assert_eq!(true, d);
+    assert!(d);
     let e: Option<u8> = stream.read().unwrap();
     assert_eq!(None, e);
     stream.set_pos(0).unwrap();
@@ -321,7 +321,7 @@ fn read_trait_unchecked() {
         let c: i16 = stream.read_unchecked(true).unwrap();
         assert_eq!(-0b101_0011_0110_0111, c);
         let d: bool = stream.read_unchecked(true).unwrap();
-        assert_eq!(true, d);
+        assert!(d);
         let e: Option<u8> = stream.read_unchecked(true).unwrap();
         assert_eq!(None, e);
         stream.set_pos(0).unwrap();

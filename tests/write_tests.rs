@@ -16,13 +16,13 @@ fn test_write_bool_le() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(false, read.read_bool().unwrap());
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -39,13 +39,13 @@ fn test_write_bool_be() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, BigEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(true, read.read_bool().unwrap());
-    assert_eq!(false, read.read_bool().unwrap());
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -61,12 +61,12 @@ fn test_write_bool_number_le() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
     assert_eq!(3253u16, read.read::<u16>().unwrap());
     assert_eq!(13253u64, read.read::<u64>().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_write_bool_number_be() {
     assert_eq!(13253u64, read.read::<u64>().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -102,11 +102,11 @@ fn test_write_float_le() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
     assert_eq!(3253.12f32, read.read::<f32>().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_write_float_be() {
     assert_eq!(3253.12f32, read.read::<f32>().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -160,13 +160,13 @@ fn test_write_string_le_unaligned() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
     assert_eq!("null terminated", read.read_string(None).unwrap());
     assert_eq!("fixed length1", read.read_string(Some(16)).unwrap());
     assert_eq!("fixed length2", read.read_string(Some(16)).unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn test_write_signed() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data, LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
     assert_eq!(-17i32, read.read_int::<i32>(32).unwrap());
     assert_eq!(-9i32, read.read_int::<i32>(8).unwrap());
 }
@@ -220,10 +220,10 @@ fn test_write_to_slice() {
 
     let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
 
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
     assert_eq!(3253u16, read.read::<u16>().unwrap());
     assert_eq!(13253u64, read.read::<u64>().unwrap());
 
     // 0 padded
-    assert_eq!(false, read.read_bool().unwrap());
+    assert!(!read.read_bool().unwrap());
 }

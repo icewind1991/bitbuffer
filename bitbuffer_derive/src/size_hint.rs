@@ -37,7 +37,7 @@ impl SizeHint for VariantParam {
     fn size_hint(&self) -> TokenStream {
         match &self.body {
             VariantBody::Unit => quote!(Some(0)),
-            VariantBody::Fields(fields) => product_size_hint(&fields, self.span),
+            VariantBody::Fields(fields) => product_size_hint(fields, self.span),
         }
     }
 }

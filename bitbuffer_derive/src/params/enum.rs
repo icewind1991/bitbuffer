@@ -41,7 +41,7 @@ impl EnumParam {
             .discriminant_bits
             .ok_or_else(|| {
                 Error::new(
-                    span.clone(),
+                    span,
                     "'discriminant_bits' attribute is required when deriving `BinRead` for enums",
                 )
             })?

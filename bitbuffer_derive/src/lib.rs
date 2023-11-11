@@ -270,5 +270,5 @@ trait DeriveParams: Sized {
 }
 
 fn err<R, Msg: Display>(msg: Msg, span: Span) -> Result<R> {
-    return Err(Error::new(span, msg));
+    Err(Error::new(span, msg))
 }

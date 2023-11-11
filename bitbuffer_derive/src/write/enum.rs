@@ -45,7 +45,7 @@ pub fn derive_encode_enum(params: &EnumParam) -> TokenStream {
                     #path => {},
                 }
             }
-            VariantBody::Fields(fields) => write_enum_variant(path, &fields, span),
+            VariantBody::Fields(fields) => write_enum_variant(path, fields, span),
         }
     });
 

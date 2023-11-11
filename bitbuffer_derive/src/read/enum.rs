@@ -26,7 +26,7 @@ pub fn derive_encode_enum(params: &EnumParam, unchecked: bool) -> TokenStream {
                     Ok(#ident::#variant_name)
                 },
                 VariantBody::Fields(fields) => {
-                    read_struct_or_enum(&variant_path, fields, span.clone(), unchecked)
+                    read_struct_or_enum(&variant_path, fields, span, unchecked)
                 }
             };
 
