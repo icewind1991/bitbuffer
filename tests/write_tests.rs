@@ -241,5 +241,5 @@ fn test_write_last_slice() {
     let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
 
     assert_eq!(0b1000, read.read_int::<u8>(4).unwrap());
-    assert_eq!(true, read.read_bool().unwrap());
+    assert!(read.read_bool().unwrap());
 }

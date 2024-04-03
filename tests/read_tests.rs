@@ -403,7 +403,7 @@ fn read_sized_trait_unchecked() {
 
 #[derive(BitRead, PartialEq, Debug)]
 struct TestStruct {
-    foo: u8,
+    byte: u8,
     str: String,
     #[size = 2]
     truncated: String,
@@ -443,7 +443,7 @@ fn test_read_struct() {
     let mut stream = BitReadStream::from(buffer);
     assert_eq!(
         TestStruct {
-            foo: 12,
+            byte: 12,
             str: "hello".to_owned(),
             truncated: "fo".to_owned(),
             bar: 'o' as u16,
