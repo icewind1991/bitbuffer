@@ -209,7 +209,7 @@ impl<'a, T: BitWrite<E> + ToOwned + ?Sized, E: Endianness> BitWrite<E> for Cow<'
 
 macro_rules! impl_write_tuple {
     ($($i:tt: $type:ident),*) => {
-        impl<'a, E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
+        impl<E: Endianness, $($type: BitWrite<E>),*> BitWrite<E> for ($($type),*) {
             #[inline]
             fn write(&self, stream: &mut BitWriteStream<E>) -> Result<()> {
                 $(self.$i.write(stream)?;)*

@@ -45,7 +45,7 @@ impl<'a> WriteData<'a> {
     fn last_mut(&mut self) -> Option<&mut u8> {
         match self {
             WriteData::Vec(vec) => vec.last_mut(),
-            WriteData::Slice { data, length } if *length > 0 => Some(&mut data[*length]),
+            WriteData::Slice { data, length } if *length > 0 => Some(&mut data[*length - 1]),
             _ => None,
         }
     }
