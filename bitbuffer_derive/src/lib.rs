@@ -105,7 +105,7 @@
 //!
 //! # Alignment
 //!
-//! You can request alignment for a struct, enum or a field using #[align] attribute.
+//! You can request alignment for a struct, enum or a field using #\[align\] attribute.
 //!
 //! ```
 //! # use bitbuffer::BitRead;

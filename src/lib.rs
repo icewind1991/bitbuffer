@@ -88,7 +88,8 @@ pub use write::{BitWrite, BitWriteSized};
 pub use writestream::BitWriteStream;
 
 mod endianness;
-#[allow(missing_docs)]
+
+/// A number of traits to help being generic over numbers
 pub mod num_traits;
 mod read;
 mod readbuffer;

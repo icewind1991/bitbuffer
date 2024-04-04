@@ -191,7 +191,6 @@ where
     pub fn read_float<T>(&mut self) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,
-        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let count = size_of::<T>() * 8;
         let result = self.buffer.read_float(self.pos);
@@ -206,7 +205,6 @@ where
     pub unsafe fn read_float_unchecked<T>(&mut self, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
-        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let count = size_of::<T>() * 8;
         let result = self.buffer.read_float_unchecked(self.pos, end);

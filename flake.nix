@@ -85,6 +85,7 @@
               RUSTC_BOOTSTRAP=1 cargo-expand $@
             '';
           })
+          cargo-semver-checks
         ];
       in {
         default = mkShell {

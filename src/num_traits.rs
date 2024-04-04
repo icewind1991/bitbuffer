@@ -1,5 +1,5 @@
 use crate::Endianness;
-use num_traits::PrimInt;
+use num_traits::{PrimInt, WrappingSub};
 use std::array::TryFromSliceError;
 use std::convert::TryFrom;
 use std::fmt::Debug;
@@ -9,20 +9,29 @@ use std::ops::{BitOrAssign, BitXor};
 
 /// Allow casting floats unchecked
 pub trait UncheckedPrimitiveFloat: Sized {
+    /// Byte array of the size of the float
     type BYTES: AsRef<[u8]> + for<'a> TryFrom<&'a [u8], Error = TryFromSliceError>;
+    /// The corresponding int of the same size
     type INT: PrimInt
         + BitOrAssign
         + IsSigned
         + UncheckedPrimitiveInt
         + BitXor
         + Debug
-        + SplitFitUsize;
+        + SplitFitUsize
+        + WrappingSub;
 
+    /// Cast from f32
     fn from_f32_unchecked(n: f32) -> Self;
+    /// Cast from f64, truncating if needed
     fn from_f64_unchecked(n: f64) -> Self;
+    /// Cast a float to byte array
     fn to_bytes<E: Endianness>(self) -> Self::BYTES;
+    /// Cast a byte array to float
     fn from_bytes<E: Endianness>(bytes: Self::BYTES) -> Self;
+    /// Cast a float to an int with the same size
     fn to_int(self) -> Self::INT;
+    /// Cast an integer to a float with the same size
     fn from_int(int: Self::INT) -> Self;
 }
 
@@ -96,32 +105,57 @@ impl UncheckedPrimitiveFloat for f64 {
 
 /// Allow casting integers unchecked
 pub trait UncheckedPrimitiveInt: Sized {
+    /// Cast from u8, truncating if needed
     fn from_u8_unchecked(n: u8) -> Self;
+    /// Cast from i8, truncating if needed
     fn from_i8_unchecked(n: i8) -> Self;
+    /// Cast from u16, truncating if needed
     fn from_u16_unchecked(n: u16) -> Self;
+    /// Cast from i16, truncating if needed
     fn from_i16_unchecked(n: i16) -> Self;
+    /// Cast from u32, truncating if needed
     fn from_u32_unchecked(n: u32) -> Self;
+    /// Cast from i32, truncating if needed
     fn from_i32_unchecked(n: i32) -> Self;
+    /// Cast from u64, truncating if needed
     fn from_u64_unchecked(n: u64) -> Self;
+    /// Cast from i64, truncating if needed
     fn from_i64_unchecked(n: i64) -> Self;
+    /// Cast from u128, truncating if needed
     fn from_u128_unchecked(n: u128) -> Self;
+    /// Cast from i128, truncating if needed
     fn from_i128_unchecked(n: i128) -> Self;
+    /// Cast from usize, truncating if needed
     fn from_usize_unchecked(n: usize) -> Self;
+    /// Cast from isize, truncating if needed
     fn from_isize_unchecked(n: isize) -> Self;
 
+    /// Cast from u8, truncating if needed
     fn into_u8_unchecked(self) -> u8;
+    /// Cast from i8, truncating if needed
     fn into_i8_unchecked(self) -> i8;
+    /// Cast from u16, truncating if needed
     fn into_u16_unchecked(self) -> u16;
+    /// Cast from i16, truncating if needed
     fn into_i16_unchecked(self) -> i16;
+    /// Cast from u32, truncating if needed
     fn into_u32_unchecked(self) -> u32;
+    /// Cast from i32, truncating if needed
     fn into_i32_unchecked(self) -> i32;
+    /// Cast from u64, truncating if needed
     fn into_u64_unchecked(self) -> u64;
+    /// Cast from i64, truncating if needed
     fn into_i64_unchecked(self) -> i64;
+    /// Cast from u128, truncating if needed
     fn into_u128_unchecked(self) -> u128;
+    /// Cast from i128, truncating if needed
     fn into_i128_unchecked(self) -> i128;
+    /// Cast from usize, truncating if needed
     fn into_usize_unchecked(self) -> usize;
+    /// Cast from isize, truncating if needed
     fn into_isize_unchecked(self) -> isize;
 
+    /// Cast any int to any int, truncating if needed
     fn from_unchecked<N: UncheckedPrimitiveInt>(n: N) -> Self;
 }
 
@@ -246,7 +280,9 @@ impl_unchecked_int!(i128, into_i128_unchecked);
 impl_unchecked_int!(usize, into_usize_unchecked);
 impl_unchecked_int!(isize, into_isize_unchecked);
 
+/// Check if an integer type is signed
 pub trait IsSigned {
+    /// Check if the integer type is signed
     fn is_signed() -> bool;
 }
 
@@ -274,9 +310,12 @@ impl_is_signed!(i64, true);
 impl_is_signed!(i128, true);
 impl_is_signed!(isize, true);
 
+/// Split an integer into chunks that are smaller than a `usize`
 pub trait SplitFitUsize {
+    /// Integer of integer chunks
     type Iter: Iterator<Item = (usize, u8)> + ExactSizeIterator + DoubleEndedIterator;
 
+    /// Split a `count` bit integer into chunks that are smaller than a `usize`
     fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter;
 }
 

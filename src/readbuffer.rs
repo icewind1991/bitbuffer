@@ -718,7 +718,6 @@ where
     pub fn read_float<T>(&self, position: usize) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,
-        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let type_bit_size = size_of::<T>() * 8;
         if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
@@ -746,7 +745,6 @@ where
     pub unsafe fn read_float_unchecked<T>(&self, position: usize, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
-        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         if position & 7 == 0 {
             let byte_pos = position / 8;
