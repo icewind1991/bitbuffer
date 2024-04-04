@@ -1,7 +1,7 @@
 use std::mem::size_of;
 use std::ops::BitOrAssign;
 
-use num_traits::{Float, PrimInt};
+use num_traits::{Float, PrimInt, WrappingSub};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
@@ -141,7 +141,7 @@ where
     #[inline]
     pub fn read_int<T>(&mut self, count: usize) -> Result<T>
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + WrappingSub,
     {
         let result = self.buffer.read_int(self.pos, count);
         if result.is_ok() {
@@ -154,7 +154,7 @@ where
     #[inline]
     pub unsafe fn read_int_unchecked<T>(&mut self, count: usize, end: bool) -> T
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + WrappingSub,
     {
         let result = self.buffer.read_int_unchecked(self.pos, count, end);
         self.pos += count;
@@ -191,6 +191,7 @@ where
     pub fn read_float<T>(&mut self) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,
+        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let count = size_of::<T>() * 8;
         let result = self.buffer.read_float(self.pos);
@@ -205,6 +206,7 @@ where
     pub unsafe fn read_float_unchecked<T>(&mut self, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
+        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let count = size_of::<T>() * 8;
         let result = self.buffer.read_float_unchecked(self.pos, end);

@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{BitOrAssign, BitXor, Index, Range, RangeFrom};
 
-use num_traits::{Float, PrimInt};
+use num_traits::{Float, PrimInt, WrappingSub};
 
 use crate::endianness::Endianness;
 use crate::num_traits::{IsSigned, UncheckedPrimitiveFloat, UncheckedPrimitiveInt};
@@ -360,7 +360,7 @@ where
     #[inline]
     pub fn read_int<T>(&self, position: usize, count: usize) -> Result<T>
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + WrappingSub,
     {
         let type_bit_size = size_of::<T>() * 8;
 
@@ -395,7 +395,7 @@ where
     #[inline]
     pub unsafe fn read_int_unchecked<T>(&self, position: usize, count: usize, end: bool) -> T
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + WrappingSub,
     {
         let type_bit_size = size_of::<T>() * 8;
 
@@ -453,14 +453,14 @@ where
 
     fn make_signed<T>(&self, value: T, count: usize) -> T
     where
-        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor,
+        T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + BitXor + WrappingSub,
     {
         if count == 0 {
             T::zero()
         } else if T::is_signed() {
             let sign_bit = value >> (count - 1) & T::one();
             if sign_bit == T::one() {
-                value | (T::zero() - T::one()) ^ ((T::one() << count) - T::one())
+                value | (T::zero() - T::one()) ^ (T::one() << count).wrapping_sub(&T::one())
             } else {
                 value
             }
@@ -718,6 +718,7 @@ where
     pub fn read_float<T>(&self, position: usize) -> Result<T>
     where
         T: Float + UncheckedPrimitiveFloat,
+        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         let type_bit_size = size_of::<T>() * 8;
         if position + type_bit_size + USIZE_BIT_SIZE > self.bit_len() {
@@ -745,6 +746,7 @@ where
     pub unsafe fn read_float_unchecked<T>(&self, position: usize, end: bool) -> T
     where
         T: Float + UncheckedPrimitiveFloat,
+        <T as UncheckedPrimitiveFloat>::INT: WrappingSub,
     {
         if position & 7 == 0 {
             let byte_pos = position / 8;

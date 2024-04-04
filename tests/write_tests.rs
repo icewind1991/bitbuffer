@@ -1,4 +1,10 @@
+use bitbuffer::num_traits::{IsSigned, SplitFitUsize, UncheckedPrimitiveInt};
 use bitbuffer::{BigEndian, BitReadBuffer, BitReadStream, BitWriteStream, LittleEndian};
+use num_traits::{PrimInt, WrappingSub};
+use std::any::type_name;
+use std::fmt::Debug;
+use std::mem::size_of;
+use std::ops::BitOrAssign;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -216,8 +222,6 @@ fn test_write_to_slice() {
         stream.write_int(13253u64, 64).unwrap();
     }
 
-    dbg!(&data);
-
     let mut read = BitReadStream::from(BitReadBuffer::new(&data[..], LittleEndian));
 
     assert!(read.read_bool().unwrap());
@@ -248,16 +252,66 @@ fn test_write_last_slice() {
 fn test_write_be_long() {
     let mut bytes = vec![];
     let mut writer = BitWriteStream::new(&mut bytes, BigEndian);
-    let num1 = 0b11000_00111110usize;
-    let num2 = 0b1111111_11100100_00100100_11011101_00000011_11100000_01100111_11011011usize;
+    let num1 = 0b11000_00111110u64;
+    let num2 = 0b1111111_11100100_00100100_11011101_00000011_11100000_01100111_11011011u64;
     writer.write_int(num1, 13).unwrap();
     writer.write_int(num2, 63).unwrap();
 
     let buffer = BitReadBuffer::new(&bytes, BigEndian);
     let mut reader = BitReadStream::new(buffer);
-    let num1actual = reader.read_int::<usize>(13).unwrap();
-    let num2actual = reader.read_int::<usize>(63).unwrap();
+    let num1actual = reader.read_int::<u64>(13).unwrap();
+    let num2actual = reader.read_int::<u64>(63).unwrap();
 
     assert_eq!(num1actual, num1);
     assert_eq!(num2actual, num2);
+}
+
+#[test]
+fn test_write_all_lengths() {
+    let pattern = 0b10101010u8;
+    test_write_all_lengths_ty::<u8>(pattern);
+    test_write_all_lengths_ty::<u16>(u16::from_le_bytes([pattern; 2]));
+    test_write_all_lengths_ty::<u32>(u32::from_le_bytes([pattern; 4]));
+    test_write_all_lengths_ty::<u64>(u64::from_le_bytes([pattern; 8]));
+    test_write_all_lengths_ty::<u128>(u128::from_le_bytes([pattern; 16]));
+    test_write_all_lengths_ty::<usize>(usize::from_le_bytes([pattern; size_of::<usize>()]));
+
+    test_write_all_lengths_ty::<i8>(i8::from_le_bytes([pattern; 1]));
+    test_write_all_lengths_ty::<i16>(i16::from_le_bytes([pattern; 2]));
+    test_write_all_lengths_ty::<i32>(i32::from_le_bytes([pattern; 4]));
+    test_write_all_lengths_ty::<i64>(i64::from_le_bytes([pattern; 8]));
+    test_write_all_lengths_ty::<i128>(i128::from_le_bytes([pattern; 16]));
+    test_write_all_lengths_ty::<isize>(isize::from_le_bytes([pattern; size_of::<isize>()]));
+}
+
+fn test_write_all_lengths_ty<
+    T: PrimInt + BitOrAssign + IsSigned + UncheckedPrimitiveInt + Debug + SplitFitUsize + WrappingSub,
+>(
+    pattern: T,
+) {
+    let max_bits = size_of::<T>() * 8;
+    let mut bytes = Vec::new();
+    let mut writer = BitWriteStream::new(&mut bytes, BigEndian);
+
+    let mut expected = Vec::<T>::new();
+
+    for bits in 1..max_bits {
+        let value = pattern >> (max_bits - bits);
+        expected.push(value);
+        writer.write_int(value, bits).unwrap();
+    }
+
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut reader = BitReadStream::new(buffer);
+
+    for (bits, expected_value) in (1..max_bits).zip(expected.into_iter()) {
+        let actual = reader.read_int::<T>(bits).unwrap();
+        assert_eq!(
+            expected_value,
+            actual,
+            "write + read for {} bits {}",
+            bits,
+            type_name::<T>()
+        );
+    }
 }
