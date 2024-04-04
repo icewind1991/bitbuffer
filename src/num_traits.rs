@@ -277,7 +277,7 @@ impl_is_signed!(isize, true);
 pub trait SplitFitUsize {
     type Iter: Iterator<Item = (usize, u8)> + ExactSizeIterator + DoubleEndedIterator;
 
-    fn split_fit_usize<E: Endianness>(self) -> Self::Iter;
+    fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter;
 }
 
 use std::array;
@@ -288,7 +288,7 @@ macro_rules! impl_split_fit {
         impl SplitFitUsize for $type {
             type Iter = array::IntoIter<(usize, u8), 1>;
 
-            fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+            fn split_fit_usize<E: Endianness>(self, _count: u8) -> Self::Iter {
                 assert!(size_of::<Self>() < size_of::<usize>());
                 [(self as usize, size_of::<Self>() as u8 * 8)].into_iter()
             }
@@ -301,9 +301,9 @@ macro_rules! impl_split_fit_signed {
         impl SplitFitUsize for $signed_type {
             type Iter = <$unsigned_type as SplitFitUsize>::Iter;
 
-            fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+            fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter {
                 let unsigned = <$unsigned_type>::from_ne_bytes(self.to_ne_bytes());
-                unsigned.split_fit_usize::<E>()
+                unsigned.split_fit_usize::<E>(count)
             }
         }
     };
@@ -320,16 +320,20 @@ impl_split_fit!(u32);
 impl SplitFitUsize for u32 {
     type Iter = array::IntoIter<(usize, u8), 2>;
 
-    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+    fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter {
         Self::Iter::new(if E::is_le() {
             [
                 ((self & (Self::MAX >> 8)) as usize, 24),
                 ((self >> 24) as usize, 8),
             ]
         } else {
+            let offset = Self::BITS as u8 - count;
             [
-                ((self >> 24) as usize, 8),
-                ((self & (Self::MAX >> 8)) as usize, 24),
+                ((self >> 24) as usize, 8u8.saturating_sub(offset)),
+                (
+                    (self & (Self::MAX >> 8)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(8)),
+                ),
             ]
         })
     }
@@ -340,7 +344,7 @@ impl_split_fit_signed!(i32, u32);
 impl SplitFitUsize for u64 {
     type Iter = array::IntoIter<(usize, u8), 3>;
 
-    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+    fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter {
         (if E::is_le() {
             [
                 ((self & (Self::MAX >> 40)) as usize, 24),
@@ -348,10 +352,17 @@ impl SplitFitUsize for u64 {
                 ((self >> 48) as usize, 16),
             ]
         } else {
+            let offset = Self::BITS as u8 - count;
             [
-                ((self >> 48) as usize, 16),
-                ((self >> 24 & (Self::MAX >> 16)) as usize, 24),
-                ((self & (Self::MAX >> 40)) as usize, 24),
+                ((self >> 48) as usize, 16u8.saturating_sub(offset)),
+                (
+                    (self >> 24 & (Self::MAX >> 16)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(16)),
+                ),
+                (
+                    (self & (Self::MAX >> 40)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(40)),
+                ),
             ]
         })
         .into_iter()
@@ -363,7 +374,7 @@ impl_split_fit_signed!(i64, u64);
 impl SplitFitUsize for u128 {
     type Iter = array::IntoIter<(usize, u8), 6>;
 
-    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+    fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter {
         (if E::is_le() {
             [
                 ((self & (Self::MAX >> 104)) as usize, 24),
@@ -374,13 +385,29 @@ impl SplitFitUsize for u128 {
                 ((self >> 120) as usize, 8),
             ]
         } else {
+            let offset = Self::BITS as u8 - count;
             [
-                ((self >> 120) as usize, 8),
-                ((self >> 96 & (Self::MAX >> 8)) as usize, 24),
-                ((self >> 72 & (Self::MAX >> 32)) as usize, 24),
-                ((self >> 48 & (Self::MAX >> 56)) as usize, 24),
-                ((self >> 24 & (Self::MAX >> 80)) as usize, 24),
-                ((self & (Self::MAX >> 104)) as usize, 24),
+                ((self >> 120) as usize, 8u8.saturating_sub(offset)),
+                (
+                    (self >> 96 & (Self::MAX >> 8)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(8)),
+                ),
+                (
+                    (self >> 72 & (Self::MAX >> 32)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(32)),
+                ),
+                (
+                    (self >> 48 & (Self::MAX >> 56)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(56)),
+                ),
+                (
+                    (self >> 24 & (Self::MAX >> 80)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(80)),
+                ),
+                (
+                    (self & (Self::MAX >> 104)) as usize,
+                    24u8.saturating_sub(offset.saturating_sub(104)),
+                ),
             ]
         })
         .into_iter()
@@ -392,7 +419,7 @@ impl_split_fit_signed!(i128, u128);
 impl SplitFitUsize for usize {
     type Iter = array::IntoIter<(usize, u8), 2>;
 
-    fn split_fit_usize<E: Endianness>(self) -> Self::Iter {
+    fn split_fit_usize<E: Endianness>(self, count: u8) -> Self::Iter {
         (if E::is_le() {
             [
                 (
@@ -402,11 +429,12 @@ impl SplitFitUsize for usize {
                 (self >> (usize::BITS - 8), 8),
             ]
         } else {
+            let offset = Self::BITS as u8 - count;
             [
-                (self >> (usize::BITS - 8), 8),
+                (self >> (usize::BITS - 8), 8u8.saturating_sub(offset)),
                 (
-                    self & (Self::MAX >> (usize::BITS - 8)),
-                    usize::BITS as u8 - 8,
+                    self & (Self::MAX >> 8),
+                    (usize::BITS as u8 - 8).saturating_sub(offset.saturating_sub(8)),
                 ),
             ]
         })

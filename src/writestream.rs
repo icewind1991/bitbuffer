@@ -193,7 +193,7 @@ where
         if type_bit_size < USIZE_BITS || count <= (USIZE_BITS - (self.bit_len() % 8)) {
             self.push_bits(value.into_usize_unchecked(), count);
         } else {
-            self.push_non_fit_bits(value.split_fit_usize::<E>(), count)
+            self.push_non_fit_bits(value.split_fit_usize::<E>(count as u8), count)
         }
 
         Ok(())

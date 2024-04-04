@@ -243,3 +243,21 @@ fn test_write_last_slice() {
     assert_eq!(0b1000, read.read_int::<u8>(4).unwrap());
     assert!(read.read_bool().unwrap());
 }
+
+#[test]
+fn test_write_be_long() {
+    let mut bytes = vec![];
+    let mut writer = BitWriteStream::new(&mut bytes, BigEndian);
+    let num1 = 0b11000_00111110usize;
+    let num2 = 0b1111111_11100100_00100100_11011101_00000011_11100000_01100111_11011011usize;
+    writer.write_int(num1, 13).unwrap();
+    writer.write_int(num2, 63).unwrap();
+
+    let buffer = BitReadBuffer::new(&bytes, BigEndian);
+    let mut reader = BitReadStream::new(buffer);
+    let num1actual = reader.read_int::<usize>(13).unwrap();
+    let num2actual = reader.read_int::<usize>(63).unwrap();
+
+    assert_eq!(num1actual, num1);
+    assert_eq!(num2actual, num2);
+}
