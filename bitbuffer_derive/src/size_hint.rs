@@ -9,10 +9,6 @@ pub trait SizeHint {
     fn size_hint(&self) -> TokenStream;
 }
 
-pub trait SizeHintSized {
-    fn hint(&self) -> TokenStream;
-}
-
 impl SizeHint for FieldParam {
     fn size_hint(&self) -> TokenStream {
         let span = self.span;
