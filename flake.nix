@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-23.05";
+    nixpkgs.url = "nixpkgs/nixos-24.05";
     utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk?rev=3be4895447e6f0f12cba5d893329ac4c52e553e2";
     naersk.inputs.nixpkgs.follows = "nixpkgs";
