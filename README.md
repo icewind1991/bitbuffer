@@ -10,19 +10,19 @@ The main way of reading the binary data is to first create a `BitReadBuffer` ,wr
 
 Once you have a BitStream, there are 2 different approaches of reading data
 
- - read primitives, Strings and byte arrays, using `read_bool`, `read_int`, `read_float`, `read_bytes` and `read_string`
- - read any type implementing the  `BitRead` or `BitReadSized` traits using `read` and `read_sized`
-   - `BitRead` is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
-   - `BitReadSized` is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
+- read primitives, Strings and byte arrays, using `read_bool`, `read_int`, `read_float`, `read_bytes` and `read_string`
+- read any type implementing the `BitRead` or `BitReadSized` traits using `read` and `read_sized`
+  - `BitRead` is for types that can be read without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+  - `BitReadSized` is for types that require external sizing information to be read (fixed length strings, arbitrary length integers
 
 The `BitRead` and `BitReadSized` traits can be used with `#[derive]` if all fields implement `BitRead` or `BitReadSized`.
 
 For writing the data you wrap the output `Vec` into a `BitWriteStream` which can then be used in a manner similar to the `BitReadStream`
 
- - write primitives, Strings and byte arrays, using `write_bool`, `write_int`, `write_float`, `write_bytes` and `write_string`
- - write any type implementing the  `BitWrite` or `BitWriteSized` traits using `write` and `write_sized`
-   - `BitWrite` is for types that can be written without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
-   - `BitWriteSized` is for types that require external sizing information to be written (fixed length strings, arbitrary length integers
+- write primitives, Strings and byte arrays, using `write_bool`, `write_int`, `write_float`, `write_bytes` and `write_string`
+- write any type implementing the `BitWrite` or `BitWriteSized` traits using `write` and `write_sized`
+  - `BitWrite` is for types that can be written without requiring any size info (e.g. null-terminal strings, floats, whole integers, etc)
+  - `BitWriteSized` is for types that require external sizing information to be written (fixed length strings, arbitrary length integers
 
 Just like the read counterparts, `BitWrite` and `BitWriteSized` traits can be used with `#[derive]` if all fields implement `BitWrite` or `BitWriteSized`.
 
@@ -56,14 +56,14 @@ write_stream.write(&ComplexType {
     second: 12,
     third: true
 })?;
- ```
+```
 
 ## License
 
 Licensed under either of
 
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
 at your option.
 
