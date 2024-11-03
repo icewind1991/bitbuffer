@@ -863,3 +863,108 @@ impl<'a, E: Endianness, T: BitReadSized<'a, E>, const N: usize> BitReadSized<'a,
         T::bit_size_sized(size).map(|size| size * N)
     }
 }
+
+#[test]
+fn test_array_sizes() {
+    assert_eq!(None, <[String; 16] as BitRead<LittleEndian>>::bit_size());
+    assert_eq!(
+        Some(3 * 8 * 16),
+        <[String; 16] as BitReadSized<LittleEndian>>::bit_size_sized(3)
+    );
+
+    assert_eq!(
+        Some(16 * 8),
+        <[u8; 16] as BitRead<LittleEndian>>::bit_size()
+    );
+
+    assert_eq!(
+        Some(8 * 16),
+        <Cow<[u8]> as BitReadSized<LittleEndian>>::bit_size_sized(16)
+    );
+    assert_eq!(
+        Some(8 * 16),
+        <Cow<str> as BitReadSized<LittleEndian>>::bit_size_sized(16)
+    );
+    assert_eq!(
+        Some(16),
+        <BitReadStream<LittleEndian> as BitReadSized<LittleEndian>>::bit_size_sized(16)
+    );
+
+    assert_eq!(
+        Some(8 * 16),
+        <Vec<u8> as BitReadSized<LittleEndian>>::bit_size_sized(16)
+    );
+    assert_eq!(
+        Some(8 * 16 + 16 * 16),
+        <HashMap<u8, u16> as BitReadSized<LittleEndian>>::bit_size_sized(16)
+    );
+}
+
+#[test]
+fn test_wrapper_sizes() {
+    fn test_bit_size_le<'a, T: BitRead<'a, LittleEndian>, U: BitRead<'a, LittleEndian>>() {
+        assert_eq!(T::bit_size(), U::bit_size());
+    }
+
+    fn test_bit_size_sized_le<
+        'a,
+        T: BitReadSized<'a, LittleEndian>,
+        U: BitReadSized<'a, LittleEndian>,
+    >() {
+        assert_eq!(T::bit_size_sized(3), U::bit_size_sized(3));
+    }
+    test_bit_size_le::<String, Arc<String>>();
+
+    test_bit_size_sized_le::<String, Arc<String>>();
+    test_bit_size_sized_le::<String, Rc<String>>();
+    test_bit_size_sized_le::<String, Box<String>>();
+    test_bit_size_sized_le::<String, LazyBitReadSized<String, LittleEndian>>();
+
+    test_bit_size_le::<u8, Arc<u8>>();
+    test_bit_size_le::<u8, Rc<u8>>();
+    test_bit_size_le::<u8, Box<u8>>();
+    test_bit_size_le::<u8, LazyBitRead<u8, LittleEndian>>();
+}
+
+#[test]
+fn test_unsized_sizes() {
+    fn test_bit_size_none<'a, T: BitRead<'a, LittleEndian>>() {
+        assert_eq!(None, T::bit_size());
+    }
+    fn test_bit_size_sized_none<'a, T: BitReadSized<'a, LittleEndian>>() {
+        assert_eq!(None, T::bit_size_sized(3));
+    }
+    fn test_bit_size_sized_some<'a, T: BitReadSized<'a, LittleEndian>>() {
+        assert!(T::bit_size_sized(3).is_some());
+    }
+    test_bit_size_none::<String>();
+    test_bit_size_none::<Cow<str>>();
+    test_bit_size_sized_none::<Option<String>>();
+
+    test_bit_size_none::<Option<u8>>();
+
+    test_bit_size_sized_some::<Cow<[u8]>>();
+    test_bit_size_sized_some::<String>();
+    test_bit_size_sized_some::<String>();
+}
+
+#[test]
+fn test_primitive_sizes() {
+    fn test_bit_size<'a, T: BitRead<'a, LittleEndian>>() {
+        assert_eq!(Some(size_of::<T>() * 8), T::bit_size());
+    }
+    test_bit_size::<u8>();
+    test_bit_size::<u16>();
+    test_bit_size::<u32>();
+    test_bit_size::<u64>();
+    test_bit_size::<u128>();
+    test_bit_size::<i8>();
+    test_bit_size::<i16>();
+    test_bit_size::<i32>();
+    test_bit_size::<i64>();
+    test_bit_size::<i128>();
+    test_bit_size::<f32>();
+    test_bit_size::<f64>();
+
+    assert_eq!(Some(1), <bool as BitRead<LittleEndian>>::bit_size());
+}
