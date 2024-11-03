@@ -4,3 +4,4 @@
 *.bench
 result
 .direnv
+mutants.out*
