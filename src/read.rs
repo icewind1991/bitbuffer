@@ -753,6 +753,69 @@ impl<'a, T: BitReadSized<'a, E>, E: Endianness> BitReadSized<'a, E> for LazyBitR
     }
 }
 
+impl<'a, E: Endianness, T: BitReadSized<'a, E>> BitReadSized<'a, E> for Arc<T> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
+        Ok(Arc::new(T::read(stream, size)?))
+    }
+
+    #[inline]
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<'a, E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
+        Ok(Arc::new(T::read_unchecked(stream, size, end)?))
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        T::bit_size_sized(size)
+    }
+}
+
+impl<'a, E: Endianness, T: BitReadSized<'a, E>> BitReadSized<'a, E> for Rc<T> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
+        Ok(Rc::new(T::read(stream, size)?))
+    }
+
+    #[inline]
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<'a, E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
+        Ok(Rc::new(T::read_unchecked(stream, size, end)?))
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        T::bit_size_sized(size)
+    }
+}
+
+impl<'a, E: Endianness, T: BitReadSized<'a, E>> BitReadSized<'a, E> for Box<T> {
+    #[inline]
+    fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
+        Ok(Box::new(T::read(stream, size)?))
+    }
+
+    #[inline]
+    unsafe fn read_unchecked(
+        stream: &mut BitReadStream<'a, E>,
+        size: usize,
+        end: bool,
+    ) -> Result<Self> {
+        Ok(Box::new(T::read_unchecked(stream, size, end)?))
+    }
+
+    #[inline]
+    fn bit_size_sized(size: usize) -> Option<usize> {
+        T::bit_size_sized(size)
+    }
+}
+
 impl<'a, E: Endianness, T: BitReadSized<'a, E>, const N: usize> BitReadSized<'a, E> for [T; N] {
     #[inline]
     fn read(stream: &mut BitReadStream<'a, E>, size: usize) -> Result<Self> {
