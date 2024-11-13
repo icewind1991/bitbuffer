@@ -260,11 +260,9 @@ const BARE_ATTRS: &[&str] = &[
 
 fn parse_attrs<T: Parse + Default + Merge>(attrs: &[Attribute]) -> Result<T> {
     let mut result = T::default();
-    for attr in attrs {
-        let parsed = if BARE_ATTRS
-            .iter()
-            .any(|name| attr.meta.path().is_ident(name))
-        {
+    for attr in attrs.iter() {
+        let attr_path = attr.meta.path();
+        let parsed = if BARE_ATTRS.iter().any(|name| attr_path.is_ident(name)) {
             let wrapped_meta = Meta::List(MetaList {
                 path: parse_str("bitbuffer").unwrap(),
                 delimiter: MacroDelimiter::Paren(Paren {
@@ -278,15 +276,17 @@ fn parse_attrs<T: Parse + Default + Merge>(attrs: &[Attribute]) -> Result<T> {
                 bracket_token: attr.bracket_token,
                 meta: wrapped_meta,
             };
-            wrapped.parse_args()
+            Some(wrapped.parse_args())
+        } else if attr_path.is_ident("bitbuffer") {
+            Some(attr.parse_args())
         } else {
-            attr.parse_args()
+            None
         };
         match parsed {
-            Ok(parsed) => {
+            Some(Ok(parsed)) => {
                 result.merge(parsed);
             }
-            Err(e) => {
+            Some(Err(e)) => {
                 // since we first parse our attrs as InputAttrs, and then the same attrs as either an Struct or EnumAttrs
                 // when doing the first pass we expect a bunch of extra parameters
                 let is_first_pass = type_name::<T>() == type_name::<InputAttrs>();
@@ -294,6 +294,7 @@ fn parse_attrs<T: Parse + Default + Merge>(attrs: &[Attribute]) -> Result<T> {
                     return Err(e);
                 }
             }
+            None => {}
         }
     }
     Ok(result)

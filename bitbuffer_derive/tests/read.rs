@@ -244,10 +244,11 @@ fn test_read_struct3() {
     assert_eq!(None, bit_size_of::<TestStruct3<LittleEndian>>());
 }
 
-#[derive(BitRead, PartialEq, Debug)]
+#[derive(BitRead, PartialEq, Debug, Default)]
 #[discriminant_bits = 2]
 enum TestEnumRest {
     Foo,
+    #[default]
     Bar,
     #[discriminant = "_"]
     Asd,
