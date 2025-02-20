@@ -35,6 +35,12 @@ pub fn derive_encode_enum(params: &EnumParam, unchecked: bool) -> TokenStream {
             }
         });
 
+    let r#unsafe = if unchecked {
+        quote_spanned!(span => unsafe)
+    } else {
+        quote_spanned!(span =>)
+    };
+
     let read_fn = Ident::new(
         if unchecked {
             "read_int_unchecked"
@@ -58,7 +64,7 @@ pub fn derive_encode_enum(params: &EnumParam, unchecked: bool) -> TokenStream {
 
     quote_spanned! {span =>
         #[allow(clippy::unnecessary_cast)]
-        let discriminant:#repr = __stream.#read_fn(#discriminant_bits as usize, #end_param)#error_handle;
+        let discriminant:#repr = #r#unsafe { __stream.#read_fn(#discriminant_bits as usize, #end_param)#error_handle };
         match discriminant {
             #(#match_arms)*
             _ => {

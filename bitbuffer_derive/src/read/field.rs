@@ -14,6 +14,12 @@ pub fn read_struct_or_enum(
         let align = &f.align;
         let field_type = &f.ty;
         let span = f.span();
+        let r#unsafe = if unchecked {
+            quote_spanned!(span => unsafe)
+        } else {
+            quote_spanned!(span =>)
+        };
+
         let read_fn = Ident::new(if unchecked { "read_unchecked" } else { "read" }, span);
         let read_sized_fn = Ident::new(
             if unchecked {
@@ -31,7 +37,7 @@ pub fn read_struct_or_enum(
         match &f.size {
             Some(size) => {
                 quote_spanned! { span =>
-                    {
+                    #r#unsafe {
                         #align
                         let _size: usize = #size;
                         __stream.#read_sized_fn::<#field_type>(_size, #end_param)?
@@ -40,7 +46,7 @@ pub fn read_struct_or_enum(
             }
             None => {
                 quote_spanned! { span =>
-                    {
+                    #r#unsafe {
                         #align
                         __stream.#read_fn::<#field_type>(#end_param)?
                     }
