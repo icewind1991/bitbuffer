@@ -12,9 +12,9 @@ name = "bitbuffer_derive"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0.66", features = ["extra-traits"] }
-quote = "1.0.36"
-proc-macro2 = "1.0.85"
+syn = { version = "2.0.98", features = ["extra-traits"] }
+quote = "1.0.38"
+proc-macro2 = "1.0.93"
 structmeta = "0.3.0"
 merge = "0.1.0"
 
