@@ -10,7 +10,8 @@
       inputs.flakelight.follows = "flakelight";
     };
   };
-  outputs = { mill-scale, ... }: mill-scale ./. {
-    devShell.packages = pkgs: with pkgs; [ cargo-expand ];
-  };
+  outputs = {mill-scale, ...}:
+    mill-scale ./. {
+      devShell.packages = pkgs: with pkgs; [cargo-expand];
+    };
 }

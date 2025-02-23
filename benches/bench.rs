@@ -16,24 +16,24 @@ fn read_perf<E: Endianness>(buffer: &BitReadBuffer<E>) -> u16 {
     }
 }
 
-const ONES: [u8; 1024 * 1024 * 10] = [1u8; 1024 * 1024 * 10];
+const ONES: &[u8; 1024 * 1024 * 10] = &[1u8; 1024 * 1024 * 10];
 
 fn perf_le() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let data = read_perf(&buffer);
     assert_eq!(data, 0);
     black_box(data);
 }
 
 fn perf_be() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let data = read_perf(&buffer);
     assert_eq!(data, 0);
     black_box(data);
 }
 
 fn perf_f32_be() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let mut pos = 0;
     let len = buffer.bit_len();
     let mut result: f32 = 0.0;
@@ -50,7 +50,7 @@ fn perf_f32_be() {
 }
 
 fn perf_f32_le() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let mut pos = 0;
     let len = buffer.bit_len();
     let mut result: f32 = 0.0;
@@ -69,7 +69,7 @@ fn perf_f32_le() {
 const F64_RESULT: f64 = 0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010156250477904244;
 
 fn perf_f64() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let mut pos = 0;
     let len = buffer.bit_len();
     let mut result: f64 = 0.0;
@@ -86,7 +86,7 @@ fn perf_f64() {
 }
 
 fn perf_bool() {
-    let buffer = BitReadBuffer::new(black_box(&ONES), BigEndian);
+    let buffer = BitReadBuffer::new(black_box(ONES), BigEndian);
     let mut pos = 0;
     let len = buffer.bit_len();
     loop {

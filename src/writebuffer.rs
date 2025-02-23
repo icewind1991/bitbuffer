@@ -8,7 +8,7 @@ enum WriteData<'a> {
     Slice { data: &'a mut [u8], length: usize },
 }
 
-impl<'a> WriteData<'a> {
+impl WriteData<'_> {
     fn pop(&mut self) -> Option<u8> {
         match self {
             WriteData::Vec(vec) => vec.pop(),
@@ -51,7 +51,7 @@ impl<'a> WriteData<'a> {
     }
 }
 
-impl<'a> Index<usize> for WriteData<'a> {
+impl Index<usize> for WriteData<'_> {
     type Output = u8;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -62,7 +62,7 @@ impl<'a> Index<usize> for WriteData<'a> {
     }
 }
 
-impl<'a> IndexMut<usize> for WriteData<'a> {
+impl IndexMut<usize> for WriteData<'_> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         match self {
             WriteData::Vec(vec) => &mut vec[index],
@@ -71,7 +71,7 @@ impl<'a> IndexMut<usize> for WriteData<'a> {
     }
 }
 
-impl<'a> Index<Range<usize>> for WriteData<'a> {
+impl Index<Range<usize>> for WriteData<'_> {
     type Output = [u8];
 
     fn index(&self, index: Range<usize>) -> &Self::Output {
@@ -82,7 +82,7 @@ impl<'a> Index<Range<usize>> for WriteData<'a> {
     }
 }
 
-impl<'a> IndexMut<Range<usize>> for WriteData<'a> {
+impl IndexMut<Range<usize>> for WriteData<'_> {
     fn index_mut(&mut self, index: Range<usize>) -> &mut Self::Output {
         match self {
             WriteData::Vec(vec) => &mut vec[index],
@@ -157,7 +157,7 @@ impl<'a, E: Endianness> WriteBuffer<'a, E> {
         let merged_byte_count = (count + bit_offset + 7) / 8;
 
         if E::is_le() {
-            let merged = last_written_byte as usize | bits << bit_offset;
+            let merged = last_written_byte as usize | (bits << bit_offset);
             self.bytes
                 .extend_from_slice(&merged.to_le_bytes()[0..merged_byte_count]);
         } else {

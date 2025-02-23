@@ -756,7 +756,7 @@ where
     }
 }
 
-impl<'a, E: Endianness> Clone for BitReadStream<'a, E> {
+impl<E: Endianness> Clone for BitReadStream<'_, E> {
     fn clone(&self) -> Self {
         BitReadStream {
             buffer: self.buffer.clone(),
@@ -766,7 +766,7 @@ impl<'a, E: Endianness> Clone for BitReadStream<'a, E> {
     }
 }
 
-impl<'a, E: Endianness> PartialEq for BitReadStream<'a, E> {
+impl<E: Endianness> PartialEq for BitReadStream<'_, E> {
     fn eq(&self, other: &Self) -> bool {
         // clones so we can mut
         let mut self_clone = self.clone();

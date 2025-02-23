@@ -23,7 +23,7 @@ pub(crate) enum Data<'a> {
     Owned(Rc<[u8]>),
 }
 
-impl<'a> Data<'a> {
+impl Data<'_> {
     pub fn as_slice(&self) -> &[u8] {
         match self {
             Data::Borrowed(bytes) => bytes,
@@ -44,7 +44,7 @@ impl<'a> Data<'a> {
     }
 }
 
-impl<'a> Index<Range<usize>> for Data<'a> {
+impl Index<Range<usize>> for Data<'_> {
     type Output = [u8];
 
     fn index(&self, index: Range<usize>) -> &Self::Output {
@@ -52,7 +52,7 @@ impl<'a> Index<Range<usize>> for Data<'a> {
     }
 }
 
-impl<'a> Index<RangeFrom<usize>> for Data<'a> {
+impl Index<RangeFrom<usize>> for Data<'_> {
     type Output = [u8];
 
     fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
@@ -60,7 +60,7 @@ impl<'a> Index<RangeFrom<usize>> for Data<'a> {
     }
 }
 
-impl<'a> Index<usize> for Data<'a> {
+impl Index<usize> for Data<'_> {
     type Output = u8;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -68,7 +68,7 @@ impl<'a> Index<usize> for Data<'a> {
     }
 }
 
-impl<'a> Clone for Data<'a> {
+impl Clone for Data<'_> {
     fn clone(&self) -> Self {
         match self {
             Data::Borrowed(bytes) => Data::Borrowed(bytes),
@@ -458,7 +458,7 @@ where
         if count == 0 {
             T::zero()
         } else if T::is_signed() {
-            let sign_bit = value >> (count - 1) & T::one();
+            let sign_bit = (value >> (count - 1)) & T::one();
             if sign_bit == T::one() {
                 value | (T::zero() - T::one()) ^ (T::one() << count).wrapping_sub(&T::one())
             } else {
@@ -794,13 +794,13 @@ impl<'a, E: Endianness> From<&'a [u8]> for BitReadBuffer<'a, E> {
     }
 }
 
-impl<'a, E: Endianness> From<Vec<u8>> for BitReadBuffer<'a, E> {
+impl<E: Endianness> From<Vec<u8>> for BitReadBuffer<'_, E> {
     fn from(bytes: Vec<u8>) -> Self {
         BitReadBuffer::new_owned(bytes, E::endianness())
     }
 }
 
-impl<'a, E: Endianness> Clone for BitReadBuffer<'a, E> {
+impl<E: Endianness> Clone for BitReadBuffer<'_, E> {
     fn clone(&self) -> Self {
         BitReadBuffer {
             bytes: self.bytes.clone(),
@@ -822,7 +822,7 @@ impl<E: Endianness> Debug for BitReadBuffer<'_, E> {
     }
 }
 
-impl<'a, E: Endianness> PartialEq for BitReadBuffer<'a, E> {
+impl<E: Endianness> PartialEq for BitReadBuffer<'_, E> {
     fn eq(&self, other: &Self) -> bool {
         if self.bit_len != other.bit_len {
             return false;

@@ -1,11 +1,11 @@
+//! some extra number traits
+
 use crate::Endianness;
 use num_traits::{PrimInt, WrappingSub};
 use std::array::TryFromSliceError;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::ops::{BitOrAssign, BitXor};
-
-/// some extra number traits
 
 /// Allow casting floats unchecked
 pub trait UncheckedPrimitiveFloat: Sized {
@@ -387,7 +387,7 @@ impl SplitFitUsize for u64 {
         (if E::is_le() {
             [
                 ((self & (Self::MAX >> 40)) as usize, 24),
-                ((self >> 24 & (Self::MAX >> 16)) as usize, 24),
+                (((self >> 24) & (Self::MAX >> 16)) as usize, 24),
                 ((self >> 48) as usize, 16),
             ]
         } else {
@@ -395,7 +395,7 @@ impl SplitFitUsize for u64 {
             [
                 ((self >> 48) as usize, 16u8.saturating_sub(offset)),
                 (
-                    (self >> 24 & (Self::MAX >> 16)) as usize,
+                    ((self >> 24) & (Self::MAX >> 16)) as usize,
                     24u8.saturating_sub(offset.saturating_sub(16)),
                 ),
                 (
@@ -417,10 +417,10 @@ impl SplitFitUsize for u128 {
         (if E::is_le() {
             [
                 ((self & (Self::MAX >> 104)) as usize, 24),
-                ((self >> 24 & (Self::MAX >> 80)) as usize, 24),
-                ((self >> 48 & (Self::MAX >> 56)) as usize, 24),
-                ((self >> 72 & (Self::MAX >> 32)) as usize, 24),
-                ((self >> 96 & (Self::MAX >> 8)) as usize, 24),
+                (((self >> 24) & (Self::MAX >> 80)) as usize, 24),
+                (((self >> 48) & (Self::MAX >> 56)) as usize, 24),
+                (((self >> 72) & (Self::MAX >> 32)) as usize, 24),
+                (((self >> 96) & (Self::MAX >> 8)) as usize, 24),
                 ((self >> 120) as usize, 8),
             ]
         } else {
@@ -428,19 +428,19 @@ impl SplitFitUsize for u128 {
             [
                 ((self >> 120) as usize, 8u8.saturating_sub(offset)),
                 (
-                    (self >> 96 & (Self::MAX >> 8)) as usize,
+                    ((self >> 96) & (Self::MAX >> 8)) as usize,
                     24u8.saturating_sub(offset.saturating_sub(8)),
                 ),
                 (
-                    (self >> 72 & (Self::MAX >> 32)) as usize,
+                    ((self >> 72) & (Self::MAX >> 32)) as usize,
                     24u8.saturating_sub(offset.saturating_sub(32)),
                 ),
                 (
-                    (self >> 48 & (Self::MAX >> 56)) as usize,
+                    ((self >> 48) & (Self::MAX >> 56)) as usize,
                     24u8.saturating_sub(offset.saturating_sub(56)),
                 ),
                 (
-                    (self >> 24 & (Self::MAX >> 80)) as usize,
+                    ((self >> 24) & (Self::MAX >> 80)) as usize,
                     24u8.saturating_sub(offset.saturating_sub(80)),
                 ),
                 (

@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<'a, E> BitWriteStream<'a, E>
+impl<E> BitWriteStream<'_, E>
 where
     E: Endianness,
 {
